@@ -43,6 +43,14 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// Apply EF migrations automatically in development
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    await db.Database.MigrateAsync();
+}
+
 app.MapDefaultEndpoints();
 
 if (app.Environment.IsDevelopment())
