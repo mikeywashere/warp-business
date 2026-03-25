@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using WarpBusiness.Api.Identity;
 using WarpBusiness.Shared.Auth;
 
@@ -95,5 +96,20 @@ public class AuthController : ControllerBase
             user.FullName,
             roles,
             DateTimeOffset.UtcNow));
+    }
+
+    [HttpGet("provider")]
+    [AllowAnonymous]
+    public IActionResult GetProvider([FromServices] IOptions<AuthProviderOptions> options)
+    {
+        var active = options.Value.ActiveProvider;
+        var keycloak = options.Value.Keycloak;
+
+        return Ok(new AuthProviderInfo(
+            ActiveProvider: active.ToString(),
+            KeycloakAuthUrl: active == AuthProviderType.Keycloak && !string.IsNullOrEmpty(keycloak.Authority)
+                ? $"{keycloak.Authority}/protocol/openid-connect/auth"
+                : null,
+            SupportsLocalLogin: active == AuthProviderType.Local));
     }
 }

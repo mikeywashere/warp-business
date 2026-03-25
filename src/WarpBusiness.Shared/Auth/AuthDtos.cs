@@ -15,4 +15,11 @@ public record AuthResponse(
     string Email,
     string FullName,
     IList<string> Roles,
-    DateTimeOffset ExpiresAt);
+    DateTimeOffset ExpiresAt,
+    string Provider = "Local");
+
+/// <summary>Returned by GET /api/auth/provider — tells the frontend which auth flow to use</summary>
+public record AuthProviderInfo(
+    string ActiveProvider,
+    string? KeycloakAuthUrl,
+    bool SupportsLocalLogin);

@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.AppHost" Version="9.2.1" />
+    <PackageReference Include="Aspire.Hosting.Keycloak" Version="13.2.0-preview.1.26170.3" />
     <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="9.2.1" />
   </ItemGroup>
 
