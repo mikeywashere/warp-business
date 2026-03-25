@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "assignments": [
+    {
+      "assignment_id": "warp-business-001",
+      "universe": "Alien",
+      "created_at": "2026-03-25T19:11:05Z",
+      "agents": [
+        { "name": "Ripley", "role": "Lead" },
+        { "name": "Vasquez", "role": "Frontend Dev" },
+        { "name": "Hicks", "role": "Backend Dev" },
+        { "name": "Bishop", "role": "Auth Specialist" },
+        { "name": "Hudson", "role": "Tester" }
+      ]
+    }
+  ]
+}
