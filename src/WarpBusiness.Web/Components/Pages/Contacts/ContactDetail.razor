@@ -1,0 +1,364 @@
+@page "/contacts/{Id:guid}"
+@using WarpBusiness.Shared.Crm
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>@(_contact?.FullName ?? "Contact") — Warp Business</PageTitle>
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_contact is null)
+{
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">Contact not found</h4>
+        <p>The contact you're looking for doesn't exist or has been deleted.</p>
+        <a href="/contacts" class="btn btn-primary">Back to Contacts</a>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">@_contact.FullName</h1>
+        <div>
+            <a href="/contacts" class="btn btn-outline-secondary me-2">
+                <span class="bi bi-arrow-left"></span> Back
+            </a>
+            @if (!_editMode)
+            {
+                <button class="btn btn-primary" @onclick="EnterEditMode">
+                    <span class="bi bi-pencil"></span> Edit
+                </button>
+                <button class="btn btn-danger" @onclick="ShowDeleteConfirmation">
+                    <span class="bi bi-trash"></span> Delete
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible" role="alert">
+            @_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (_editMode)
+    {
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Edit Contact</h5>
+                <EditForm Model="_editRequest" OnValidSubmit="SaveChanges">
+                    <DataAnnotationsValidator />
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name</label>
+                            <InputText @bind-Value="_editRequest.FirstName" class="form-control" />
+                            <ValidationMessage For="() => _editRequest.FirstName" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name</label>
+                            <InputText @bind-Value="_editRequest.LastName" class="form-control" />
+                            <ValidationMessage For="() => _editRequest.LastName" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText @bind-Value="_editRequest.Email" class="form-control" type="email" />
+                            <ValidationMessage For="() => _editRequest.Email" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <InputText @bind-Value="_editRequest.Phone" class="form-control" />
+                            <ValidationMessage For="() => _editRequest.Phone" />
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Job Title</label>
+                            <InputText @bind-Value="_editRequest.JobTitle" class="form-control" />
+                            <ValidationMessage For="() => _editRequest.JobTitle" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <InputSelect @bind-Value="_editRequest.Status" class="form-select">
+                                <option value="Lead">Lead</option>
+                                <option value="Customer">Customer</option>
+                                <option value="Inactive">Inactive</option>
+                            </InputSelect>
+                            <ValidationMessage For="() => _editRequest.Status" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Company</label>
+                        @if (_companiesLoading)
+                        {
+                            <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
+                        }
+                        else
+                        {
+                            <InputSelect @bind-Value="_editRequest.CompanyId" class="form-select">
+                                <option value="">-- No Company --</option>
+                                @if (_companies is not null)
+                                {
+                                    @foreach (var company in _companies.Items)
+                                    {
+                                        <option value="@company.Id">@company.Name</option>
+                                    }
+                                }
+                            </InputSelect>
+                        }
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" disabled="@_saving">
+                            @if (_saving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Save Changes
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">First Name</label>
+                        <p class="mb-0 fw-semibold">@_contact.FirstName</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Last Name</label>
+                        <p class="mb-0 fw-semibold">@_contact.LastName</p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Email</label>
+                        <p class="mb-0">
+                            @if (!string.IsNullOrEmpty(_contact.Email))
+                            {
+                                <a href="mailto:@_contact.Email">@_contact.Email</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Phone</label>
+                        <p class="mb-0">@(_contact.Phone ?? "—")</p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Job Title</label>
+                        <p class="mb-0">@(_contact.JobTitle ?? "—")</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Status</label>
+                        <p class="mb-0">
+                            <span class="badge @GetStatusBadge(_contact.Status)">@_contact.Status</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Company</label>
+                        <p class="mb-0">@(_contact.CompanyName ?? "—")</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Created</label>
+                        <p class="mb-0 text-muted small">@_contact.CreatedAt.ToString("g")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_showDeleteModal)
+    {
+        <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete <strong>@_contact.FullName</strong>?</p>
+                        <p class="text-danger">This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@_deleting">
+                            @if (_deleting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private ContactDto? _contact;
+    private PagedResult<CompanyDto>? _companies;
+    private bool _loading = true;
+    private bool _companiesLoading = false;
+    private bool _editMode = false;
+    private bool _saving = false;
+    private bool _deleting = false;
+    private bool _showDeleteModal = false;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    private EditContactModel _editRequest = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadContactAsync();
+    }
+
+    private async Task LoadContactAsync()
+    {
+        _loading = true;
+        _contact = await Api.GetContactAsync(Id);
+        _loading = false;
+    }
+
+    private async Task EnterEditMode()
+    {
+        _editMode = true;
+        _errorMessage = null;
+        _successMessage = null;
+        
+        _editRequest = new EditContactModel
+        {
+            FirstName = _contact!.FirstName,
+            LastName = _contact.LastName,
+            Email = _contact.Email,
+            Phone = _contact.Phone,
+            JobTitle = _contact.JobTitle,
+            CompanyId = _contact.CompanyId?.ToString(),
+            Status = _contact.Status
+        };
+
+        _companiesLoading = true;
+        _companies = await Api.GetCompaniesAsync(1, 100);
+        _companiesLoading = false;
+    }
+
+    private void CancelEdit()
+    {
+        _editMode = false;
+        _errorMessage = null;
+    }
+
+    private async Task SaveChanges()
+    {
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        var request = new UpdateContactRequest(
+            _editRequest.FirstName!,
+            _editRequest.LastName!,
+            _editRequest.Email,
+            _editRequest.Phone,
+            _editRequest.JobTitle,
+            string.IsNullOrEmpty(_editRequest.CompanyId) ? null : Guid.Parse(_editRequest.CompanyId),
+            _editRequest.Status!
+        );
+
+        var result = await Api.UpdateContactAsync(Id, request);
+
+        if (result is not null)
+        {
+            _contact = result;
+            _editMode = false;
+            _successMessage = "Contact updated successfully.";
+        }
+        else
+        {
+            _errorMessage = "Failed to update contact. Please try again.";
+        }
+
+        _saving = false;
+    }
+
+    private void ShowDeleteConfirmation()
+    {
+        _showDeleteModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        _showDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        _deleting = true;
+        _errorMessage = null;
+
+        await Api.DeleteContactAsync(Id);
+        Nav.NavigateTo("/contacts");
+    }
+
+    private static string GetStatusBadge(string status) => status switch
+    {
+        "Customer" => "bg-success",
+        "Lead" => "bg-warning text-dark",
+        "Inactive" => "bg-secondary",
+        _ => "bg-primary"
+    };
+
+    private class EditContactModel
+    {
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? JobTitle { get; set; }
+        public string? CompanyId { get; set; }
+        public string? Status { get; set; }
+    }
+}

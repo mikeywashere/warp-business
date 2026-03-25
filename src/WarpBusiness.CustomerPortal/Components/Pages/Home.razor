@@ -1,0 +1,38 @@
+﻿@page "/"
+@using WarpBusiness.CustomerPortal.Services
+@inject CustomerAuthState AuthState
+@inject NavigationManager Nav
+
+<PageTitle>My Account — Warp Customer Portal</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    Nav.NavigateTo("/login");
+    return;
+}
+
+<div class="container mt-4">
+    <h1 class="h4">Welcome, @AuthState.UserFullName</h1>
+    <p class="text-muted">@AuthState.Email</p>
+
+    <div class="row g-3 mt-2">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">My Profile</h5>
+                    <p class="card-text text-muted small">View and update your contact information.</p>
+                    <a href="/my-profile" class="btn btn-outline-primary btn-sm">View Profile</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">My Deals</h5>
+                    <p class="card-text text-muted small">Check the status of your active proposals.</p>
+                    <a href="/my-deals" class="btn btn-outline-primary btn-sm">View Deals</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

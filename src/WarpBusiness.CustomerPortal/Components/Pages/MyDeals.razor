@@ -1,0 +1,14 @@
+@page "/my-deals"
+@using WarpBusiness.CustomerPortal.Services
+@inject CustomerAuthState AuthState
+@inject NavigationManager Nav
+
+<PageTitle>My Deals — Warp Customer Portal</PageTitle>
+
+@if (!AuthState.IsAuthenticated) { Nav.NavigateTo("/login"); return; }
+
+<div class="container mt-4">
+    <h1 class="h4">My Deals</h1>
+    <p class="text-muted">Active proposals and their current status will appear here.</p>
+    <div class="alert alert-info">Coming soon — deal visibility is being configured by your account manager.</div>
+</div>

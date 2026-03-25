@@ -48,3 +48,43 @@
 - Subscribes to `AuthState.OnChange` in `OnInitialized`, unsubscribes in `Dispose`
 - Bottom of nav shows user's full name + Sign Out button when authenticated, Sign In link when not
 
+### 2026-03-25: Contact Detail, Company List, Admin Pages
+
+**Contact Detail Page (`ContactDetail.razor`):**
+- Route: `/contacts/{Id:guid}` — Full detail view with inline edit mode toggle
+- Read view: Shows all contact fields with proper formatting (email as link, status badges)
+- Edit mode: EditForm with InputText/InputSelect controls, company picker dropdown from API
+- Company picker loads via `GetCompaniesAsync()` on edit mode entry
+- Delete confirmation modal before calling `DeleteContactAsync()`, redirects to `/contacts` on success
+- 404 handling: "Contact not found" message with back link
+- ContactList already linked names to detail view (line 54)
+
+**Company List Page (`CompanyList.razor`):**
+- Route: `/companies` — Paged table with search, inline create modal, delete actions
+- Columns: Name (with website link if available), Industry, Contact Count badge
+- Create modal: EditForm for all CompanyDto fields (Name, Website, Industry, Email, Phone, EmployeeCount)
+- Delete: Shows warning if `ContactCount > 0`, only allows delete if zero
+- Search/pagination pattern matches ContactList
+
+**Admin User Management (`UserManagement.razor`):**
+- Route: `/admin/users` with `@attribute [Authorize(Roles = "Admin")]`
+- Top section shows active auth provider from `GET /api/auth/provider` with guidance note
+- User table: FullName, Email, Provider badge, Roles (Admin = red badge), LastLoginAt
+- Role actions: "Make Admin" / "Remove Admin" buttons per user
+- Calls `SetUserRoleAsync(userId, "Admin", add/remove)`
+
+**WarpApiClient Additions:**
+- Contact methods: `GetContactAsync`, `UpdateContactAsync`, `DeleteContactAsync` (already existed, confirmed working)
+- Company methods: `GetCompaniesAsync`, `CreateCompanyAsync`, `DeleteCompanyAsync`
+- Admin methods: `GetUsersAsync`, `SetUserRoleAsync`
+
+**Shared DTOs:**
+- Added `UserSummaryDto` to `AuthDtos.cs` with Id, Email, FullName, Roles, Provider, LastLoginAt
+
+**NavMenu Updates:**
+- Companies link already present in CRM section
+- New "ADMIN" section with "Users" link, only shown when `AuthState.Roles.Contains("Admin")`
+- `IsAdmin` computed property checks roles from auth state
+
+**Razor Gotcha:** Cannot use escaped quotes `\"` in @onclick lambda expressions — Razor parser treats backslash as escape character. Fixed by extracting "Admin" to const `AdminRole`.
+

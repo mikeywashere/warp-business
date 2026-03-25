@@ -6,7 +6,7 @@ public class AuthStateService
 {
     private AuthResponse? _currentAuth;
 
-    public bool IsAuthenticated => _currentAuth is not null && _currentAuth.ExpiresAt > DateTimeOffset.UtcNow;
+    public bool IsAuthenticated => _currentAuth is not null;
     public string? UserEmail => _currentAuth?.Email;
     public string? UserFullName => _currentAuth?.FullName;
     public IList<string> Roles => _currentAuth?.Roles ?? [];

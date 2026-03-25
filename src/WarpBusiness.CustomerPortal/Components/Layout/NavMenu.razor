@@ -1,0 +1,54 @@
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">Customer Portal</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/my-profile">
+                <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> My Profile
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="/my-deals">
+                <span class="bi bi-briefcase-fill-nav-menu" aria-hidden="true"></span> My Deals
+            </NavLink>
+        </div>
+
+        @if (AuthState?.IsAuthenticated == true)
+        {
+            <div class="nav-item px-3 mt-3 border-top pt-2">
+                <div class="nav-link text-white-50 small">@AuthState.Email</div>
+                <button class="btn btn-sm btn-outline-light w-100 mt-1" @onclick="Logout">Sign out</button>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/login">
+                    <span class="bi bi-box-arrow-in-right-fill-nav-menu" aria-hidden="true"></span> Sign In
+                </NavLink>
+            </div>
+        }
+    </nav>
+</div>
+
+@using WarpBusiness.CustomerPortal.Services
+@implements IDisposable
+@inject CustomerAuthState AuthState
+@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized() => AuthState.OnChange += StateHasChanged;
+    private void Logout() { AuthState.ClearAuth(); Nav.NavigateTo("/login"); }
+    public void Dispose() => AuthState.OnChange -= StateHasChanged;
+}

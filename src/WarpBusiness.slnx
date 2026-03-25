@@ -1,6 +1,7 @@
 <Solution>
   <Project Path="WarpBusiness.Api/WarpBusiness.Api.csproj" />
   <Project Path="WarpBusiness.AppHost/WarpBusiness.AppHost.csproj" />
+  <Project Path="WarpBusiness.CustomerPortal/WarpBusiness.CustomerPortal.csproj" />
   <Project Path="WarpBusiness.ServiceDefaults/WarpBusiness.ServiceDefaults.csproj" />
   <Project Path="WarpBusiness.Shared/WarpBusiness.Shared.csproj" />
   <Project Path="WarpBusiness.Tests/WarpBusiness.Tests.csproj" />

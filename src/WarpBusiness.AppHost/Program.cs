@@ -18,4 +18,8 @@ builder.AddProject<Projects.WarpBusiness_Web>("web")
     .WithReference(api)
     .WaitFor(api);
 
+var customerPortal = builder.AddProject<Projects.WarpBusiness_CustomerPortal>("customer-portal")
+    .WithReference(api)
+    .WithExternalHttpEndpoints();
+
 builder.Build().Run();

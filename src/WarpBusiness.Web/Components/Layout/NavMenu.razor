@@ -39,6 +39,18 @@
             </NavLink>
         </div>
 
+        @if (IsAdmin)
+        {
+            <div class="nav-item px-3 mt-3 border-top pt-2">
+                <div class="text-white-50 small fw-semibold mb-2 ms-2">ADMIN</div>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/users">
+                    <span class="bi bi-person-gear" aria-hidden="true"></span> Users
+                </NavLink>
+            </div>
+        }
+
         <div class="nav-item px-3 mt-3 border-top pt-2">
             @if (AuthState.IsAuthenticated)
             {
@@ -61,6 +73,9 @@
 </div>
 
 @code {
+    private bool IsAdmin => AuthState.IsAuthenticated 
+        && AuthState.Roles?.Contains("Admin") == true;
+
     protected override void OnInitialized()
     {
         AuthState.OnChange += StateHasChanged;

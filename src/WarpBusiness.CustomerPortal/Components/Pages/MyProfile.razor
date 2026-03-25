@@ -1,0 +1,58 @@
+@page "/my-profile"
+@using WarpBusiness.CustomerPortal.Services
+@using WarpBusiness.Shared.Crm
+@inject CustomerApiClient Api
+@inject CustomerAuthState AuthState
+@inject NavigationManager Nav
+
+<PageTitle>My Profile — Warp Customer Portal</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    Nav.NavigateTo("/login");
+    return;
+}
+
+<div class="container mt-4">
+    <h1 class="h4">My Profile</h1>
+
+    @if (_loading)
+    {
+        <div class="spinner-border spinner-border-sm text-primary mt-3"></div>
+    }
+    else if (_contact is null)
+    {
+        <div class="alert alert-info mt-3">
+            Your profile information isn't linked yet. Please contact your account manager.
+        </div>
+    }
+    else
+    {
+        <div class="card mt-3" style="max-width: 480px;">
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">@_contact.FullName</dd>
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">@_contact.Email</dd>
+                    <dt class="col-sm-4">Phone</dt>
+                    <dd class="col-sm-8">@(_contact.Phone ?? "—")</dd>
+                    <dt class="col-sm-4">Job Title</dt>
+                    <dd class="col-sm-8">@(_contact.JobTitle ?? "—")</dd>
+                </dl>
+            </div>
+        </div>
+        <p class="text-muted small mt-2">To update your information, contact your account manager.</p>
+    }
+</div>
+
+@code {
+    private ContactDto? _contact;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _contact = await Api.GetMyContactAsync();
+        _loading = false;
+    }
+}

@@ -1,0 +1,222 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = "Admin")]
+@using WarpBusiness.Shared.Auth
+@using WarpBusiness.Web.Services
+@using Microsoft.AspNetCore.Authorization
+@inject WarpApiClient Api
+@inject AuthStateService AuthState
+
+<PageTitle>User Management — Warp Business</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">User Management</h1>
+</div>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible" role="alert">
+        @_errorMessage
+        <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert-success alert-dismissible" role="alert">
+        @_successMessage
+        <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+    </div>
+}
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><span class="bi bi-shield-check me-2"></span>Active Auth Provider</h5>
+    </div>
+    <div class="card-body">
+        @if (_loadingProvider)
+        {
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span class="ms-2">Loading provider information...</span>
+        }
+        else if (_providerInfo is not null)
+        {
+            <p class="mb-1">
+                <strong>Provider:</strong> 
+                <span class="badge bg-secondary">@_providerInfo.ActiveProvider</span>
+            </p>
+            <p class="text-muted small mb-0">
+                <span class="bi bi-info-circle me-1"></span>
+                To change provider, update <code>AuthProvider:ActiveProvider</code> in appsettings.json and restart.
+            </p>
+        }
+        else
+        {
+            <p class="text-muted mb-0">Unable to load provider information.</p>
+        }
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_users is not null)
+{
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Users (@_users.Count)</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Provider</th>
+                        <th>Roles</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in _users)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@user.FullName</td>
+                            <td>@user.Email</td>
+                            <td>
+                                <span class="badge bg-info">@user.Provider</span>
+                            </td>
+                            <td>
+                                @foreach (var role in user.Roles)
+                                {
+                                    <span class="badge @(role == "Admin" ? "bg-danger" : "bg-secondary") me-1">@role</span>
+                                }
+                            </td>
+                            <td>
+                                @if (user.LastLoginAt.HasValue)
+                                {
+                                    <span class="text-muted small">@user.LastLoginAt.Value.ToString("g")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">Never</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    @if (user.Roles.Contains("Admin"))
+                                    {
+                                        <button class="btn btn-outline-danger" 
+                                                @onclick="() => ChangeRole(user.Id, user.FullName, AdminRole, false)"
+                                                disabled="@_updatingUserId">
+                                            Remove Admin
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-outline-success" 
+                                                @onclick="() => ChangeRole(user.Id, user.FullName, AdminRole, true)"
+                                                disabled="@_updatingUserId">
+                                            Make Admin
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private const string AdminRole = "Admin";
+    
+    private List<UserSummaryDto>? _users;
+    private AuthProviderInfo? _providerInfo;
+    private bool _loading = true;
+    private bool _loadingProvider = true;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string? _updatingUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.WhenAll(
+            LoadUsersAsync(),
+            LoadProviderInfoAsync()
+        );
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        _loading = true;
+        try
+        {
+            _users = await Api.GetUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load users: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadProviderInfoAsync()
+    {
+        _loadingProvider = true;
+        try
+        {
+            _providerInfo = await Api.GetAuthProviderAsync();
+        }
+        catch
+        {
+            // Silent fail for provider info
+        }
+        finally
+        {
+            _loadingProvider = false;
+        }
+    }
+
+    private async Task ChangeRole(string userId, string userName, string role, bool add)
+    {
+        _updatingUserId = userId;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            var success = await Api.SetUserRoleAsync(userId, role, add);
+
+            if (success)
+            {
+                _successMessage = add 
+                    ? $"Added {role} role to {userName}" 
+                    : $"Removed {role} role from {userName}";
+                await LoadUsersAsync();
+            }
+            else
+            {
+                _errorMessage = "Failed to update user role. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error updating role: {ex.Message}";
+        }
+        finally
+        {
+            _updatingUserId = null;
+        }
+    }
+}

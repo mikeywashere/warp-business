@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\WarpBusiness.Api\WarpBusiness.Api.csproj" />
     <ProjectReference Include="..\WarpBusiness.Web\WarpBusiness.Web.csproj" />
+    <ProjectReference Include="..\WarpBusiness.CustomerPortal\WarpBusiness.CustomerPortal.csproj" />
   </ItemGroup>
 
 </Project>

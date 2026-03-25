@@ -1,0 +1,372 @@
+@page "/companies"
+@using WarpBusiness.Shared.Crm
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Companies — Warp Business</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Companies</h1>
+    <button class="btn btn-primary" @onclick="ShowCreateModal">
+        <span class="bi bi-plus-lg"></span> New Company
+    </button>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="input-group">
+            <span class="input-group-text"><span class="bi bi-search"></span></span>
+            <input type="text" class="form-control" placeholder="Search companies..."
+                   @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible" role="alert">
+        @_errorMessage
+        <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert-success alert-dismissible" role="alert">
+        @_successMessage
+        <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_result is not null)
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Industry</th>
+                        <th>Contacts</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var company in _result.Items)
+                    {
+                        <tr>
+                            <td>
+                                <span class="fw-semibold">@company.Name</span>
+                                @if (!string.IsNullOrEmpty(company.Website))
+                                {
+                                    <br />
+                                    <small class="text-muted">
+                                        <a href="@company.Website" target="_blank">@company.Website</a>
+                                    </small>
+                                }
+                            </td>
+                            <td>@(company.Industry ?? "—")</td>
+                            <td>
+                                <span class="badge bg-secondary">@company.ContactCount</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-danger" 
+                                        @onclick="() => ShowDeleteConfirmation(company)">
+                                    <span class="bi bi-trash"></span>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (_result.TotalPages > 1)
+        {
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    Showing @((_currentPage - 1) * _pageSize + 1)–@(Math.Min(_currentPage * _pageSize, _result.TotalCount))
+                    of @_result.TotalCount companies
+                </small>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @(_result.HasPreviousPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="() => ChangePage(_currentPage - 1)">‹</button>
+                        </li>
+                        @{
+                            for (int i = 1; i <= _result.TotalPages; i++)
+                            {
+                                var pageNum = i;
+                                var pageText = i.ToString();
+                                <li class="page-item @(pageNum == _currentPage ? "active" : "")">
+                                    <button class="page-link" @onclick="@(() => ChangePage(pageNum))">@pageText</button>
+                                </li>
+                            }
+                        }
+                        <li class="page-item @(_result.HasNextPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="() => ChangePage(_currentPage + 1)">›</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
+}
+
+@if (_showCreateModal)
+{
+    <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">New Company</h5>
+                    <button type="button" class="btn-close" @onclick="CancelCreate"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="_createRequest" OnValidSubmit="CreateCompany">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Name *</label>
+                            <InputText @bind-Value="_createRequest.Name" class="form-control" />
+                            <ValidationMessage For="() => _createRequest.Name" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Website</label>
+                            <InputText @bind-Value="_createRequest.Website" class="form-control" type="url" />
+                            <ValidationMessage For="() => _createRequest.Website" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Industry</label>
+                            <InputText @bind-Value="_createRequest.Industry" class="form-control" />
+                            <ValidationMessage For="() => _createRequest.Industry" />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email</label>
+                                <InputText @bind-Value="_createRequest.Email" class="form-control" type="email" />
+                                <ValidationMessage For="() => _createRequest.Email" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone</label>
+                                <InputText @bind-Value="_createRequest.Phone" class="form-control" />
+                                <ValidationMessage For="() => _createRequest.Phone" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Employee Count</label>
+                            <InputNumber @bind-Value="_createRequest.EmployeeCount" class="form-control" />
+                            <ValidationMessage For="() => _createRequest.EmployeeCount" />
+                        </div>
+
+                        <div class="d-flex gap-2 justify-content-end">
+                            <button type="button" class="btn btn-secondary" @onclick="CancelCreate">Cancel</button>
+                            <button type="submit" class="btn btn-primary" disabled="@_creating">
+                                @if (_creating)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                Create
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (_showDeleteModal && _companyToDelete is not null)
+{
+    <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@_companyToDelete.Name</strong>?</p>
+                    @if (_companyToDelete.ContactCount > 0)
+                    {
+                        <div class="alert alert-warning">
+                            <span class="bi bi-exclamation-triangle me-2"></span>
+                            This company has <strong>@_companyToDelete.ContactCount contact(s)</strong>. 
+                            You must remove or reassign all contacts before deleting the company.
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-danger">This action cannot be undone.</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    @if (_companyToDelete.ContactCount == 0)
+                    {
+                        <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@_deleting">
+                            @if (_deleting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Delete
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private PagedResult<CompanyDto>? _result;
+    private bool _loading = true;
+    private int _currentPage = 1;
+    private int _pageSize = 20;
+    private string searchTerm = string.Empty;
+    private Timer? _debounceTimer;
+
+    private bool _showCreateModal = false;
+    private bool _creating = false;
+    private CreateCompanyModel _createRequest = new();
+
+    private bool _showDeleteModal = false;
+    private bool _deleting = false;
+    private CompanyDto? _companyToDelete;
+
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompaniesAsync();
+    }
+
+    private async Task LoadCompaniesAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _result = await Api.GetCompaniesAsync(_currentPage, _pageSize, searchTerm);
+        _loading = false;
+    }
+
+    private void OnSearchChanged()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new Timer(async _ =>
+        {
+            _currentPage = 1;
+            await LoadCompaniesAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, 350, Timeout.Infinite);
+    }
+
+    private async Task ChangePage(int page)
+    {
+        _currentPage = page;
+        await LoadCompaniesAsync();
+    }
+
+    private void ShowCreateModal()
+    {
+        _createRequest = new();
+        _showCreateModal = true;
+        _errorMessage = null;
+    }
+
+    private void CancelCreate()
+    {
+        _showCreateModal = false;
+    }
+
+    private async Task CreateCompany()
+    {
+        _creating = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        var request = new CreateCompanyRequest(
+            _createRequest.Name!,
+            _createRequest.Website,
+            _createRequest.Industry,
+            _createRequest.EmployeeCount,
+            _createRequest.Phone,
+            _createRequest.Email
+        );
+
+        var result = await Api.CreateCompanyAsync(request);
+
+        if (result is not null)
+        {
+            _showCreateModal = false;
+            _successMessage = $"Company '{result.Name}' created successfully.";
+            await LoadCompaniesAsync();
+        }
+        else
+        {
+            _errorMessage = "Failed to create company. Please try again.";
+        }
+
+        _creating = false;
+    }
+
+    private void ShowDeleteConfirmation(CompanyDto company)
+    {
+        _companyToDelete = company;
+        _showDeleteModal = true;
+        _errorMessage = null;
+    }
+
+    private void CancelDelete()
+    {
+        _showDeleteModal = false;
+        _companyToDelete = null;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_companyToDelete is null) return;
+
+        _deleting = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        var success = await Api.DeleteCompanyAsync(_companyToDelete.Id);
+
+        if (success)
+        {
+            _successMessage = $"Company '{_companyToDelete.Name}' deleted successfully.";
+            _showDeleteModal = false;
+            _companyToDelete = null;
+            await LoadCompaniesAsync();
+        }
+        else
+        {
+            _errorMessage = "Failed to delete company. It may have associated contacts.";
+        }
+
+        _deleting = false;
+    }
+
+    private class CreateCompanyModel
+    {
+        public string? Name { get; set; }
+        public string? Website { get; set; }
+        public string? Industry { get; set; }
+        public int? EmployeeCount { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+    }
+}

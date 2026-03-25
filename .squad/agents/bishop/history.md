@@ -23,3 +23,38 @@ Implemented a config-driven multi-provider authentication system that supports L
 **Config Structure:** AuthProviderOptions with nested KeycloakOptions/MicrosoftOptions. All provider details live in `appsettings.json`, not hardcoded. Swap providers by changing one config value.
 
 **Testing/Dev:** Added Aspire.Hosting.Keycloak to AppHost for local Keycloak container. Microsoft provider requires external Azure AD tenant setup (not containerizable).
+
+### 2026-03-25: Refresh Token Strategy with Rotation and Reuse Detection
+
+Implemented secure refresh token infrastructure for Local JWT provider with defense-in-depth approach to token lifecycle management.
+
+**Architecture:**
+- **RefreshToken Entity**: Opaque tokens (256-bit random hex), stored hashed (SHA-256), bound to user + device family
+- **Token Rotation**: Every refresh operation issues a new token and invalidates the old one, preventing replay attacks
+- **Family Tracking**: Each token belongs to a family (identified by FamilyId). When rotated, new token inherits family ID
+- **Reuse Attack Detection**: If a revoked token (marked with `ReplacedByTokenHash`) is used, entire family is revoked — indicates theft or compromise
+- **HttpOnly Cookies**: Refresh tokens delivered as `warp_refresh` cookie (HttpOnly, Secure, SameSite=Strict) to prevent XSS access
+
+**Token Expiry:**
+- Access tokens: 15 minutes (production), 60 minutes (development)
+- Refresh tokens: 7 days (production), 30 days (development)
+- Configurable via `Jwt:AccessTokenExpiryMinutes` and `Jwt:RefreshTokenExpiryDays`
+
+**Endpoints:**
+- `POST /api/auth/refresh`: Validates refresh token, rotates it, returns new access token
+- `POST /api/auth/logout`: Revokes all user refresh tokens, deletes cookie
+- Login and registration endpoints now issue both access + refresh tokens
+
+**Database Schema:**
+- RefreshTokenConfiguration applies via `ApplyConfigurationsFromAssembly`
+- Unique index on `TokenHash`, composite index on `(UserId, FamilyId)` for fast lookups
+- Tracks: TokenHash, FamilyId, ExpiresAt, CreatedAt, RevokedAt, ReplacedByTokenHash, DeviceHint
+
+**Security Properties:**
+- Never stores raw tokens (only SHA-256 hash)
+- Sliding window: only one active token per device family at a time
+- Automatic family revocation on suspicious activity (token reuse after rotation)
+- Device hint (User-Agent) stored for forensics/audit trail
+
+**Frontend Integration:** Vasquez notified to implement 401 → refresh → retry flow in WarpApiClient.cs. Refresh is cookie-based, no manual token management needed on client.
+

@@ -37,3 +37,26 @@
 - **ContactName in DealDto:** Used `d.Contact.FirstName + " " + d.Contact.LastName` in Select projections — avoids translating the unmapped `FullName` computed property through a navigation.
 - **Routing:** `GET /api/deals/summary` is declared before `GET /api/deals/{id:guid}` to avoid routing conflicts with the GUID constraint.
 - **OwnerId:** Set from the JWT `sub` / `NameIdentifier` claim at the controller layer, passed down to `CreateDealAsync(request, userId)`.
+
+### 2026-03-25: EF Core Migrations — InitialCreate
+
+- **Design-time factory pattern:** `DesignTimeDbContextFactory : IDesignTimeDbContextFactory<ApplicationDbContext>` lives in `WarpBusiness.Api/Data/`. It reads `ConnectionStrings__warpbusiness` env var, falling back to `Host=localhost;Port=5432;Database=warpbusiness_dev;Username=postgres;Password=postgres`. EF tooling auto-discovers it; no Aspire required.
+- **Connection string key:** Program.cs uses `"warpbusiness"` (not `"DefaultConnection"`). The factory env var must match: `ConnectionStrings__warpbusiness`.
+- **Migration command:** `dotnet ef migrations add <Name> --project WarpBusiness.Api\WarpBusiness.Api.csproj --startup-project WarpBusiness.Api\WarpBusiness.Api.csproj --output-dir Data\Migrations`
+- **Auto-apply pattern:** Added `await db.Database.MigrateAsync()` inside `IsDevelopment()` guard immediately after `builder.Build()`, before `MapDefaultEndpoints()`. Scoped via `app.Services.CreateScope()`.
+- **Migration scope:** `InitialCreate` captures all 11 tables: AspNetRoles, AspNetUsers, AspNetRoleClaims, AspNetUserClaims, AspNetUserLogins, AspNetUserRoles, AspNetUserTokens + Companies, Contacts, Deals, Activities.
+- **Design package:** `Microsoft.EntityFrameworkCore.Design` was already present in the csproj with `<PrivateAssets>all</PrivateAssets>` (correct — keeps it dev-only).
+
+### 2026-03-25: CustomerPortal Project Created
+
+- **Project type:** Blazor Web App (.NET 10, InteractiveServer mode) for customer self-service
+- **Project structure:** WarpBusiness.CustomerPortal is a separate, externally-accessible container with its own Program.cs, Services, and Components
+- **AppHost registration:** Used `.WithExternalHttpEndpoints()` to mark CustomerPortal as the only externally-accessible endpoint; WarpBusiness.Web and WarpBusiness.Api remain internal
+- **Services:**
+  - `CustomerApiClient`: HttpClient wrapper configured with Aspire service discovery (`https+http://api`). Methods include LoginAsync, GetMyContactAsync, RefreshTokenAsync
+  - `CustomerAuthState`: Singleton state service with reactive `OnChange` event for Blazor component re-rendering on auth changes
+- **Pages:** Login (with email/password form), Home (dashboard), MyProfile (displays ContactDto fields), MyDeals (placeholder)
+- **NavMenu:** Custom nav with auth state subscriber — renders user email and sign-out button when authenticated, redirects unauthenticated users to /login
+- **Auth pattern:** CustomerApiClient stores access token and sets Authorization header; CustomerAuthState manages app-level auth state
+- **API communication:** All API calls use the same JWT auth pattern as WarpBusiness.Web — customers authenticate with their email/password (Local provider) or OIDC providers (Keycloak/Microsoft)
+
