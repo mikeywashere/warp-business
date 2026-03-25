@@ -13,46 +13,120 @@
             <div class="card-body p-4">
                 <h2 class="h4 mb-4 text-center">Warp Business</h2>
 
-                @if (!string.IsNullOrEmpty(_errorMessage))
+                @if (_loading)
                 {
-                    <div class="alert alert-danger py-2">@_errorMessage</div>
+                    <div class="text-center py-3">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <p class="text-muted small mt-2 mb-0">Loading...</p>
+                    </div>
                 }
+                else if (_provider?.SupportsLocalLogin == true)
+                {
+                    @if (!string.IsNullOrEmpty(_errorMessage))
+                    {
+                        <div class="alert alert-danger py-2">@_errorMessage</div>
+                    }
 
-                <EditForm Model="_model" OnValidSubmit="HandleLogin">
-                    <DataAnnotationsValidator />
-                    <div class="mb-3">
-                        <label class="form-label">Email</label>
-                        <InputText @bind-Value="_model.Email" class="form-control" type="email"
-                                   placeholder="you@example.com" autocomplete="email" />
-                        <ValidationMessage For="() => _model.Email" />
+                    <EditForm Model="_model" OnValidSubmit="HandleLogin">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText @bind-Value="_model.Email" class="form-control" type="email"
+                                       placeholder="you@example.com" autocomplete="email" />
+                            <ValidationMessage For="() => _model.Email" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <InputText @bind-Value="_model.Password" class="form-control" type="password"
+                                       autocomplete="current-password" />
+                            <ValidationMessage For="() => _model.Password" />
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100" disabled="@_submitting">
+                            @if (_submitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            }
+                            Sign In
+                        </button>
+                    </EditForm>
+
+                    <div class="text-center mt-3">
+                        <a href="/register" class="text-muted small">Create an account</a>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <InputText @bind-Value="_model.Password" class="form-control" type="password"
-                                   autocomplete="current-password" />
-                        <ValidationMessage For="() => _model.Password" />
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100" disabled="@_submitting">
-                        @if (_submitting)
+                }
+                else if (_provider?.ActiveProvider == "Keycloak")
+                {
+                    <div class="text-center">
+                        <p class="text-muted small mb-3">Sign in using your organization account.</p>
+                        @if (!string.IsNullOrEmpty(_provider.KeycloakAuthUrl))
                         {
-                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <a href="@_provider.KeycloakAuthUrl" class="btn btn-primary w-100">
+                                <span class="me-2">🔐</span> Sign in with Keycloak
+                            </a>
                         }
-                        Sign In
-                    </button>
-                </EditForm>
-
-                <div class="text-center mt-3">
-                    <a href="/register" class="text-muted small">Create an account</a>
-                </div>
+                        else
+                        {
+                            <div class="alert alert-warning py-2 small">
+                                Keycloak is configured but the authority URL is not set.
+                                Check <code>AuthProvider:Keycloak:Authority</code> in appsettings.
+                            </div>
+                        }
+                    </div>
+                }
+                else if (_provider?.ActiveProvider == "Microsoft")
+                {
+                    <div class="text-center">
+                        <p class="text-muted small mb-3">Sign in using your Microsoft account.</p>
+                        @if (!string.IsNullOrEmpty(_errorMessage))
+                        {
+                            <div class="alert alert-warning py-2 small">@_errorMessage</div>
+                        }
+                        <button class="btn btn-outline-primary w-100" @onclick="RedirectToMicrosoft">
+                            <svg class="me-2" width="16" height="16" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                            </svg>
+                            Sign in with Microsoft
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning py-2 small">
+                        Unable to determine authentication provider. Please check API configuration.
+                    </div>
+                }
             </div>
         </div>
     </div>
 </div>
 
 @code {
-    private readonly LoginFormModel _model = new();
+    private AuthProviderInfo? _provider;
+    private bool _loading = true;
     private string? _errorMessage;
     private bool _submitting;
+    private readonly LoginFormModel _model = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _provider = await Api.GetAuthProviderAsync();
+            // If discovery fails, fall back to local login
+            _provider ??= new AuthProviderInfo("Local", null, true);
+        }
+        catch
+        {
+            _provider = new AuthProviderInfo("Local", null, true);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
 
     private async Task HandleLogin()
     {
@@ -71,6 +145,13 @@
         }
 
         _submitting = false;
+    }
+
+    private void RedirectToMicrosoft()
+    {
+        // Full OIDC redirect flow — the API handles token validation.
+        // For now, guide admin to configure the redirect URI.
+        _errorMessage = "Microsoft OIDC redirect requires configuring the reply URL in your Entra ID app registration. See docs/auth-providers.md.";
     }
 
     private class LoginFormModel

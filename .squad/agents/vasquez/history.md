@@ -29,3 +29,22 @@
 **Blazor Gotcha:** The `@page` variable name inside button text triggers Razor directive parsing. Fixed by using `pageNum`/`pageText` instead of `page`.
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### 2026-03-25: Provider-Aware Login, Register Page, NavMenu Auth State
+
+**Provider-Aware Login Pattern:**
+- `Login.razor` now calls `GET /api/auth/provider` on init via `Api.GetAuthProviderAsync()`
+- Renders a spinner during discovery; falls back to local login on error or null response
+- Three provider branches: `SupportsLocalLogin` → email/password form; `Keycloak` → redirect button using `keycloakAuthUrl`; `Microsoft` → placeholder button with guidance message (full OIDC flow TBD)
+- `AuthProviderInfo` record is in `WarpBusiness.Shared.Auth`
+
+**Register Page (`Register.razor`):**
+- Route: `/register`; linked from Login page
+- Collects FirstName, LastName, Email, Password with DataAnnotations validation
+- Calls `Api.RegisterAsync()` and sets auth state on success, redirects to `/contacts`
+
+**NavMenu Auth State:**
+- NavMenu now `@implements IDisposable` and injects `AuthStateService` + `NavigationManager`
+- Subscribes to `AuthState.OnChange` in `OnInitialized`, unsubscribes in `Dispose`
+- Bottom of nav shows user's full name + Sign Out button when authenticated, Sign In link when not
+

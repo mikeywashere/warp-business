@@ -1,3 +1,8 @@
+@implements IDisposable
+@using WarpBusiness.Web.Services
+@inject AuthStateService AuthState
+@inject NavigationManager Nav
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Warp Business</a>
@@ -33,5 +38,39 @@
                 <span class="bi bi-calendar-check" aria-hidden="true"></span> Activities
             </NavLink>
         </div>
+
+        <div class="nav-item px-3 mt-3 border-top pt-2">
+            @if (AuthState.IsAuthenticated)
+            {
+                <div class="nav-link text-white-50 small">
+                    <span class="bi bi-person-circle me-1"></span>
+                    @AuthState.UserFullName
+                </div>
+                <button class="btn btn-sm btn-outline-light w-100 mt-1" @onclick="Logout">
+                    Sign out
+                </button>
+            }
+            else
+            {
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Sign In
+                </NavLink>
+            }
+        </div>
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        AuthState.OnChange += StateHasChanged;
+    }
+
+    private void Logout()
+    {
+        AuthState.ClearAuth();
+        Nav.NavigateTo("/login");
+    }
+
+    public void Dispose() => AuthState.OnChange -= StateHasChanged;
+}

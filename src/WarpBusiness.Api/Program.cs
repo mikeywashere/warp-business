@@ -35,6 +35,8 @@ builder.Services.AddScoped<IExternalIdentityMapper, ExternalIdentityMapper>();
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<IDealService, DealService>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
@@ -63,3 +65,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program { }

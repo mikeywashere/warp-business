@@ -7,6 +7,9 @@ namespace WarpBusiness.Web.Services;
 public class WarpApiClient(HttpClient httpClient)
 {
     // Auth
+    public async Task<AuthProviderInfo?> GetAuthProviderAsync()
+        => await httpClient.GetFromJsonAsync<AuthProviderInfo>("api/auth/provider");
+
     public async Task<AuthResponse?> LoginAsync(LoginRequest request)
         => await httpClient.PostAsJsonAsync("api/auth/login", request)
             .ContinueWith(t => t.Result.IsSuccessStatusCode

@@ -27,3 +27,13 @@
   - Query operations use AsNoTracking() for performance
   - CreatedBy and OwnerId fields link to ApplicationUser.Id (string, max 450 chars for EF Identity compatibility)
   - DateTimeOffset used consistently for temporal data
+
+### 2026-03-25: Companies and Deals Services Implemented
+
+- **Companies service pattern:** `ICompanyService` / `CompanyService` mirrors Contacts exactly. `DeleteCompanyAsync` returns a `DeleteCompanyResult` enum (`Deleted`, `NotFound`, `HasContacts`) to give the controller enough signal for 204/404/409 without leaking business logic into the HTTP layer.
+- **409 Conflict handling:** `DeleteCompanyAsync` loads the company with `.Include(c => c.Contacts)` and short-circuits with `HasContacts` if any exist — contacts are never orphaned. The controller maps this to `Conflict(new { message = ... })`.
+- **Deals service pattern:** `IDealService` / `DealService` — list endpoint supports both search (title contains) and stage filter. Stage filter uses `Enum.TryParse` with `ignoreCase: true`; unknown values are silently skipped (no 400).
+- **Pipeline summary query:** `GetDealSummaryAsync` groups `_db.Deals` by `Stage` in a single EF `GroupBy` → `Select`, then excludes `ClosedLost` from `TotalPipelineValue` client-side after the DB round-trip.
+- **ContactName in DealDto:** Used `d.Contact.FirstName + " " + d.Contact.LastName` in Select projections — avoids translating the unmapped `FullName` computed property through a navigation.
+- **Routing:** `GET /api/deals/summary` is declared before `GET /api/deals/{id:guid}` to avoid routing conflicts with the GUID constraint.
+- **OwnerId:** Set from the JWT `sub` / `NameIdentifier` claim at the controller layer, passed down to `CreateDealAsync(request, userId)`.

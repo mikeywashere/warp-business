@@ -1,10 +1,1 @@
-﻿namespace WarpBusiness.Tests;
-
-public class UnitTest1
-{
-    [Fact]
-    public void Test1()
-    {
-
-    }
-}
+﻿// Placeholder removed — see Auth/ and Crm/ folders for real tests.
