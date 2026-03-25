@@ -1,0 +1,149 @@
+@page "/contacts"
+@using WarpBusiness.Shared.Crm
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>Contacts — Warp Business</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Contacts</h1>
+    <a href="/contacts/new" class="btn btn-primary">
+        <span class="bi bi-plus-lg"></span> New Contact
+    </a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="input-group">
+            <span class="input-group-text"><span class="bi bi-search"></span></span>
+            <input type="text" class="form-control" placeholder="Search contacts..."
+                   @bind="searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+        </div>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_result is not null)
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Company</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var contact in _result.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/contacts/@contact.Id" class="text-decoration-none fw-semibold">
+                                    @contact.FullName
+                                </a>
+                            </td>
+                            <td>@contact.Email</td>
+                            <td>@contact.Phone</td>
+                            <td>@contact.CompanyName</td>
+                            <td>
+                                <span class="badge @GetStatusBadge(contact.Status)">@contact.Status</span>
+                            </td>
+                            <td>
+                                <a href="/contacts/@contact.Id/edit" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (_result.TotalPages > 1)
+        {
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    Showing @((_currentPage - 1) * _pageSize + 1)–@(Math.Min(_currentPage * _pageSize, _result.TotalCount))
+                    of @_result.TotalCount contacts
+                </small>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @(_result.HasPreviousPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="() => ChangePage(_currentPage - 1)">‹</button>
+                        </li>
+                        @{
+                            for (int i = 1; i <= _result.TotalPages; i++)
+                            {
+                                var pageNum = i;
+                                var pageText = i.ToString();
+                                <li class="page-item @(pageNum == _currentPage ? "active" : "")">
+                                    <button class="page-link" @onclick="@(() => ChangePage(pageNum))">@pageText</button>
+                                </li>
+                            }
+                        }
+                        <li class="page-item @(_result.HasNextPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="() => ChangePage(_currentPage + 1)">›</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private PagedResult<ContactDto>? _result;
+    private bool _loading = true;
+    private int _currentPage = 1;
+    private int _pageSize = 20;
+    private string searchTerm = string.Empty;
+    private Timer? _debounceTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadContactsAsync();
+    }
+
+    private async Task LoadContactsAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _result = await Api.GetContactsAsync(_currentPage, _pageSize, searchTerm);
+        _loading = false;
+    }
+
+    private void OnSearchChanged()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new Timer(async _ =>
+        {
+            _currentPage = 1;
+            await LoadContactsAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, 350, Timeout.Infinite);
+    }
+
+    private async Task ChangePage(int page)
+    {
+        _currentPage = page;
+        await LoadContactsAsync();
+    }
+
+    private static string GetStatusBadge(string status) => status switch
+    {
+        "Customer" => "bg-success",
+        "Lead" => "bg-warning text-dark",
+        "Inactive" => "bg-secondary",
+        _ => "bg-primary"
+    };
+}

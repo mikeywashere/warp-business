@@ -1,0 +1,85 @@
+@page "/login"
+@using WarpBusiness.Shared.Auth
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject AuthStateService AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Sign In — Warp Business</PageTitle>
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h2 class="h4 mb-4 text-center">Warp Business</h2>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="alert alert-danger py-2">@_errorMessage</div>
+                }
+
+                <EditForm Model="_model" OnValidSubmit="HandleLogin">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <InputText @bind-Value="_model.Email" class="form-control" type="email"
+                                   placeholder="you@example.com" autocomplete="email" />
+                        <ValidationMessage For="() => _model.Email" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <InputText @bind-Value="_model.Password" class="form-control" type="password"
+                                   autocomplete="current-password" />
+                        <ValidationMessage For="() => _model.Password" />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" disabled="@_submitting">
+                        @if (_submitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Sign In
+                    </button>
+                </EditForm>
+
+                <div class="text-center mt-3">
+                    <a href="/register" class="text-muted small">Create an account</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly LoginFormModel _model = new();
+    private string? _errorMessage;
+    private bool _submitting;
+
+    private async Task HandleLogin()
+    {
+        _submitting = true;
+        _errorMessage = null;
+
+        var result = await Api.LoginAsync(new LoginRequest(_model.Email, _model.Password));
+        if (result is not null)
+        {
+            AuthState.SetAuth(result);
+            Nav.NavigateTo("/contacts");
+        }
+        else
+        {
+            _errorMessage = "Invalid email or password.";
+        }
+
+        _submitting = false;
+    }
+
+    private class LoginFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Password { get; set; } = string.Empty;
+    }
+}
