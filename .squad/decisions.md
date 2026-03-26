@@ -110,6 +110,35 @@
 - **Logout:** Calls LogoutAsync() for server-side token revocation (mirrors Web app)
 - **Owner:** Vasquez (Frontend Dev)
 
+### 2026-03-26: Custom Fields for Contacts
+
+**Status:** Implemented
+
+- **Domain:** `CustomFieldDefinition` (admin-defined: Name, EntityType, FieldType, SelectOptions as JSON, IsRequired, DisplayOrder, IsActive) and `CustomFieldValue` (ContactId + FieldDefinitionId + Value string). Contact gets `CustomFieldValues` navigation.
+- **Storage:** SelectOptions stored as JSON string array in varchar(2000) column; serialized/deserialized via System.Text.Json. Values always stored as strings.
+- **Service Pattern:** `ICustomFieldService` provides definition CRUD, value retrieval returning all active definitions with contact's values (nulls for unset), and batch upsert. Batch fetch in `GetContactsAsync` loads all values for paged contacts in one query, joins in-memory (no N+1).
+- **API:** GET /api/custom-fields?entityType=Contact (all roles), POST/PUT/DELETE /api/custom-fields/{id} (Admin only). Delete returns 409 Conflict if values exist.
+- **Database:** Unique index on (EntityType, Name) for definitions; (ContactId, FieldDefinitionId) for values. Cascade delete configured. Migration: AddCustomFields.
+- **EF Config:** Both entities properly configured with constraints and indexes. ContactDto extended with `IReadOnlyList<CustomFieldValueDto> CustomFields` parameter.
+- **Trade-offs:** Values stored as strings always (simple, no per-type schema migration); single active provider per EntityType (sufficient for MVP).
+- **Owner:** Hicks (Backend Dev)
+
+### 2026-03-26: Custom Fields UI Design
+
+**Status:** Implemented
+
+- **Component Architecture:** `CustomFieldInput.razor` created as reusable shared component in WarpBusiness.Web/Components/Shared/. Renders type-aware inputs (Text, Number, Date, Boolean checkbox, Select dropdown). Required field indicator (*) rendered dynamically.
+- **Global Registration:** Added `@using WarpBusiness.Web.Components.Shared` to _Imports.razor for global access across app.
+- **Delete Conflict Handling:** `WarpApiClient.DeleteCustomFieldDefinitionRawAsync` returns int status code, allowing admin page to distinguish 409 (field has data) from other errors and display "deactivate instead" message.
+- **Admin Management Form:** Inline form below table (not modal) using `_showForm` flag + `_editingId` nullable to distinguish create vs. edit. Single form reused for both modes.
+- **Contact Detail Integration:** Loads field definitions in parallel with contact via Task.WhenAll (no extra latency). View mode shows custom fields section; edit mode displays `<CustomFieldInput>` per definition, ordered by DisplayOrder. Save builds `UpsertCustomFieldValueRequest` list from dict.
+- **Portal Replication:** CustomerPortal/MyProfile.razor replicates custom field input logic inline (avoids cross-project dependency). Loads contact + defs in parallel in OnInitializedAsync.
+- **Razor Quote Gotcha:** Boolean checkbox `@onchange` handlers cannot inline "true"/"false" string literals inside attribute — Razor terminates at inner quote. Always extract to named method. Confirmed again in this sprint.
+- **API Client:** Extended WarpApiClient with GetCustomFieldDefinitionsAsync, Create/Update/Delete methods. All use SendWithRefreshAsync() pattern.
+- **Navigation:** Custom Fields link added under Admin section in NavMenu (after Users link).
+- **Trade-offs:** Entity type hardcoded to "Contact" in admin UI (multi-entity support is future); portal replicates input logic instead of sharing (acceptable for contained scope).
+- **Owner:** Vasquez (Frontend Dev)
+
 ## Governance
 
 - All meaningful changes require team consensus
