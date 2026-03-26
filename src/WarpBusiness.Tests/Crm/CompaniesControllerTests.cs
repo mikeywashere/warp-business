@@ -147,17 +147,32 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
-    public async Task DeleteCompany_ReturnsNoContent_WhenAuthenticated()
+    public async Task DeleteCompany_ReturnsNoContent_WhenAdmin()
     {
-        // Arrange — any authenticated user can delete (no role restriction on this endpoint)
-        var (client, _) = await AuthenticateAsync();
-        var created = await CreateTestCompanyAsync(client, "Delete Me Corp");
+        // Arrange
+        var (adminClient, _) = await AuthenticateAsAdminAsync();
+        var created = await CreateTestCompanyAsync(adminClient, "Delete Me Corp");
 
         // Act
-        var response = await client.DeleteAsync($"api/companies/{created.Id}");
+        var response = await adminClient.DeleteAsync($"api/companies/{created.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeleteCompany_ReturnsForbidden_WhenNotAdmin()
+    {
+        // Arrange — create with admin, attempt delete with regular user
+        var (adminClient, _) = await AuthenticateAsAdminAsync();
+        var created = await CreateTestCompanyAsync(adminClient, "Forbidden Delete Corp");
+        var (userClient, _) = await AuthenticateAsync();
+
+        // Act
+        var response = await userClient.DeleteAsync($"api/companies/{created.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]

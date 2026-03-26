@@ -62,6 +62,7 @@ public class ActivitiesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteActivity(Guid id, CancellationToken ct = default)
     {
         var deleted = await _activities.DeleteActivityAsync(id, ct);

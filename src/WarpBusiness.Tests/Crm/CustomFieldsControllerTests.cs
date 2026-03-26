@@ -218,8 +218,8 @@ public class CustomFieldsControllerTests : IClassFixture<WarpTestFactory>
             "Upd", "Contact", created!.Email, null, null, null, "Active",
             new List<UpsertCustomFieldValueRequest> { new(definition.Id, "Healthcare") });
 
-        // Act
-        var updateResponse = await userClient.PutAsJsonAsync($"api/contacts/{created.Id}", updateRequest);
+        // Act — use admin client; non-admin IDOR protection requires matching email
+        var updateResponse = await adminClient.PutAsJsonAsync($"api/contacts/{created.Id}", updateRequest);
         updateResponse.EnsureSuccessStatusCode();
 
         var getResponse = await userClient.GetAsync($"api/contacts/{created.Id}");

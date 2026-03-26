@@ -51,6 +51,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteCompany(Guid id, CancellationToken ct = default)
     {
         var result = await _companies.DeleteCompanyAsync(id, ct);
