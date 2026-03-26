@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using WarpBusiness.Shared.Auth;
 using WarpBusiness.Shared.Crm;
 using WarpBusiness.Tests.Infrastructure;
 
@@ -22,6 +23,18 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
         var token = await AuthHelper.RegisterAndGetTokenAsync(
             _client, $"contacts-{Guid.NewGuid()}@example.com");
         _client.SetBearerToken(token);
+    }
+
+    private async Task<HttpClient> CreateAdminClientAsync()
+    {
+        var client = _factory.CreateClient();
+        var email = $"contacts-admin-{Guid.NewGuid()}@example.com";
+        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        await AuthHelper.PromoteToAdminAsync(_factory, email);
+        var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
+        var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        client.SetBearerToken(auth!.Token);
+        return client;
     }
 
     [Fact]
@@ -118,27 +131,42 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
-    public async Task DeleteContact_ExistingContact_ReturnsNoContent()
+    public async Task DeleteContact_ExistingContact_ReturnsNoContent_WhenAdmin()
     {
         // Arrange
-        await AuthenticateAsync();
-        var created = await CreateTestContactAsync("Delete", "Me");
+        var adminClient = await CreateAdminClientAsync();
+        var created = await CreateTestContactAsync(adminClient, "Delete", "Me");
 
         // Act
-        var response = await _client.DeleteAsync($"api/contacts/{created.Id}");
+        var response = await adminClient.DeleteAsync($"api/contacts/{created.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
-    public async Task DeleteContact_NonExistentId_ReturnsNotFound()
+    public async Task DeleteContact_ReturnsForbidden_WhenNotAdmin()
     {
-        // Arrange
+        // Arrange — create with admin, attempt delete with regular user
+        var adminClient = await CreateAdminClientAsync();
+        var created = await CreateTestContactAsync(adminClient, "Forbidden", "Delete");
         await AuthenticateAsync();
 
         // Act
-        var response = await _client.DeleteAsync($"api/contacts/{Guid.NewGuid()}");
+        var response = await _client.DeleteAsync($"api/contacts/{created.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task DeleteContact_NonExistentId_ReturnsNotFound_WhenAdmin()
+    {
+        // Arrange
+        var adminClient = await CreateAdminClientAsync();
+
+        // Act
+        var response = await adminClient.DeleteAsync($"api/contacts/{Guid.NewGuid()}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -161,13 +189,17 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     }
 
     private async Task<ContactDto> CreateTestContactAsync(
-        string firstName, string lastName)
+        string firstName, string lastName) =>
+        await CreateTestContactAsync(_client, firstName, lastName);
+
+    private static async Task<ContactDto> CreateTestContactAsync(
+        HttpClient client, string firstName, string lastName)
     {
         var request = new CreateContactRequest(
             firstName, lastName,
-            $"{firstName.ToLower()}.{lastName.ToLower()}@test.com",
+            $"{firstName.ToLower()}.{lastName.ToLower()}-{Guid.NewGuid():N}@test.com",
             null, null, null);
-        var response = await _client.PostAsJsonAsync("api/contacts", request);
+        var response = await client.PostAsJsonAsync("api/contacts", request);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<ContactDto>())!;
     }
