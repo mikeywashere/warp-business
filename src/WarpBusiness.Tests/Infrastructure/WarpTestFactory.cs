@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using WarpBusiness.Api.Data;
+using WarpBusiness.Plugin.Crm.Data;
+using WarpBusiness.Plugin.EmployeeManagement.Data;
 
 namespace WarpBusiness.Tests.Infrastructure;
 
@@ -10,25 +12,16 @@ public class WarpTestFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Provide a dummy connection string so plugins don't throw during ConfigureServices.
+        // The real DbContexts are swapped for in-memory below.
+        builder.UseSetting("ConnectionStrings:warpbusiness", "Host=localhost;Database=test_placeholder");
+
         builder.ConfigureServices(services =>
         {
-            // Remove ALL descriptors that reference ApplicationDbContext (options, configurations, context itself)
-            // This covers DbContextOptions<T>, IDbContextOptionsConfiguration<T>, and the context registration
-            var dbDescriptors = services
-                .Where(d =>
-                    d.ServiceType == typeof(DbContextOptions<ApplicationDbContext>) ||
-                    d.ServiceType == typeof(ApplicationDbContext) ||
-                    (d.ServiceType.IsGenericType &&
-                     d.ServiceType.GetGenericArguments().Any(t => t == typeof(ApplicationDbContext))))
-                .ToList();
-
-            foreach (var descriptor in dbDescriptors)
-                services.Remove(descriptor);
-
-            // Generate the DB name once so all requests within this factory share the same in-memory store
-            var dbName = "WarpTestDb-" + Guid.NewGuid();
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseInMemoryDatabase(dbName));
+            // Replace all PostgreSQL-backed DbContexts with isolated in-memory databases
+            ReplaceWithInMemory<ApplicationDbContext>(services, "WarpTestDb-" + Guid.NewGuid());
+            ReplaceWithInMemory<CrmDbContext>(services, "WarpCrmTestDb-" + Guid.NewGuid());
+            ReplaceWithInMemory<EmployeeDbContext>(services, "WarpEmpTestDb-" + Guid.NewGuid());
         });
 
         // Set test environment name to prevent migrations from running
@@ -37,5 +30,24 @@ public class WarpTestFactory : WebApplicationFactory<Program>
         builder.UseSetting("Jwt:Issuer", "WarpBusiness.Api.Test");
         builder.UseSetting("Jwt:Audience", "WarpBusiness.Web.Test");
         builder.UseSetting("AuthProvider:ActiveProvider", "Local");
+    }
+
+    private static void ReplaceWithInMemory<TContext>(IServiceCollection services, string dbName)
+        where TContext : DbContext
+    {
+        // Remove DbContextOptions<T>, the context itself, and any IDbContextOptionsConfiguration<T>
+        // so no Npgsql provider leaks through
+        var toRemove = services
+            .Where(d =>
+                d.ServiceType == typeof(DbContextOptions<TContext>) ||
+                d.ServiceType == typeof(TContext) ||
+                (d.ServiceType.IsGenericType &&
+                 d.ServiceType.GetGenericArguments().Any(t => t == typeof(TContext))))
+            .ToList();
+
+        foreach (var descriptor in toRemove)
+            services.Remove(descriptor);
+
+        services.AddDbContext<TContext>(options => options.UseInMemoryDatabase(dbName));
     }
 }

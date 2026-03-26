@@ -44,3 +44,11 @@
 - **Nav:** Contacts / Companies / Deals via GetNavItems().
 - **Blazor:** Pages live in plugin assembly, contributed via GetBlazorAssemblies().
 - **Rationale:** Keep host API lean (auth + plugin infra only). CRM is opt-in and independently deployable.
+
+## 2026-03-26 — Local Kubernetes Deployment
+- **What was done:** Created multi-stage .NET 10 Dockerfiles for Api, Web, CustomerPortal; `src/.dockerignore`; `docs/kubernetes-deployment.md`; root `.dockerignore`.
+- **Build context:** All Dockerfiles build from `src/` — required for sibling project COPY (Plugin.Crm, Plugin.EmployeeManagement, Plugin.Sample, Shared, ServiceDefaults).
+- **Aspire service discovery:** `services__api__http__0` env var pattern works in K8s manifests unchanged — no code modifications needed.
+- **Ingress:** api/app/portal.warp-business.local → warp-api/warp-web/warp-portal:8080.
+- **Plugin dir:** `/app/plugins` created in API image; mount a PVC to add external DLLs without rebuild.
+- **Decision:** `.squad/decisions/inbox/ripley-k8s-strategy.md`
