@@ -10,6 +10,20 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-03-26: CRM Plugin Extraction — Test Factory Pattern
+
+**Plugin DbContexts must be swapped for in-memory in WarpTestFactory:**
+`CrmModule.ConfigureServices` and `EmployeeManagementModule.ConfigureServices` both require a `warpbusiness` connection string and register Npgsql-backed DbContexts. In tests, provide a dummy connection string via `builder.UseSetting("ConnectionStrings:warpbusiness", "...")` BEFORE `ConfigureServices` runs, then remove and replace each plugin DbContext with `UseInMemoryDatabase` in `ConfigureServices`.
+
+**AddApplicationPart is already in Program.cs:**
+Both plugin assemblies are already registered with `AddApplicationPart` in `Program.cs`. `WebApplicationFactory<Program>` inherits this — no need to repeat it in `WarpTestFactory`. The main fix is replacing the DbContexts and adding plugin project references to Tests.csproj.
+
+**Tests.csproj must reference plugin projects directly:**
+`WarpBusiness.Tests` must have `<ProjectReference>` entries for `WarpBusiness.Plugin.Crm` and `WarpBusiness.Plugin.EmployeeManagement` so `WarpTestFactory` can reference their DbContext types at compile time.
+
+**Reusable helper pattern for swapping DbContexts:**
+Extract a `ReplaceWithInMemory<TContext>(IServiceCollection, string)` helper in `WarpTestFactory` to avoid repeating the descriptor-removal logic for each DbContext. Pass a unique `Guid.NewGuid()` per DbContext per factory instance to isolate in-memory stores.
+
 ### 2026-03-26: Custom Fields Integration Tests
 
 **Duplicate-name uniqueness is enforced in the controller, not the service:**  
