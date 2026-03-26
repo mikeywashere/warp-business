@@ -27,3 +27,14 @@ Simply removing `DbContextOptions<ApplicationDbContext>` is not enough. Must als
 **Aspire service defaults in test host:**  
 `builder.AddServiceDefaults()` registers OpenTelemetry, health checks, and service discovery — none of which fail in WebApplicationFactory. They can be left in place; no special test override needed.
 
+### 2026-03-25: Cookie-based auth in integration tests
+
+**Secure cookies require HTTPS in tests:**  
+Cookies with `Secure = true` are only sent over HTTPS. Test clients created with `factory.CreateClient()` default to HTTP. For refresh token tests (or any cookie-based auth), create the client with HTTPS: `factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") })`.
+
+**Environment-specific migrations:**  
+`Program.cs` calls `db.Database.MigrateAsync()` in Development, which fails with in-memory databases ("relational-specific methods"). Set test environment to "Test" via `builder.UseEnvironment("Test")` in `WarpTestFactory` to skip migrations. In-memory DB doesn't need them anyway.
+
+**Token claims vs. DB roles:**  
+JWT tokens capture roles at generation time. If you promote a user to Admin AFTER registering (via `UserManager.AddToRoleAsync`), the original token won't have the Admin claim. Tests must login AGAIN after role changes to get a fresh token with updated claims.
+
