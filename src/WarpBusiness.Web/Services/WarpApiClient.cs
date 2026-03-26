@@ -263,4 +263,71 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<ModuleNavItemDto>>() ?? [];
     }
+
+    // --- Employees (Employee Management Plugin) ---
+
+    public async Task<EmployeePagedResult> GetEmployeesAsync(
+        int page = 1, int pageSize = 20, bool includeInactive = false,
+        string? department = null, string? search = null)
+    {
+        var qs = $"api/employees?page={page}&pageSize={pageSize}&includeInactive={includeInactive}";
+        if (!string.IsNullOrEmpty(department)) qs += $"&department={Uri.EscapeDataString(department)}";
+        if (!string.IsNullOrEmpty(search)) qs += $"&search={Uri.EscapeDataString(search)}";
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync(qs));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<EmployeePagedResult>() ?? new([], 0, page, pageSize);
+    }
+
+    public async Task<EmployeeDto?> GetEmployeeAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync($"api/employees/{id}"));
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<EmployeeDto>();
+    }
+
+    public async Task<EmployeeDto> CreateEmployeeAsync(EmployeeRequest request)
+    {
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.PostAsJsonAsync("api/employees", request));
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<EmployeeDto>())!;
+    }
+
+    public async Task<EmployeeDto?> UpdateEmployeeAsync(Guid id, EmployeeRequest request)
+    {
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.PutAsJsonAsync($"api/employees/{id}", request));
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<EmployeeDto>();
+    }
+
+    public async Task DeactivateEmployeeAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.PostAsync($"api/employees/{id}/deactivate", null));
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task DeleteEmployeeAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.DeleteAsync($"api/employees/{id}"));
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<List<string>> GetEmployeeDepartmentsAsync()
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync("api/employees/departments"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<string>>() ?? [];
+    }
+
+    public async Task<List<EmployeeDto>> GetEmployeeManagersAsync()
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync("api/employees/managers"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<EmployeeDto>>() ?? [];
+    }
 }
