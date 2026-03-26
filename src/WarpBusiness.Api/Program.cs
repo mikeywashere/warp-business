@@ -37,6 +37,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IDealService, DealService>();
+builder.Services.AddScoped<IActivityService, ActivityService>();
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();

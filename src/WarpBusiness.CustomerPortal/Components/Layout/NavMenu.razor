@@ -45,10 +45,11 @@
 @using WarpBusiness.CustomerPortal.Services
 @implements IDisposable
 @inject CustomerAuthState AuthState
+@inject CustomerApiClient Api
 @inject NavigationManager Nav
 
 @code {
     protected override void OnInitialized() => AuthState.OnChange += StateHasChanged;
-    private void Logout() { AuthState.ClearAuth(); Nav.NavigateTo("/login"); }
+    private async Task Logout() => await Api.LogoutAsync();
     public void Dispose() => AuthState.OnChange -= StateHasChanged;
 }

@@ -13,8 +13,32 @@
     return;
 }
 
-<div class="container mt-4">
-    <h1 class="h4">My Profile</h1>
+<div class="container mt-4" style="max-width: 540px;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h4 mb-0">My Profile</h1>
+        @if (_contact is not null && !_isEditing)
+        {
+            <button class="btn btn-primary btn-sm" @onclick="EnterEditMode">
+                <span class="bi bi-pencil"></span> Edit
+            </button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible" role="alert">
+            @_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
 
     @if (_loading)
     {
@@ -26,33 +50,167 @@
             Your profile information isn't linked yet. Please contact your account manager.
         </div>
     }
-    else
+    else if (_isEditing)
     {
-        <div class="card mt-3" style="max-width: 480px;">
+        <div class="card">
             <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-4">Name</dt>
-                    <dd class="col-sm-8">@_contact.FullName</dd>
-                    <dt class="col-sm-4">Email</dt>
-                    <dd class="col-sm-8">@_contact.Email</dd>
-                    <dt class="col-sm-4">Phone</dt>
-                    <dd class="col-sm-8">@(_contact.Phone ?? "—")</dd>
-                    <dt class="col-sm-4">Job Title</dt>
-                    <dd class="col-sm-8">@(_contact.JobTitle ?? "—")</dd>
-                </dl>
+                <EditForm Model="_editModel" OnValidSubmit="SaveChanges">
+                    <DataAnnotationsValidator />
+
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">First Name</label>
+                            <InputText @bind-Value="_editModel.FirstName" class="form-control" />
+                            <ValidationMessage For="() => _editModel.FirstName" />
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Last Name</label>
+                            <InputText @bind-Value="_editModel.LastName" class="form-control" />
+                            <ValidationMessage For="() => _editModel.LastName" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input class="form-control" value="@_contact.Email" disabled />
+                        <div class="form-text">Email is managed by your account.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <InputText @bind-Value="_editModel.Phone" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Job Title</label>
+                        <InputText @bind-Value="_editModel.JobTitle" class="form-control" />
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" disabled="@_saving">
+                            @if (_saving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Save
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                    </div>
+                </EditForm>
             </div>
         </div>
-        <p class="text-muted small mt-2">To update your information, contact your account manager.</p>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-sm-4 text-muted small">First Name</div>
+                    <div class="col-sm-8 fw-semibold">@_contact.FirstName</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-4 text-muted small">Last Name</div>
+                    <div class="col-sm-8 fw-semibold">@_contact.LastName</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-4 text-muted small">Email</div>
+                    <div class="col-sm-8">
+                        @if (!string.IsNullOrEmpty(_contact.Email))
+                        {
+                            <a href="mailto:@_contact.Email">@_contact.Email</a>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-4 text-muted small">Phone</div>
+                    <div class="col-sm-8">@(_contact.Phone ?? "—")</div>
+                </div>
+                <div class="row">
+                    <div class="col-sm-4 text-muted small">Job Title</div>
+                    <div class="col-sm-8">@(_contact.JobTitle ?? "—")</div>
+                </div>
+            </div>
+        </div>
     }
 </div>
 
 @code {
     private ContactDto? _contact;
     private bool _loading = true;
+    private bool _isEditing = false;
+    private bool _saving = false;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    private EditProfileModel _editModel = new();
 
     protected override async Task OnInitializedAsync()
     {
         _contact = await Api.GetMyContactAsync();
         _loading = false;
+    }
+
+    private void EnterEditMode()
+    {
+        _errorMessage = null;
+        _successMessage = null;
+        _editModel = new EditProfileModel
+        {
+            FirstName = _contact!.FirstName,
+            LastName = _contact.LastName,
+            Phone = _contact.Phone,
+            JobTitle = _contact.JobTitle
+        };
+        _isEditing = true;
+    }
+
+    private void CancelEdit()
+    {
+        _isEditing = false;
+        _errorMessage = null;
+    }
+
+    private async Task SaveChanges()
+    {
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        var request = new UpdateContactRequest(
+            _editModel.FirstName ?? _contact!.FirstName,
+            _editModel.LastName ?? _contact!.LastName,
+            _contact!.Email,
+            _editModel.Phone,
+            _editModel.JobTitle,
+            _contact.CompanyId,
+            _contact.Status
+        );
+
+        var result = await Api.UpdateMyContactAsync(_contact!.Id, request);
+
+        if (result is not null)
+        {
+            _contact = result;
+            _isEditing = false;
+            _successMessage = "Profile updated successfully.";
+        }
+        else
+        {
+            _errorMessage = "Failed to save changes. Please try again.";
+        }
+
+        _saving = false;
+    }
+
+    private class EditProfileModel
+    {
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? Phone { get; set; }
+        public string? JobTitle { get; set; }
     }
 }
