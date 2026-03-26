@@ -103,3 +103,27 @@
 
 **Pattern:** Components never handle 401 manually — all auth'd API calls now auto-refresh and retry seamlessly. Only refresh failure triggers re-login.
 
+### 2026-03-25: CustomerPortal — 401→Refresh→Retry + MyProfile Edit Page
+
+**CustomerApiClient Transparent Token Refresh (mirrors WarpApiClient):**
+- Constructor now takes `CustomerAuthState` and `NavigationManager` alongside `HttpClient`
+- `TryRefreshAsync()`: POST /api/auth/refresh (cookie-based), updates `DefaultRequestHeaders.Authorization` and `CustomerAuthState` on success
+- `SendWithRefreshAsync(Func<Task<HttpResponseMessage>>)`: Retry wrapper — on 401, attempts refresh; on success retries; on refresh failure clears auth + navigates to `/login`
+- `GetMyContactAsync()` and new `UpdateMyContactAsync()` route through `SendWithRefreshAsync`
+- `LogoutAsync()`: POST /api/auth/logout then clears bearer header, auth state, navigates to `/`
+- Removed `SetAccessToken`, `ClearAccessToken`, `IsAuthenticated`, and stub `RefreshTokenAsync`
+
+**Login.razor (CustomerPortal):**
+- Now just calls `AuthState.SetAuth(result)` — no manual bearer header set at login. Cookie from login drives subsequent refresh, matching the Web app pattern.
+
+**NavMenu.razor (CustomerPortal):**
+- Injects `CustomerApiClient Api`; Logout is now `async Task` calling `Api.LogoutAsync()`
+
+**MyProfile.razor — Inline Edit:**
+- Added `isEditing` bool, `EditProfileModel` inner class, `EnterEditMode`/`CancelEdit`/`SaveChanges` handlers
+- Edit mode: form for FirstName, LastName, Phone, JobTitle; Email shown as read-only (auth-linked)
+- Save: calls `Api.UpdateMyContactAsync(id, request)` — passes existing values for Status/CompanyId/Email unchanged
+- Inline success/error alert banners matching ContactDetail pattern
+
+**Pattern:** CustomerPortal now has full parity with Web for token refresh — all portal API calls are self-healing on 401 via cookie refresh.
+
