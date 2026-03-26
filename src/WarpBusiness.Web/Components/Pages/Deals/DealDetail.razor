@@ -1,0 +1,382 @@
+@page "/deals/{Id:guid}"
+@page "/deals/new"
+@using WarpBusiness.Shared.Crm
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>@(_isNew ? "New Deal" : (_deal?.Title ?? "Deal")) — Warp Business</PageTitle>
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (!_isNew && _deal is null)
+{
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">Deal not found</h4>
+        <p>The deal you're looking for doesn't exist or has been deleted.</p>
+        <a href="/deals" class="btn btn-primary">Back to Deals</a>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0">@(_isNew ? "New Deal" : _deal!.Title)</h1>
+        <div>
+            <a href="/deals" class="btn btn-outline-secondary me-2">
+                <span class="bi bi-arrow-left"></span> Back
+            </a>
+            @if (!_isNew && !_editMode)
+            {
+                <button class="btn btn-primary me-1" @onclick="EnterEditMode">
+                    <span class="bi bi-pencil"></span> Edit
+                </button>
+                <button class="btn btn-danger" @onclick="ShowDeleteConfirmation">
+                    <span class="bi bi-trash"></span> Delete
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible" role="alert">
+            @_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (_editMode || _isNew)
+    {
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">@(_isNew ? "Create Deal" : "Edit Deal")</h5>
+                <EditForm Model="_editModel" OnValidSubmit="SaveChanges">
+                    <DataAnnotationsValidator />
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <InputText @bind-Value="_editModel.Title" class="form-control" placeholder="Deal title" />
+                            <ValidationMessage For="() => _editModel.Title" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Stage</label>
+                            <InputSelect @bind-Value="_editModel.Stage" class="form-select">
+                                <option value="Lead">Lead</option>
+                                <option value="Qualified">Qualified</option>
+                                <option value="Proposal">Proposal</option>
+                                <option value="Negotiation">Negotiation</option>
+                                <option value="ClosedWon">Closed Won</option>
+                                <option value="ClosedLost">Closed Lost</option>
+                            </InputSelect>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Value</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <InputNumber @bind-Value="_editModel.Value" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Probability (%)</label>
+                            <InputNumber @bind-Value="_editModel.Probability" class="form-control" min="0" max="100" />
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Expected Close Date</label>
+                            <InputDate @bind-Value="_editModel.ExpectedCloseDate" class="form-control" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn btn-primary" disabled="@_saving">
+                            @if (_saving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            @(_isNew ? "Create Deal" : "Save Changes")
+                        </button>
+                        @if (!_isNew)
+                        {
+                            <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                        }
+                        else
+                        {
+                            <a href="/deals" class="btn btn-secondary">Cancel</a>
+                        }
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label class="text-muted small">Title</label>
+                        <p class="mb-0 fw-semibold">@_deal!.Title</p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="text-muted small">Stage</label>
+                        <p class="mb-0">
+                            <span class="badge @GetStageBadge(_deal.Stage)">@_deal.Stage</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="text-muted small">Value</label>
+                        <p class="mb-0 fw-semibold">@_deal.Value.ToString("C")</p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="text-muted small">Probability</label>
+                        <p class="mb-0">@_deal.Probability%</p>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="text-muted small">Expected Close Date</label>
+                        <p class="mb-0">@(_deal.ExpectedCloseDate?.ToString("d") ?? "—")</p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Contact</label>
+                        <p class="mb-0">
+                            @if (_deal.ContactId.HasValue && !string.IsNullOrEmpty(_deal.ContactName))
+                            {
+                                <a href="/contacts/@_deal.ContactId">@_deal.ContactName</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Company</label>
+                        <p class="mb-0">
+                            @if (_deal.CompanyId.HasValue && !string.IsNullOrEmpty(_deal.CompanyName))
+                            {
+                                <a href="/companies/@_deal.CompanyId">@_deal.CompanyName</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Created</label>
+                        <p class="mb-0 text-muted small">@_deal.CreatedAt.ToString("g")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_showDeleteModal)
+    {
+        <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete <strong>@_deal!.Title</strong>?</p>
+                        <p class="text-danger">This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@_deleting">
+                            @if (_deleting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private DealDto? _deal;
+    private bool _loading = true;
+    private bool _isNew = false;
+    private bool _editMode = false;
+    private bool _saving = false;
+    private bool _deleting = false;
+    private bool _showDeleteModal = false;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    private DealEditModel _editModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isNew = Id == Guid.Empty;
+
+        if (_isNew)
+        {
+            _editModel = new DealEditModel { Stage = "Lead", Probability = 20 };
+            _loading = false;
+        }
+        else
+        {
+            await LoadDealAsync();
+        }
+    }
+
+    private async Task LoadDealAsync()
+    {
+        _loading = true;
+        _deal = await Api.GetDealAsync(Id);
+        _loading = false;
+    }
+
+    private void EnterEditMode()
+    {
+        _editMode = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        _editModel = new DealEditModel
+        {
+            Title = _deal!.Title,
+            Stage = _deal.Stage,
+            Value = _deal.Value,
+            Probability = _deal.Probability,
+            ExpectedCloseDate = _deal.ExpectedCloseDate?.LocalDateTime
+        };
+    }
+
+    private void CancelEdit()
+    {
+        _editMode = false;
+        _errorMessage = null;
+    }
+
+    private async Task SaveChanges()
+    {
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        if (_isNew)
+        {
+            var request = new CreateDealRequest(
+                _editModel.Title!,
+                _editModel.Value,
+                "USD",
+                _editModel.Stage ?? "Lead",
+                _editModel.Probability,
+                _editModel.ExpectedCloseDate.HasValue
+                    ? new DateTimeOffset(_editModel.ExpectedCloseDate.Value)
+                    : null,
+                null,
+                null
+            );
+
+            var result = await Api.CreateDealAsync(request);
+            if (result is not null)
+            {
+                Nav.NavigateTo($"/deals/{result.Id}");
+            }
+            else
+            {
+                _errorMessage = "Failed to create deal. Please try again.";
+            }
+        }
+        else
+        {
+            var request = new UpdateDealRequest(
+                _editModel.Title!,
+                _editModel.Value,
+                _deal!.Currency,
+                _editModel.Stage ?? _deal.Stage,
+                _editModel.Probability,
+                _editModel.ExpectedCloseDate.HasValue
+                    ? new DateTimeOffset(_editModel.ExpectedCloseDate.Value)
+                    : null,
+                _deal.ContactId,
+                _deal.CompanyId
+            );
+
+            var result = await Api.UpdateDealAsync(Id, request);
+            if (result is not null)
+            {
+                _deal = result;
+                _editMode = false;
+                _successMessage = "Deal updated successfully.";
+            }
+            else
+            {
+                _errorMessage = "Failed to update deal. Please try again.";
+            }
+        }
+
+        _saving = false;
+    }
+
+    private void ShowDeleteConfirmation() => _showDeleteModal = true;
+    private void CancelDelete() => _showDeleteModal = false;
+
+    private async Task ConfirmDelete()
+    {
+        _deleting = true;
+        _errorMessage = null;
+
+        await Api.DeleteDealAsync(Id);
+        Nav.NavigateTo("/deals");
+    }
+
+    private static string GetStageBadge(string stage) => stage switch
+    {
+        "Lead" => "bg-warning text-dark",
+        "Qualified" => "bg-info text-dark",
+        "Proposal" => "bg-primary",
+        "Negotiation" => "bg-dark",
+        "ClosedWon" => "bg-success",
+        "ClosedLost" => "bg-secondary",
+        _ => "bg-primary"
+    };
+
+    private class DealEditModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string? Title { get; set; }
+        public string? Stage { get; set; }
+        public decimal Value { get; set; }
+        public int Probability { get; set; }
+        public DateTime? ExpectedCloseDate { get; set; }
+    }
+}

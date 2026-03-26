@@ -1,0 +1,185 @@
+@page "/deals"
+@using WarpBusiness.Shared.Crm
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+
+<PageTitle>Deals — Warp Business</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Deals</h1>
+    <a href="/deals/new" class="btn btn-primary">
+        <span class="bi bi-plus-lg"></span> New Deal
+    </a>
+</div>
+
+@if (_summary is not null)
+{
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap gap-3 align-items-center">
+                <div>
+                    <span class="text-muted small">Total Pipeline</span>
+                    <div class="fw-bold fs-5">@_summary.TotalPipelineValue.ToString("C")</div>
+                </div>
+                <div class="vr"></div>
+                <span class="text-muted small">@_summary.TotalDealCount deal(s)</span>
+                @foreach (var stage in _summary.Stages)
+                {
+                    <div class="border-start ps-3">
+                        <span class="badge @GetStageBadge(stage.Stage) me-1">@stage.Stage</span>
+                        <span class="small text-muted">@stage.Count · @stage.TotalValue.ToString("C")</span>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <div class="input-group">
+            <span class="input-group-text"><span class="bi bi-search"></span></span>
+            <input type="text" class="form-control" placeholder="Search deals..."
+                   @bind="_searchTerm" @bind:event="oninput" @onkeyup="OnSearchChanged" />
+        </div>
+    </div>
+</div>
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_result is not null && _result.TotalCount == 0)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <span class="bi bi-currency-dollar fs-1 text-muted d-block mb-2"></span>
+            <p class="text-muted">No deals yet. <a href="/deals/new">Create your first deal.</a></p>
+        </div>
+    </div>
+}
+else if (_result is not null)
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Title</th>
+                        <th>Stage</th>
+                        <th>Value</th>
+                        <th>Close Date</th>
+                        <th>Contact</th>
+                        <th>Company</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var deal in FilteredDeals)
+                    {
+                        <tr>
+                            <td class="fw-semibold">
+                                <a href="/deals/@deal.Id" class="text-decoration-none">@deal.Title</a>
+                            </td>
+                            <td><span class="badge @GetStageBadge(deal.Stage)">@deal.Stage</span></td>
+                            <td>@deal.Value.ToString("C")</td>
+                            <td>@(deal.ExpectedCloseDate?.ToString("d") ?? "—")</td>
+                            <td>@(deal.ContactName ?? "—")</td>
+                            <td>@(deal.CompanyName ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (_result.TotalPages > 1)
+        {
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    Showing @((_currentPage - 1) * _pageSize + 1)–@(Math.Min(_currentPage * _pageSize, _result.TotalCount))
+                    of @_result.TotalCount deals
+                </small>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @(_result.HasPreviousPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="() => ChangePage(_currentPage - 1)">‹</button>
+                        </li>
+                        @{
+                            for (int i = 1; i <= _result.TotalPages; i++)
+                            {
+                                var pageNum = i;
+                                var pageText = i.ToString();
+                                <li class="page-item @(pageNum == _currentPage ? "active" : "")">
+                                    <button class="page-link" @onclick="@(() => ChangePage(pageNum))">@pageText</button>
+                                </li>
+                            }
+                        }
+                        <li class="page-item @(_result.HasNextPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="() => ChangePage(_currentPage + 1)">›</button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private PagedResult<DealDto>? _result;
+    private DealPipelineSummary? _summary;
+    private bool _loading = true;
+    private int _currentPage = 1;
+    private int _pageSize = 20;
+    private string _searchTerm = string.Empty;
+    private Timer? _debounceTimer;
+
+    private IEnumerable<DealDto> FilteredDeals =>
+        _result?.Items.Where(d => string.IsNullOrEmpty(_searchTerm)
+            || d.Title.Contains(_searchTerm, StringComparison.OrdinalIgnoreCase)) ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var summaryTask = Api.GetPipelineSummaryAsync();
+        await LoadDealsAsync();
+        _summary = await summaryTask;
+    }
+
+    private async Task LoadDealsAsync()
+    {
+        _loading = true;
+        StateHasChanged();
+        _result = await Api.GetDealsAsync(_currentPage, _pageSize);
+        _loading = false;
+    }
+
+    private void OnSearchChanged()
+    {
+        _debounceTimer?.Dispose();
+        _debounceTimer = new Timer(async _ =>
+        {
+            _currentPage = 1;
+            await LoadDealsAsync();
+            await InvokeAsync(StateHasChanged);
+        }, null, 350, Timeout.Infinite);
+    }
+
+    private async Task ChangePage(int page)
+    {
+        _currentPage = page;
+        await LoadDealsAsync();
+    }
+
+    private static string GetStageBadge(string stage) => stage switch
+    {
+        "Lead" => "bg-warning text-dark",
+        "Qualified" => "bg-info text-dark",
+        "Proposal" => "bg-primary",
+        "Negotiation" => "bg-dark",
+        "ClosedWon" => "bg-success",
+        "ClosedLost" => "bg-secondary",
+        _ => "bg-primary"
+    };
+}

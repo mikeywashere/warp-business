@@ -148,6 +148,54 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
         return response.IsSuccessStatusCode;
     }
 
+    // Deals
+    public async Task<PagedResult<DealDto>?> GetDealsAsync(int page = 1, int pageSize = 20)
+    {
+        var url = $"api/deals?page={page}&pageSize={pageSize}";
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync(url));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<PagedResult<DealDto>>()
+            : null;
+    }
+
+    public async Task<DealDto?> GetDealAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync($"api/deals/{id}"));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<DealDto>()
+            : null;
+    }
+
+    public async Task<DealDto?> CreateDealAsync(CreateDealRequest request)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.PostAsJsonAsync("api/deals", request));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<DealDto>()
+            : null;
+    }
+
+    public async Task<DealDto?> UpdateDealAsync(Guid id, UpdateDealRequest request)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.PutAsJsonAsync($"api/deals/{id}", request));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<DealDto>()
+            : null;
+    }
+
+    public async Task<bool> DeleteDealAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.DeleteAsync($"api/deals/{id}"));
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<DealPipelineSummary?> GetPipelineSummaryAsync()
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync("api/deals/summary"));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<DealPipelineSummary>()
+            : null;
+    }
+
     // Admin
     public async Task<List<UserSummaryDto>?> GetUsersAsync()
     {
