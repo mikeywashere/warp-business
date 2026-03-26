@@ -41,6 +41,11 @@ public class CustomFieldsController : ControllerBase
     public async Task<ActionResult<CustomFieldDefinitionDto>> CreateDefinition(
         CreateCustomFieldDefinitionRequest request, CancellationToken ct = default)
     {
+        var duplicate = await _db.CustomFieldDefinitions
+            .AnyAsync(d => d.Name == request.Name && d.EntityType == request.EntityType, ct);
+        if (duplicate)
+            return Conflict(new { message = "A custom field with this name already exists for this entity type." });
+
         var def = await _customFields.CreateDefinitionAsync(request, ct);
         return CreatedAtAction(nameof(GetDefinition), new { id = def.Id }, def);
     }
