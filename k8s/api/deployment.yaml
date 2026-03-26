@@ -41,13 +41,6 @@ spec:
             secretKeyRef:
               name: warp-secrets
               key: jwt-key
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "200m"
-          limits:
-            memory: "768Mi"
-            cpu: "750m"
         readinessProbe:
           httpGet:
             path: /health

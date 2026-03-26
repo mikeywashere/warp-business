@@ -36,10 +36,8 @@ public class ExternalIdentityMapper : IExternalIdentityMapper
         var existing = await _userManager.FindByEmailAsync(email);
         if (existing is not null)
         {
+            // Update last login
             existing.LastLoginAt = DateTimeOffset.UtcNow;
-            // Correct AuthProvider if account was originally created locally
-            if (existing.AuthProvider == "Local" || string.IsNullOrEmpty(existing.AuthProvider))
-                existing.AuthProvider = provider.ToString();
             await _userManager.UpdateAsync(existing);
             return;
         }
@@ -66,7 +64,6 @@ public class ExternalIdentityMapper : IExternalIdentityMapper
             UserName = email,
             Email = email,
             EmailConfirmed = true, // OIDC provider has already verified email
-            AuthProvider = provider.ToString(),
             FirstName = firstName,
             LastName = lastName,
             LastLoginAt = DateTimeOffset.UtcNow,

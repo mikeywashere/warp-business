@@ -22,23 +22,9 @@ spec:
         envFrom:
         - configMapRef:
             name: warp-web-config
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
         readinessProbe:
           httpGet:
             path: /
             port: 8080
           initialDelaySeconds: 15
           periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 30
-          failureThreshold: 3
