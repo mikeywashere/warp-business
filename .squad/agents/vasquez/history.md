@@ -208,5 +208,20 @@
 - `OnInitializedAsync` loads contact + field defs in parallel
 - Save includes custom fields in `UpdateContactRequest`
 
-**Razor Gotcha (confirmed again):** Cannot embed `"true"` or `"false"` string literals inside `@onchange="..."` attribute lambdas — Razor parser terminates the attribute at the first `"`. Always extract to a method.
+### 2026-03-26: Plugin nav items wired — CRM hardcoded links removed from NavMenu
+
+**NavMenu.razor cleanup:**
+- Removed hardcoded `Contacts`, `Companies`, `Deals`, and `Activities` nav links
+- These are now contributed dynamically by `CrmModule.GetNavItems()` via `GET /api/modules/nav-items`
+- Existing "EXTENSIONS" section renders them at runtime; no markup change needed there
+- Home, Admin section (Users, Custom Fields, Modules), and auth footer all preserved
+
+**Router AdditionalAssemblies (Routes.razor):**
+- Added `typeof(WarpBusiness.Plugin.Crm.CrmModule).Assembly` to `AdditionalAssemblies`
+- Blazor Router will now discover `@page` routes defined in Plugin.Crm when CRM pages eventually move there
+
+**WarpBusiness.Web.csproj:**
+- Added `<ProjectReference>` to `WarpBusiness.Plugin.Crm`
+- Build succeeds (0 errors); EF Core 10.0.4 vs 10.0.5 MSB3277 warning is a pre-existing Plugin.Crm dependency mismatch, not a frontend concern
+
 
