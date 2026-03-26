@@ -58,6 +58,7 @@ public class DealsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteDeal(Guid id, CancellationToken ct = default)
     {
         var deleted = await _deals.DeleteDealAsync(id, ct);

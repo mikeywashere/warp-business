@@ -75,6 +75,7 @@ public class ContactsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteContact(Guid id, CancellationToken ct = default)
     {
         var deleted = await _contacts.DeleteContactAsync(id, ct);

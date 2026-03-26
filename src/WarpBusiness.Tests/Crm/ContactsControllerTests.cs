@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using WarpBusiness.Shared.Auth;
 using WarpBusiness.Shared.Crm;
 using WarpBusiness.Tests.Infrastructure;
 
@@ -22,6 +23,18 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
         var token = await AuthHelper.RegisterAndGetTokenAsync(
             _client, $"contacts-{Guid.NewGuid()}@example.com");
         _client.SetBearerToken(token);
+    }
+
+    private async Task<HttpClient> CreateAdminClientAsync()
+    {
+        var client = _factory.CreateClient();
+        var email = $"contacts-admin-{Guid.NewGuid()}@example.com";
+        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        await AuthHelper.PromoteToAdminAsync(_factory, email);
+        var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
+        var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        client.SetBearerToken(auth!.Token);
+        return client;
     }
 
     [Fact]
@@ -101,14 +114,14 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     [Fact]
     public async Task UpdateContact_ExistingContact_ReturnsUpdated()
     {
-        // Arrange
-        await AuthenticateAsync();
-        var created = await CreateTestContactAsync("Charlie", "Brown");
+        // Arrange — Admin can update any contact (IDOR protection: non-admins can only update own contact)
+        var adminClient = await CreateAdminClientAsync();
+        var created = await CreateTestContactWithClientAsync(adminClient, "Charlie", "Brown");
         var updateRequest = new UpdateContactRequest(
             "Charles", "Brown", "charles@example.com", null, "Manager", null, "Active");
 
         // Act
-        var response = await _client.PutAsJsonAsync($"api/contacts/{created.Id}", updateRequest);
+        var response = await adminClient.PutAsJsonAsync($"api/contacts/{created.Id}", updateRequest);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -118,27 +131,42 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
-    public async Task DeleteContact_ExistingContact_ReturnsNoContent()
+    public async Task DeleteContact_ExistingContact_ReturnsNoContent_WhenAdmin()
     {
         // Arrange
-        await AuthenticateAsync();
-        var created = await CreateTestContactAsync("Delete", "Me");
+        var adminClient = await CreateAdminClientAsync();
+        var created = await CreateTestContactWithClientAsync(adminClient, "Delete", "Me");
 
         // Act
-        var response = await _client.DeleteAsync($"api/contacts/{created.Id}");
+        var response = await adminClient.DeleteAsync($"api/contacts/{created.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]
-    public async Task DeleteContact_NonExistentId_ReturnsNotFound()
+    public async Task DeleteContact_ReturnsForbidden_WhenNotAdmin()
     {
-        // Arrange
+        // Arrange — create with admin, attempt delete with regular user
+        var adminClient = await CreateAdminClientAsync();
+        var created = await CreateTestContactWithClientAsync(adminClient, "Forbidden", "Delete");
         await AuthenticateAsync();
 
         // Act
-        var response = await _client.DeleteAsync($"api/contacts/{Guid.NewGuid()}");
+        var response = await _client.DeleteAsync($"api/contacts/{created.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task DeleteContact_NonExistentId_ReturnsNotFound_WhenAdmin()
+    {
+        // Arrange
+        var adminClient = await CreateAdminClientAsync();
+
+        // Act
+        var response = await adminClient.DeleteAsync($"api/contacts/{Guid.NewGuid()}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -168,6 +196,18 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
             $"{firstName.ToLower()}.{lastName.ToLower()}@test.com",
             null, null, null);
         var response = await _client.PostAsJsonAsync("api/contacts", request);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<ContactDto>())!;
+    }
+
+    private static async Task<ContactDto> CreateTestContactWithClientAsync(
+        HttpClient client, string firstName, string lastName)
+    {
+        var request = new CreateContactRequest(
+            firstName, lastName,
+            $"{firstName.ToLower()}.{lastName.ToLower()}-{Guid.NewGuid():N}@test.com",
+            null, null, null);
+        var response = await client.PostAsJsonAsync("api/contacts", request);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<ContactDto>())!;
     }
