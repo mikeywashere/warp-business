@@ -41,6 +41,7 @@ public class EmployeeService(EmployeeDbContext db) : IEmployeeService
 
     public async Task<Employee> CreateAsync(Employee employee)
     {
+        employee.Email = employee.Email.ToLowerInvariant();
         employee.CreatedAt = DateTime.UtcNow;
         employee.UpdatedAt = DateTime.UtcNow;
         db.Employees.Add(employee);
@@ -55,7 +56,7 @@ public class EmployeeService(EmployeeDbContext db) : IEmployeeService
 
         existing.FirstName = updated.FirstName;
         existing.LastName = updated.LastName;
-        existing.Email = updated.Email;
+        existing.Email = updated.Email?.ToLowerInvariant() ?? string.Empty;
         existing.Phone = updated.Phone;
         existing.Department = updated.Department;
         existing.JobTitle = updated.JobTitle;

@@ -107,7 +107,7 @@ public class ContactService : IContactService
             Id = Guid.NewGuid(),
             FirstName = request.FirstName,
             LastName = request.LastName,
-            Email = request.Email,
+            Email = request.Email?.ToLowerInvariant(),
             Phone = request.Phone,
             JobTitle = request.JobTitle,
             CompanyId = request.CompanyId,
@@ -131,7 +131,7 @@ public class ContactService : IContactService
 
         contact.FirstName = request.FirstName;
         contact.LastName = request.LastName;
-        contact.Email = request.Email;
+        contact.Email = request.Email?.ToLowerInvariant();
         contact.Phone = request.Phone;
         contact.JobTitle = request.JobTitle;
         contact.CompanyId = request.CompanyId;
