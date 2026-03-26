@@ -77,3 +77,40 @@ Each test that needs auth should call `_factory.CreateClient()` and authenticate
 **ActivitiesController accepts ContactId in CreateActivityRequest:**  
 The `contactId` filter on `GET /api/activities?contactId={id}` only works if an activity was created with that `ContactId`. Tests must first create a Contact (via `POST /api/contacts`), then create an Activity referencing it before filtering.
 
+### 2026-03-26: Playwright E2E Test Project
+
+**Project created:** `src/WarpBusiness.Tests.E2E/` (net10.0, NUnit + Microsoft.Playwright.NUnit 1.51.0)
+
+**Structure:**
+- `PlaywrightSetup.cs` — `[SetUpFixture]` calling `Program.Main(["install"])` once
+- `PageTestBase.cs` — `[OneTimeSetUp]`/`[SetUp]`/`[TearDown]` browser lifecycle; `BaseUrl` from `E2E_BASE_URL` (default `http://localhost:5002`); `RequireAppAsync()` skips with `Assert.Ignore` if app is down
+- `AuthHelper.cs` — static helpers for login + register via UI; auto-registers test user if login fails
+- Page objects in `Pages/`: `LoginPage`, `ContactsPage`, `CompaniesPage`, `DealsPage`, `EmployeesPage`
+- Test classes in `Tests/`: `AuthTests`, `ContactsTests`, `CompaniesTests`, `DealsTests`, `EmployeesTests`, `NavigationTests`
+
+**Selectors used (no data-testid attributes exist):**
+- `GetByLabel("Email")` / `GetByLabel("Password")` for login/register forms (Blazor renders `<label>` with matching text)
+- `GetByRole(AriaRole.Button, new() { Name = "Sign In" })` etc. for form submissions
+- `GetByRole(AriaRole.Heading, ...)` for page headings
+- `table.table` CSS selector for data tables (Bootstrap class used consistently across pages)
+- `GetByPlaceholder(...)` for search inputs
+
+**Key gotcha — .gitignore collision:**  
+The default Visual Studio `.gitignore` includes `*.e2e` (VS Trace Files). This pattern matches the `WarpBusiness.Tests.E2E` directory name via glob. Added negation `!src/WarpBusiness.Tests.E2E/` immediately after the `*.e2e` rule to allow the project to be committed.
+
+**Unauthenticated redirect behavior:**  
+Blazor Server with cookie/JWT auth redirects unauthenticated users to `/login` client-side. Tests allow `WaitForTimeoutAsync(2_000)` before asserting URL contains `/login`.
+
+**Test isolation pattern:**  
+Each test class calls `AuthHelper.LoginAsync()` in `[SetUp]`. A new `IBrowserContext` (fresh cookies/storage) is created per test in `PageTestBase`, so auth state never bleeds between tests.
+
+**PR:** https://github.com/mikeywashere/warp-business/pull/8
+
+### 2026-03-26T20:45:20Z: Team Decisions Merged
+
+**Admin Role for Deletes (Hicks, PR #7):**  
+All CRM DELETE endpoints now require Admin role. Non-Admin users receive 403 Forbidden. Protects data integrity by restricting destructive operations. Impact: Integration tests updated to verify role-based access on all DELETE operations.
+
+**Code Review Findings (Ripley):**  
+7 critical issues identified: database credentials exposed, IDOR in contact updates, email case-sensitivity, missing AuthProvider on OIDC users, K8s resource limits/probes missing, race condition in refresh token rotation, missing input validation. Tracking in decisions.md for remediation.
+
