@@ -112,3 +112,17 @@
 - **409 on delete:** `CustomFieldsController.DeleteDefinition` checks `AnyAsync` for values before delegating to service. Service itself does a straight remove (no check) to keep it clean.
 - **ContactDto breaking change:** Added `IReadOnlyList<CustomFieldValueDto> CustomFields` as last positional record parameter — all existing constructors in `ContactService` updated.
 - **Migration command:** `dotnet ef migrations add AddCustomFields --project . --startup-project .` from `src/WarpBusiness.Api/`.
+
+
+### 2026-03-26: CRM Backend Extracted to WarpBusiness.Plugin.Crm
+
+- **Extraction scope:** All 6 domain entities, 6 EF configs, 5 service interfaces + implementations, and 5 controllers moved from WarpBusiness.Api to WarpBusiness.Plugin.Crm.
+- **CrmDbContext:** New DbContext with HasDefaultSchema("crm") and ApplyConfigurationsFromAssembly. All 6 CRM DbSets added. Services now inject CrmDbContext instead of ApplicationDbContext.
+- **ApplicationDbContext:** Stripped to Identity tables + RefreshToken only. No more CRM-domain using statements or DbSets.
+- **CrmModule.ConfigureServices:** Registers CrmDbContext (using warpbusiness connection string, falling back to DefaultConnection) plus all 5 CRM services as Scoped.
+- **CrmModule.Configure:** Calls db.Database.Migrate() to auto-apply the crm schema migrations at startup.
+- **ServiceCollectionExtensions:** AddCustomModules now accepts IEnumerable<ICustomModule>? firstPartyModules — calls ConfigureServices on each and registers them in ModuleRegistry with "built-in" source. Employee and CRM modules both pass through this path.
+- **Program.cs:** Removed explicit CRM service registrations; added AddApplicationPart(typeof(CrmModule).Assembly); both first-party modules registered via AddCustomModules(firstPartyModules: ...). The explicit mployeeModule.ConfigureServices(...) and mployeeModule.Configure(app) calls removed (now handled by AddCustomModules/UseCustomModules).
+- **EF migrations:** ExtractCrmToPlugin (Api) is an intentional no-op — no drop tables. InitialCrm (Plugin.Crm) creates all 6 CRM tables in the crm schema fresh.
+- **Connection string:** CrmModule tries "warpbusiness" first to match existing Aspire-registered connection; falls back to "DefaultConnection" for third-party deployments.
+- **Nav items:** CrmModule.GetNavItems() returns Contacts/Companies/Deals — now served via ModuleRegistry through GET /api/modules/nav-items. Blazor frontend no longer needs hardcoded CRM nav links.
