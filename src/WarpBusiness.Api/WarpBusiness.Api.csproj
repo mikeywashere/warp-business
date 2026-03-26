@@ -24,6 +24,7 @@
     <ProjectReference Include="..\WarpBusiness.ServiceDefaults\WarpBusiness.ServiceDefaults.csproj" />
     <ProjectReference Include="..\WarpBusiness.Shared\WarpBusiness.Shared.csproj" />
     <ProjectReference Include="..\WarpBusiness.Plugin.Abstractions\WarpBusiness.Plugin.Abstractions.csproj" />
+    <ProjectReference Include="..\WarpBusiness.Plugin.EmployeeManagement\WarpBusiness.Plugin.EmployeeManagement.csproj" />
   </ItemGroup>
 
 </Project>

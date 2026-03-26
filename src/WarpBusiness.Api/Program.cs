@@ -45,7 +45,12 @@ builder.Services.AddScoped<ICustomFieldService, CustomFieldService>();
 var pluginsDir = Path.Combine(builder.Environment.ContentRootPath, "plugins");
 builder.Services.AddCustomModules(builder.Configuration, pluginsDir);
 
-builder.Services.AddControllers();
+// Employee Management plugin (first-party, registered directly)
+var employeeModule = new WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule();
+employeeModule.ConfigureServices(builder.Services, builder.Configuration);
+
+builder.Services.AddControllers()
+    .AddApplicationPart(typeof(WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule).Assembly);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
@@ -67,6 +72,7 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCustomModules();
+employeeModule.Configure(app);
 app.MapControllers();
 
 // Seed roles on startup
