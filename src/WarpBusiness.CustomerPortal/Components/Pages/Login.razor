@@ -70,9 +70,6 @@
         var result = await Api.LoginAsync(new LoginRequest(_model.Email, _model.Password));
         if (result is not null)
         {
-            // Set bearer header on the shared HttpClient then update auth state
-            httpClient.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", result.Token);
             AuthState.SetAuth(result);
             Nav.NavigateTo("/");
         }

@@ -60,6 +60,16 @@
 - **Auth pattern:** CustomerApiClient stores access token and sets Authorization header; CustomerAuthState manages app-level auth state
 - **API communication:** All API calls use the same JWT auth pattern as WarpBusiness.Web — customers authenticate with their email/password (Local provider) or OIDC providers (Keycloak/Microsoft)
 
+### 2026-03-25: Activity Service and Controller Implemented
+
+- **Entity shape:** `Activity` uses `Title` (not Subject), `Notes` (not Description), `ScheduledAt` (not DueDate). `IsCompleted` is a computed property from `CompletedAt.HasValue` — not stored. No direct `CompanyId` on Activity.
+- **DTO mapping:** DTOs use spec-friendly names (`Subject`, `Description`, `DueDate`) that map to entity fields. `CompanyId`/`CompanyName` are derived from `Contact.Company` or `Deal.Company` via navigations.
+- **Company filtering:** Activities have no direct `CompanyId`. Filter by `a.Contact.CompanyId == companyId || a.Deal.CompanyId == companyId` using included navigations.
+- **Projection pattern:** Used `.Include().AsNoTracking().ToListAsync()` then in-memory `MapToDto()` to avoid EF translation issues with null-conditional chains on navigations.
+- **CompleteActivityAsync:** Sets `CompletedAt = DateTimeOffset.UtcNow`; idempotent on already-completed activities.
+- **UpdateActivityAsync:** Clears `CompletedAt` when `IsCompleted = false`, sets it when toggled to true and not yet set.
+- **CreateActivityAsync:** Sets both `OwnerId` and `CreatedBy` from the JWT sub/NameIdentifier claim (passed from controller).
+
 ### 2026-03-25: Customer Self-Service and Admin APIs
 
 - **GET /api/contacts/me:** Added to ContactsController for customers to fetch their own contact record via JWT email claim. Route placed before `{id:guid}` to prevent routing conflicts. `IContactService.GetContactByEmailAsync` queries by lowercase email with `.Include(c => c.Company)` and maps to ContactDto using existing Select projection pattern.
