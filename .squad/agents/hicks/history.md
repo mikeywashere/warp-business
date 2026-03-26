@@ -10,6 +10,15 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-03-26: Security Fixes — Code Review Remediation
+
+- **appsettings.json DefaultConnection:** Added a placeholder `DefaultConnection` key with `Password=CHANGE_ME` so the config schema is visible and no real credentials can be committed. Real creds must be supplied via env var (`ConnectionStrings__DefaultConnection`) or Aspire secrets.
+- **IDOR pattern in controllers:** When a PUT endpoint operates on a resource that could be owned by a user (contact, deal, etc.), check ownership before delegating to the service. Pattern: load the resource via service, compare email/ownerId against JWT claim, return `Forbid()` for non-Admin/Manager users on mismatch. Service layer is not the right place for authz checks — controller is.
+- **Email normalization:** Emails must be normalized to `ToLowerInvariant()` on both create AND update — in the service layer, not in the controller. `GetContactByEmailAsync` already searches by lowercase; the fix closes the round-trip gap.
+- **Employee.Email is non-nullable:** `Employee.Email` defaults to `string.Empty`. Use `?.ToLowerInvariant() ?? string.Empty` in `UpdateAsync` to avoid `CS8601` null-assignment warnings.
+- **Data annotation attributes on records:** C# positional record constructors support `[Required]`, `[MaxLength]`, `[EmailAddress]`, `[Phone]`, `[MinLength]` directly on the parameter. Add `using System.ComponentModel.DataAnnotations;` at top of file. ASP.NET Core model validation runs automatically with `AddControllers()` — no extra setup needed.
+- **Shared git environment:** In a squad environment multiple agents share one working tree. Always check `git status` before `git add -A` — other agents may have staged changes. Use targeted `git add <file>` or `git checkout <commit> -- <file>` patterns to avoid mixing commits.
+
 ### 2026-03-25: CRM Domain Model Implemented
 
 - **Domain Entities:** Created Contact, Company, Deal, and Activity entities with proper relationships

@@ -63,3 +63,17 @@ Cookies with `Secure = true` are only sent over HTTPS. Test clients created with
 **Token claims vs. DB roles:**  
 JWT tokens capture roles at generation time. If you promote a user to Admin AFTER registering (via `UserManager.AddToRoleAsync`), the original token won't have the Admin claim. Tests must login AGAIN after role changes to get a fresh token with updated claims.
 
+### 2026-03-26: Missing Controller Integration Tests
+
+**CompaniesController has no role-based delete restriction:**  
+`DeleteCompany` is only gated by `[Authorize]` (no role). Tests for "Admin only delete" would give false confidence — any authenticated user can delete. Adjusted test names to reflect reality: `DeleteCompany_ReturnsNoContent_WhenAuthenticated` and `DeleteCompany_ReturnsUnauthorized_WhenNotAuthenticated`.
+
+**EmployeesController returns anonymous objects, not typed DTOs:**  
+`EmployeesController.ToDto()` returns an anonymous `object`. Tests must use `System.Text.Json.JsonElement` to inspect response properties rather than a typed DTO class. Use `GetProperty("firstName").GetString()` and `GetProperty("id").GetGuid()` patterns.
+
+**Per-test isolated clients prevent auth state bleed:**  
+Each test that needs auth should call `_factory.CreateClient()` and authenticate fresh rather than sharing a `_client` with `SetBearerToken`. This prevents role-bearing tokens (Admin) from contaminating tests that assert on regular users.
+
+**ActivitiesController accepts ContactId in CreateActivityRequest:**  
+The `contactId` filter on `GET /api/activities?contactId={id}` only works if an activity was created with that `ContactId`. Tests must first create a Contact (via `POST /api/contacts`), then create an Activity referencing it before filtering.
+
