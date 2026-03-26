@@ -145,3 +145,11 @@
 - **imagePullPolicy: Never** on all app containers — images built locally, not pulled from registry.
 - **Makefile targets:** build, load-kind, deploy (guards for secrets.yaml), undeploy, status, logs-api/web/portal, restart, clean.
 - **skaffold.yaml:** Local dev loop with auto-rebuild + port-forward (5001/5002/5003).
+
+### 2026-03-26: CRM Delete Authorization — Admin Role Required
+
+- **Pattern:** `[Authorize]` at class level (any authenticated user) + `[Authorize(Roles = "Admin")]` on specific action overrides/narrows for that action. Used on all CRM DELETE endpoints.
+- **Scope:** CompaniesController, DealsController, ActivitiesController, ContactsController — all DELETE actions are now Admin-only.
+- **Test pattern:** For role-restricted endpoints, need both an "Admin succeeds (204)" test and a "non-Admin forbidden (403)" test. `AuthHelper.PromoteToAdminAsync` + re-login pattern is the correct way to get a fresh Admin JWT.
+- **Pre-existing failure:** The IDOR protection added by the security fix (regular users can only update their own contacts) broke UpdateContact tests that created contacts with different emails. Fixed by updating those tests to use Admin client for update operations.
+- **Shared environment gotcha:** In multi-agent shared repo, other agents push to main while you're working. Always rebase your branch before committing. The stash from branch switches can contain mixed agent changes — cherry-pick individual files from stash instead of popping blindly.
