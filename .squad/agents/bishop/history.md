@@ -58,7 +58,28 @@ Implemented secure refresh token infrastructure for Local JWT provider with defe
 
 **Frontend Integration:** Vasquez notified to implement 401 → refresh → retry flow in WarpApiClient.cs. Refresh is cookie-based, no manual token management needed on client.
 
-### 2026-03-26: AddRefreshTokens EF Core Migration
+### 2026-03-26: Auth/Infra Code Review Fixes (PR #4)
+
+Fixed three code review findings from Ripley's full review:
+
+**1. ExternalIdentityMapper AuthProvider Assignment**
+- New OIDC users now get `AuthProvider = provider.ToString()` (e.g. `"Keycloak"`, `"Microsoft"`) set on provisioning
+- Returning users whose `AuthProvider` is `"Local"` or empty are corrected on next OIDC login
+- Used `provider.ToString()` which maps the `AuthProviderType` enum directly — matches how `AuthController.GetProvider` and `AdminController` display the provider name
+
+**2. K8s Resource Limits and Liveness Probes**
+- Added `resources.requests/limits` to all three deployments (API, Web, Portal) with tiered sizing
+- Added `livenessProbe` to web and portal (API already had one) using `path: /` on port 8080
+- These are production-safety requirements, not optional
+
+**3. Secrets Template Sanitization**
+- Replaced all base64-encoded placeholder values with `REPLACE_WITH_BASE64_ENCODED_VALUE`
+- Added `keycloak-admin-password` key that was missing
+- Standardized header comment block
+
+**Git Learnings:** In a shared worktree environment with multiple agents active, branch context can silently shift between operations. Always verify branch immediately before commit with `git branch` — do not trust earlier `checkout` output. Use `git add <specific-files>` to scope commits tightly and prevent accidentally including other agents' staged work.
+
+
 
 Created and committed the `20260326030154_AddRefreshTokens` migration to persist the RefreshToken entity schema to PostgreSQL.
 
