@@ -2,6 +2,7 @@
 @using WarpBusiness.Web.Services
 @inject AuthStateService AuthState
 @inject NavigationManager Nav
+@inject WarpApiClient Api
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -81,9 +82,9 @@
         AuthState.OnChange += StateHasChanged;
     }
 
-    private void Logout()
+    private async Task Logout()
     {
-        AuthState.ClearAuth();
+        await Api.LogoutAsync();
         Nav.NavigateTo("/login");
     }
 

@@ -60,3 +60,14 @@
 - **Auth pattern:** CustomerApiClient stores access token and sets Authorization header; CustomerAuthState manages app-level auth state
 - **API communication:** All API calls use the same JWT auth pattern as WarpBusiness.Web — customers authenticate with their email/password (Local provider) or OIDC providers (Keycloak/Microsoft)
 
+### 2026-03-25: Customer Self-Service and Admin APIs
+
+- **GET /api/contacts/me:** Added to ContactsController for customers to fetch their own contact record via JWT email claim. Route placed before `{id:guid}` to prevent routing conflicts. `IContactService.GetContactByEmailAsync` queries by lowercase email with `.Include(c => c.Company)` and maps to ContactDto using existing Select projection pattern.
+- **AdminController:** New controller under `/api/admin` with `[Authorize(Roles = "Admin")]`. Three endpoints:
+  - `GET /api/admin/users`: Returns all users with roles, AuthProvider, and LastLoginAt metadata
+  - `POST /api/admin/users/{userId}/roles`: Adds or removes a role (creates role if missing via RoleManager)
+  - `DELETE /api/admin/users/{userId}`: Deletes user with last-admin guard (Conflict if last admin)
+- **ApplicationUser.AuthProvider:** Added nullable string property to track auth source ("Local", "Keycloak", "Microsoft"). Defaults to "Local" for backward compatibility.
+- **SetRoleRequest DTO:** Added to WarpBusiness.Shared.Auth.AuthDtos.cs as `record SetRoleRequest(string Role, bool Add)` for role toggle API contract.
+
+
