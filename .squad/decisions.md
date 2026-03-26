@@ -139,6 +139,18 @@
 - **Trade-offs:** Entity type hardcoded to "Contact" in admin UI (multi-entity support is future); portal replicates input logic instead of sharing (acceptable for contained scope).
 - **Owner:** Vasquez (Frontend Dev)
 
+### 2026-03-26T20:10:00Z: Code Review Critical Findings
+**By:** Ripley (code review)
+**What:** Full code review completed. Critical issues identified:
+1. Database credentials committed to appsettings.json (Password=OhHowSad6) — ROTATE IMMEDIATELY
+2. IDOR vulnerability in ContactsController PUT /api/contacts/{id} — portal users can modify any contact
+3. Email case-sensitivity bug breaks /api/contacts/me for mixed-case emails
+4. ExternalIdentityMapper does not set AuthProvider on OIDC-provisioned users
+5. K8s deployments missing resource limits and liveness probes
+6. Race condition window in refresh token rotation (no optimistic concurrency)
+7. Missing input validation attributes on request DTOs
+**Why:** Code review findings — must track for remediation
+
 ## Governance
 
 - All meaningful changes require team consensus
