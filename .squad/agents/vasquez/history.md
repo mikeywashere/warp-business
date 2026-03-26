@@ -127,3 +127,49 @@
 
 **Pattern:** CustomerPortal now has full parity with Web for token refresh — all portal API calls are self-healing on 401 via cookie refresh.
 
+### 2026-03-25: Deal List and Detail Pages
+
+**DealList.razor (`/deals`):**
+- Paged table: Title (linked), Stage (badge), Value (currency), Close Date, Contact, Company
+- Pipeline summary bar at top using `GET /api/deals/summary` — shows TotalPipelineValue + per-stage count/value
+- Client-side title filter on current page (debounced, 350ms)
+- Pagination matches ContactList pattern (numbered pages + prev/next)
+- "New Deal" button → `/deals/new`; title cells link to `/deals/{id}` via plain `<a>` tags
+
+**DealDetail.razor (`/deals/{Id:guid}` + `/deals/new`):**
+- Dual `@page` directives; `_isNew = Id == Guid.Empty` detects new-deal mode
+- New deal: form shown immediately; POST on save → redirect to `/deals/{newId}`
+- Edit: inline toggle; PUT on save; success/error banners
+- Delete confirmation modal → `DeleteDealAsync` → redirect to `/deals`
+- Fields: Title (required), Stage (dropdown), Value ($), Probability (%), Expected Close Date (date picker)
+- View mode: Contact/Company rendered as links if IDs present, else "—"
+
+**WarpApiClient Additions:**
+- `GetDealsAsync`, `GetDealAsync`, `CreateDealAsync`, `UpdateDealAsync`, `DeleteDealAsync`, `GetPipelineSummaryAsync`
+- Pipeline summary hits `api/deals/summary` (not `api/deals/pipeline` — check DealsController route)
+- All use `SendWithRefreshAsync` pattern
+
+### 2026-03-26: Deal List and Detail Pages
+
+**DealList.razor (`/deals`):**
+- Paged table: Title (linked), Stage (badge), Value (currency), Close Date, Contact, Company
+- Pipeline summary bar at top using `GET /api/deals/summary` — shows TotalPipelineValue + per-stage count/value
+- Client-side title filter on current page (debounced, 350ms)
+- Pagination matches ContactList pattern (numbered pages + prev/next)
+- "New Deal" button → `/deals/new`; title cells link to `/deals/{id}` via plain `<a>` tags
+
+**DealDetail.razor (`/deals/{Id:guid}` + `/deals/new`):**
+- Dual `@page` directives; `_isNew = Id == Guid.Empty` detects new-deal mode
+- New deal: form shown immediately; POST on save → redirect to `/deals/{newId}`
+- Edit: inline toggle; PUT on save; success/error banners
+- Delete confirmation modal → `DeleteDealAsync` → redirect to `/deals`
+- Fields: Title (required), Stage (dropdown), Value ($), Probability (%), Expected Close Date (date picker)
+- View mode: Contact/Company rendered as links if IDs present, else "—"
+
+**WarpApiClient Additions:**
+- `GetDealsAsync`, `GetDealAsync`, `CreateDealAsync`, `UpdateDealAsync`, `DeleteDealAsync`, `GetPipelineSummaryAsync`
+- Pipeline summary hits `api/deals/summary` (not `api/deals/pipeline` — check DealsController route)
+- All use `SendWithRefreshAsync` pattern
+
+**Razor Gotcha:** Can't use `$"..."` string interpolation with escaped quotes (`$\"...\"`) inside `@onclick` attributes in Razor — Razor parser chokes on the backslash escape. Use a plain `<a href="/deals/@id">` anchor instead of `Nav.NavigateTo` in `@onclick`.
+

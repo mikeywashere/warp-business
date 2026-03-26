@@ -78,6 +78,24 @@
   - `POST /api/admin/users/{userId}/roles`: Adds or removes a role (creates role if missing via RoleManager)
   - `DELETE /api/admin/users/{userId}`: Deletes user with last-admin guard (Conflict if last admin)
 - **ApplicationUser.AuthProvider:** Added nullable string property to track auth source ("Local", "Keycloak", "Microsoft"). Defaults to "Local" for backward compatibility.
+### 2026-03-26: Customer Self-Service and Admin APIs
+
+- **GET /api/contacts/me:** Added to ContactsController for customers to fetch their own contact record via JWT email claim. Route placed before `{id:guid}` to prevent routing conflicts. `IContactService.GetContactByEmailAsync` queries by lowercase email with `.Include(c => c.Company)` and maps to ContactDto using existing Select projection pattern.
+- **AdminController:** New controller under `/api/admin` with `[Authorize(Roles = "Admin")]`. Three endpoints:
+  - `GET /api/admin/users`: Returns all users with roles, AuthProvider, and LastLoginAt metadata
+  - `POST /api/admin/users/{userId}/roles`: Adds or removes a role (creates role if missing via RoleManager)
+  - `DELETE /api/admin/users/{userId}`: Deletes user with last-admin guard (Conflict if last admin)
+- **ApplicationUser.AuthProvider:** Added nullable string property to track auth source ("Local", "Keycloak", "Microsoft"). Defaults to "Local" for backward compatibility.
 - **SetRoleRequest DTO:** Added to WarpBusiness.Shared.Auth.AuthDtos.cs as `record SetRoleRequest(string Role, bool Add)` for role toggle API contract.
+
+### 2026-03-26: Activity Service and Controller Implemented
+
+- **Entity shape:** `Activity` uses `Title` (not Subject), `Notes` (not Description), `ScheduledAt` (not DueDate). `IsCompleted` is a computed property from `CompletedAt.HasValue` — not stored. No direct `CompanyId` on Activity.
+- **DTO mapping:** DTOs use spec-friendly names (`Subject`, `Description`, `DueDate`) that map to entity fields. `CompanyId`/`CompanyName` are derived from `Contact.Company` or `Deal.Company` via navigations.
+- **Company filtering:** Activities have no direct `CompanyId`. Filter by `a.Contact.CompanyId == companyId || a.Deal.CompanyId == companyId` using included navigations.
+- **Projection pattern:** Used `.Include().AsNoTracking().ToListAsync()` then in-memory `MapToDto()` to avoid EF translation issues with null-conditional chains on navigations.
+- **CompleteActivityAsync:** Sets `CompletedAt = DateTimeOffset.UtcNow`; idempotent on already-completed activities.
+- **UpdateActivityAsync:** Clears `CompletedAt` when `IsCompleted = false`, sets it when toggled to true and not yet set.
+- **CreateActivityAsync:** Sets both `OwnerId` and `CreatedBy` from the JWT sub/NameIdentifier claim (passed from controller).
 
 
