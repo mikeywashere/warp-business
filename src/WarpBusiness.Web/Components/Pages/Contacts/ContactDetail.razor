@@ -141,7 +141,7 @@ else
                                 def.Id, def.Name, def.FieldType, def.SelectOptions, def.IsRequired,
                                 _fieldValues.GetValueOrDefault(def.Id)
                             );
-                            <WarpBusiness.Web.Components.Shared.CustomFieldInput
+                            <CustomFieldInput
                                 Field="@fieldValue"
                                 OnValueChanged="@(v => _fieldValues[defId] = v)" />
                         }

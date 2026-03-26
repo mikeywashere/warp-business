@@ -86,6 +86,20 @@ public class CustomerApiClient(HttpClient httpClient, CustomerAuthState authStat
         return response;
     }
 
+    // Custom Fields
+
+    public async Task<List<CustomFieldDefinitionDto>> GetCustomFieldDefinitionsAsync(string entityType = "Contact")
+    {
+        try
+        {
+            var response = await SendWithRefreshAsync(() => _http.GetAsync($"api/custom-fields?entityType={Uri.EscapeDataString(entityType)}"));
+            return response.IsSuccessStatusCode
+                ? await response.Content.ReadFromJsonAsync<List<CustomFieldDefinitionDto>>() ?? []
+                : [];
+        }
+        catch { return []; }
+    }
+
     // Contacts
 
     public async Task<ContactDto?> GetMyContactAsync()

@@ -86,6 +86,52 @@
                         <InputText @bind-Value="_editModel.JobTitle" class="form-control" />
                     </div>
 
+                    @foreach (var def in _fieldDefinitions.Where(d => d.IsActive).OrderBy(d => d.DisplayOrder))
+                    {
+                        var defId = def.Id;
+                        <div class="mb-3">
+                            <label class="form-label">
+                                @def.Name
+                                @if (def.IsRequired) { <span class="text-danger ms-1">*</span> }
+                            </label>
+                            @if (def.FieldType == "Text")
+                            {
+                                <input type="text" class="form-control" value="@_fieldValues.GetValueOrDefault(defId)"
+                                       @onchange="e => _fieldValues[defId] = e.Value?.ToString()" />
+                            }
+                            else if (def.FieldType == "Number")
+                            {
+                                <input type="number" class="form-control" value="@_fieldValues.GetValueOrDefault(defId)"
+                                       @onchange="e => _fieldValues[defId] = e.Value?.ToString()" />
+                            }
+                            else if (def.FieldType == "Date")
+                            {
+                                <input type="date" class="form-control" value="@_fieldValues.GetValueOrDefault(defId)"
+                                       @onchange="e => _fieldValues[defId] = e.Value?.ToString()" />
+                            }
+                            else if (def.FieldType == "Boolean")
+                            {
+                                <div class="form-check">
+                                    <input type="checkbox" class="form-check-input" id="pf-@def.Id"
+                                           checked="@(_fieldValues.GetValueOrDefault(defId) == "true")"
+                                           @onchange="e => HandlePortalBoolChange(defId, e)" />
+                                    <label class="form-check-label" for="pf-@def.Id">Yes</label>
+                                </div>
+                            }
+                            else if (def.FieldType == "Select" && def.SelectOptions is not null)
+                            {
+                                <select class="form-select" value="@_fieldValues.GetValueOrDefault(defId)"
+                                        @onchange="e => _fieldValues[defId] = e.Value?.ToString()">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var opt in def.SelectOptions)
+                                    {
+                                        <option value="@opt">@opt</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                    }
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary" disabled="@_saving">
                             @if (_saving)
@@ -133,6 +179,37 @@
                     <div class="col-sm-4 text-muted small">Job Title</div>
                     <div class="col-sm-8">@(_contact.JobTitle ?? "—")</div>
                 </div>
+
+                @{
+                    var visibleCustomFields = _contact.CustomFields?
+                        .Where(cf => !string.IsNullOrEmpty(cf.Value) || cf.IsRequired)
+                        .ToList();
+                }
+                @if (visibleCustomFields?.Count > 0)
+                {
+                    <hr />
+                    <h6 class="text-muted mb-2">Additional Information</h6>
+                    @foreach (var cf in visibleCustomFields)
+                    {
+                        <div class="row mb-2">
+                            <div class="col-sm-4 text-muted small">@cf.FieldName</div>
+                            <div class="col-sm-8">
+                                @if (string.IsNullOrEmpty(cf.Value))
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                                else if (cf.FieldType == "Boolean")
+                                {
+                                    @(cf.Value == "true" ? "Yes" : "No")
+                                }
+                                else
+                                {
+                                    @cf.Value
+                                }
+                            </div>
+                        </div>
+                    }
+                }
             </div>
         </div>
     }
@@ -140,6 +217,8 @@
 
 @code {
     private ContactDto? _contact;
+    private List<CustomFieldDefinitionDto> _fieldDefinitions = [];
+    private Dictionary<Guid, string?> _fieldValues = [];
     private bool _loading = true;
     private bool _isEditing = false;
     private bool _saving = false;
@@ -150,7 +229,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _contact = await Api.GetMyContactAsync();
+        var contactTask = Api.GetMyContactAsync();
+        var fieldDefsTask = Api.GetCustomFieldDefinitionsAsync("Contact");
+        _contact = await contactTask;
+        _fieldDefinitions = await fieldDefsTask;
         _loading = false;
     }
 
@@ -165,6 +247,14 @@
             Phone = _contact.Phone,
             JobTitle = _contact.JobTitle
         };
+
+        _fieldValues = [];
+        foreach (var def in _fieldDefinitions.Where(d => d.IsActive))
+        {
+            var existing = _contact.CustomFields?.FirstOrDefault(cf => cf.FieldDefinitionId == def.Id);
+            _fieldValues[def.Id] = existing?.Value;
+        }
+
         _isEditing = true;
     }
 
@@ -187,7 +277,8 @@
             _editModel.Phone,
             _editModel.JobTitle,
             _contact.CompanyId,
-            _contact.Status
+            _contact.Status,
+            _fieldValues.Select(kv => new UpsertCustomFieldValueRequest(kv.Key, kv.Value)).ToList()
         );
 
         var result = await Api.UpdateMyContactAsync(_contact!.Id, request);
@@ -205,6 +296,9 @@
 
         _saving = false;
     }
+
+    private void HandlePortalBoolChange(Guid defId, ChangeEventArgs e)
+        => _fieldValues[defId] = e.Value is bool b && b ? "true" : "false";
 
     private class EditProfileModel
     {

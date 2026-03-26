@@ -99,3 +99,16 @@
 - **CreateActivityAsync:** Sets both `OwnerId` and `CreatedBy` from the JWT sub/NameIdentifier claim (passed from controller).
 
 
+
+### 2026-03-26: Custom Fields for Contacts
+
+- **Domain:** `CustomFieldDefinition` (admin-defined: Name, EntityType, FieldType, SelectOptions as JSON, IsRequired, DisplayOrder, IsActive) and `CustomFieldValue` (ContactId + FieldDefinitionId + Value string). Contact gets `CustomFieldValues` navigation.
+- **EF Config:** Unique index on `(EntityType, Name)` for definitions; unique index on `(ContactId, FieldDefinitionId)` for values; cascade delete on both FK sides.
+- **Storage:** `SelectOptions` is stored as a JSON string array in a varchar(2000) column; serialized/deserialized via `System.Text.Json`.
+- **`GetValuesForContactAsync`:** Returns ALL active definitions for "Contact" with the contact's value (null if not set). Gives the UI a full form shape every time.
+- **Batch fetch in `GetContactsAsync`:** After paging contacts, fetch all values for the page's contact IDs in one query; join in-memory. Avoids N+1.
+- **Upsert pattern:** `UpsertValuesAsync` loads existing values for (contactId, defIds), updates matching rows, inserts new ones, single `SaveChangesAsync`.
+- **ContactService circular dependency avoided:** `ContactService` depends on `ICustomFieldService`; both are Scoped — no circular issue.
+- **409 on delete:** `CustomFieldsController.DeleteDefinition` checks `AnyAsync` for values before delegating to service. Service itself does a straight remove (no check) to keep it clean.
+- **ContactDto breaking change:** Added `IReadOnlyList<CustomFieldValueDto> CustomFields` as last positional record parameter — all existing constructors in `ContactService` updated.
+- **Migration command:** `dotnet ef migrations add AddCustomFields --project . --startup-project .` from `src/WarpBusiness.Api/`.

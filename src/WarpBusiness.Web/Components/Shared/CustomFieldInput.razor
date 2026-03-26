@@ -29,7 +29,7 @@
         <div class="form-check">
             <input type="checkbox" class="form-check-input" id="field-@Field.FieldDefinitionId"
                    checked="@(Field.Value == "true")"
-                   @onchange="e => OnValueChanged.InvokeAsync(e.Value is bool b && b ? "true" : "false")" />
+                   @onchange="HandleBoolChange" />
             <label class="form-check-label" for="field-@Field.FieldDefinitionId">Yes</label>
         </div>
     }
@@ -52,6 +52,9 @@
 @code {
     [Parameter, EditorRequired] public CustomFieldValueDto Field { get; set; } = null!;
     [Parameter] public EventCallback<string?> OnValueChanged { get; set; }
+
+    private Task HandleBoolChange(ChangeEventArgs e)
+        => OnValueChanged.InvokeAsync(e.Value is bool b && b ? "true" : "false");
 
     private static string? FormatDate(string? value)
     {
