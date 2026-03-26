@@ -126,3 +126,13 @@
 - **EF migrations:** ExtractCrmToPlugin (Api) is an intentional no-op — no drop tables. InitialCrm (Plugin.Crm) creates all 6 CRM tables in the crm schema fresh.
 - **Connection string:** CrmModule tries "warpbusiness" first to match existing Aspire-registered connection; falls back to "DefaultConnection" for third-party deployments.
 - **Nav items:** CrmModule.GetNavItems() returns Contacts/Companies/Deals — now served via ModuleRegistry through GET /api/modules/nav-items. Blazor frontend no longer needs hardcoded CRM nav links.
+
+
+### 2026-03-26: Kubernetes Manifests, Makefile, and Skaffold Config
+
+- **k8s/ directory (kustomize-based):** Namespace warp-business, PostgreSQL 16 StatefulSet + headless Service + 5Gi PVC, Keycloak 24 Deployment + Service (start-dev, optional), API/Web/Portal Deployments with ConfigMaps, nginx Ingress for api/app/portal.warp-business.local.
+- **Secrets handling:** secrets.yaml.template with base64 placeholders; k8s/secrets.yaml gitignored. API deployment uses $(WARP_DB_PASSWORD) K8s env var substitution (password injected from Secret, username hardcoded as warpuser).
+- **Aspire service discovery in K8s:** services__api__http__0=http://warp-api:8080 set in Web and Portal ConfigMaps — no code changes needed.
+- **imagePullPolicy: Never** on all app containers — images built locally, not pulled from registry.
+- **Makefile targets:** build, load-kind, deploy (guards for secrets.yaml), undeploy, status, logs-api/web/portal, restart, clean.
+- **skaffold.yaml:** Local dev loop with auto-rebuild + port-forward (5001/5002/5003).
