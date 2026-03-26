@@ -18,6 +18,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Deal> Deals => Set<Deal>();
     public DbSet<Activity> Activities => Set<Activity>();
 
+    // Custom fields
+    public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
+    public DbSet<CustomFieldValue> CustomFieldValues => Set<CustomFieldValue>();
+
     // Auth
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 

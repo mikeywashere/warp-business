@@ -11,7 +11,8 @@ public record ContactDto(
     Guid? CompanyId,
     string? CompanyName,
     string Status,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    IReadOnlyList<CustomFieldValueDto> CustomFields);
 
 public record CreateContactRequest(
     string FirstName,
@@ -19,7 +20,8 @@ public record CreateContactRequest(
     string? Email,
     string? Phone,
     string? JobTitle,
-    Guid? CompanyId);
+    Guid? CompanyId,
+    IReadOnlyList<UpsertCustomFieldValueRequest>? CustomFields = null);
 
 public record UpdateContactRequest(
     string FirstName,
@@ -28,7 +30,8 @@ public record UpdateContactRequest(
     string? Phone,
     string? JobTitle,
     Guid? CompanyId,
-    string Status);
+    string Status,
+    IReadOnlyList<UpsertCustomFieldValueRequest>? CustomFields = null);
 
 public record PagedResult<T>(
     IReadOnlyList<T> Items,

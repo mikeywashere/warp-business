@@ -130,6 +130,23 @@ else
                         }
                     </div>
 
+                    @if (_fieldDefinitions.Any(d => d.IsActive))
+                    {
+                        <hr />
+                        <h6 class="text-muted mb-3">Custom Fields</h6>
+                        @foreach (var def in _fieldDefinitions.Where(d => d.IsActive).OrderBy(d => d.DisplayOrder))
+                        {
+                            var defId = def.Id;
+                            var fieldValue = new CustomFieldValueDto(
+                                def.Id, def.Name, def.FieldType, def.SelectOptions, def.IsRequired,
+                                _fieldValues.GetValueOrDefault(def.Id)
+                            );
+                            <WarpBusiness.Web.Components.Shared.CustomFieldInput
+                                Field="@fieldValue"
+                                OnValueChanged="@(v => _fieldValues[defId] = v)" />
+                        }
+                    }
+
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary" disabled="@_saving">
                             @if (_saving)
@@ -202,6 +219,40 @@ else
                         <p class="mb-0 text-muted small">@_contact.CreatedAt.ToString("g")</p>
                     </div>
                 </div>
+
+                @{
+                    var visibleCustomFields = _contact.CustomFields?
+                        .Where(cf => !string.IsNullOrEmpty(cf.Value) || cf.IsRequired)
+                        .OrderBy(cf => _fieldDefinitions.FirstOrDefault(d => d.Id == cf.FieldDefinitionId)?.DisplayOrder ?? 0)
+                        .ToList();
+                }
+                @if (visibleCustomFields?.Count > 0)
+                {
+                    <hr />
+                    <h6 class="text-muted mb-3">Custom Fields</h6>
+                    <div class="row">
+                        @foreach (var cf in visibleCustomFields)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <label class="text-muted small">@cf.FieldName</label>
+                                <p class="mb-0">
+                                    @if (string.IsNullOrEmpty(cf.Value))
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                    else if (cf.FieldType == "Boolean")
+                                    {
+                                        @(cf.Value == "true" ? "Yes" : "No")
+                                    }
+                                    else
+                                    {
+                                        @cf.Value
+                                    }
+                                </p>
+                            </div>
+                        }
+                    </div>
+                }
             </div>
         </div>
     }
@@ -241,6 +292,8 @@ else
 
     private ContactDto? _contact;
     private PagedResult<CompanyDto>? _companies;
+    private List<CustomFieldDefinitionDto> _fieldDefinitions = [];
+    private Dictionary<Guid, string?> _fieldValues = [];
     private bool _loading = true;
     private bool _companiesLoading = false;
     private bool _editMode = false;
@@ -254,7 +307,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadContactAsync();
+        await Task.WhenAll(LoadContactAsync(), LoadFieldDefinitionsAsync());
+    }
+
+    private async Task LoadFieldDefinitionsAsync()
+    {
+        _fieldDefinitions = await Api.GetCustomFieldDefinitionsAsync("Contact");
     }
 
     private async Task LoadContactAsync()
@@ -281,6 +339,14 @@ else
             Status = _contact.Status
         };
 
+        // Pre-populate custom field values from contact
+        _fieldValues = [];
+        foreach (var def in _fieldDefinitions.Where(d => d.IsActive))
+        {
+            var existing = _contact.CustomFields?.FirstOrDefault(cf => cf.FieldDefinitionId == def.Id);
+            _fieldValues[def.Id] = existing?.Value;
+        }
+
         _companiesLoading = true;
         _companies = await Api.GetCompaniesAsync(1, 100);
         _companiesLoading = false;
@@ -305,7 +371,8 @@ else
             _editRequest.Phone,
             _editRequest.JobTitle,
             string.IsNullOrEmpty(_editRequest.CompanyId) ? null : Guid.Parse(_editRequest.CompanyId),
-            _editRequest.Status!
+            _editRequest.Status!,
+            _fieldValues.Select(kv => new UpsertCustomFieldValueRequest(kv.Key, kv.Value)).ToList()
         );
 
         var result = await Api.UpdateContactAsync(Id, request);

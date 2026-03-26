@@ -196,6 +196,43 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
             : null;
     }
 
+    // Custom Field Definitions
+    public async Task<List<CustomFieldDefinitionDto>> GetCustomFieldDefinitionsAsync(string entityType = "Contact")
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync($"api/custom-fields?entityType={Uri.EscapeDataString(entityType)}"));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<List<CustomFieldDefinitionDto>>() ?? []
+            : [];
+    }
+
+    public async Task<CustomFieldDefinitionDto?> CreateCustomFieldDefinitionAsync(CreateCustomFieldDefinitionRequest request)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.PostAsJsonAsync("api/custom-fields", request));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<CustomFieldDefinitionDto>()
+            : null;
+    }
+
+    public async Task<CustomFieldDefinitionDto?> UpdateCustomFieldDefinitionAsync(Guid id, UpdateCustomFieldDefinitionRequest request)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.PutAsJsonAsync($"api/custom-fields/{id}", request));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<CustomFieldDefinitionDto>()
+            : null;
+    }
+
+    public async Task<bool> DeleteCustomFieldDefinitionAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.DeleteAsync($"api/custom-fields/{id}"));
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<int> DeleteCustomFieldDefinitionRawAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.DeleteAsync($"api/custom-fields/{id}"));
+        return (int)response.StatusCode;
+    }
+
     // Admin
     public async Task<List<UserSummaryDto>?> GetUsersAsync()
     {

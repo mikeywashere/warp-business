@@ -8,10 +8,12 @@ namespace WarpBusiness.Api.Services;
 public class ContactService : IContactService
 {
     private readonly ApplicationDbContext _db;
+    private readonly ICustomFieldService _customFields;
 
-    public ContactService(ApplicationDbContext db)
+    public ContactService(ApplicationDbContext db, ICustomFieldService customFields)
     {
         _db = db;
+        _customFields = customFields;
     }
 
     public async Task<PagedResult<ContactDto>> GetContactsAsync(int page, int pageSize, string? search, CancellationToken ct = default)
@@ -30,46 +32,72 @@ public class ContactService : IContactService
         }
 
         var totalCount = await query.CountAsync(ct);
-        var items = await query
+        var contacts = await query
             .OrderBy(c => c.LastName).ThenBy(c => c.FirstName)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(c => new ContactDto(
-                c.Id, c.FirstName, c.LastName, c.FullName,
-                c.Email, c.Phone, c.JobTitle,
-                c.CompanyId, c.Company != null ? c.Company.Name : null,
-                c.Status.ToString(), c.CreatedAt))
             .ToListAsync(ct);
+
+        // Batch-fetch all custom field values for this page
+        var contactIds = contacts.Select(c => c.Id).ToHashSet();
+        var allValues = await _db.CustomFieldValues
+            .Include(v => v.FieldDefinition)
+            .AsNoTracking()
+            .Where(v => contactIds.Contains(v.ContactId) && v.FieldDefinition.IsActive)
+            .ToListAsync(ct);
+
+        var definitions = await _db.CustomFieldDefinitions
+            .AsNoTracking()
+            .Where(d => d.EntityType == "Contact" && d.IsActive)
+            .OrderBy(d => d.DisplayOrder)
+            .ToListAsync(ct);
+
+        var valuesByContact = allValues.GroupBy(v => v.ContactId)
+            .ToDictionary(g => g.Key, g => g.ToDictionary(v => v.FieldDefinitionId));
+
+        var items = contacts.Select(c =>
+        {
+            valuesByContact.TryGetValue(c.Id, out var contactValues);
+            var customFields = definitions.Select(d =>
+            {
+                var val = contactValues is not null && contactValues.TryGetValue(d.Id, out var v) ? v.Value : null;
+                return new CustomFieldValueDto(d.Id, d.Name, d.FieldType,
+                    DeserializeOptions(d.SelectOptions), d.IsRequired, val);
+            }).ToList();
+
+            return new ContactDto(c.Id, c.FirstName, c.LastName, c.FullName,
+                c.Email, c.Phone, c.JobTitle,
+                c.CompanyId, c.Company?.Name,
+                c.Status.ToString(), c.CreatedAt, customFields);
+        }).ToList();
 
         return new PagedResult<ContactDto>(items, totalCount, page, pageSize);
     }
 
     public async Task<ContactDto?> GetContactByIdAsync(Guid id, CancellationToken ct = default)
     {
-        return await _db.Contacts
+        var contact = await _db.Contacts
             .Include(c => c.Company)
             .AsNoTracking()
-            .Where(c => c.Id == id)
-            .Select(c => new ContactDto(
-                c.Id, c.FirstName, c.LastName, c.FullName,
-                c.Email, c.Phone, c.JobTitle,
-                c.CompanyId, c.Company != null ? c.Company.Name : null,
-                c.Status.ToString(), c.CreatedAt))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+        if (contact is null) return null;
+
+        var customFields = await _customFields.GetValuesForContactAsync(id, ct);
+        return MapToDto(contact, customFields);
     }
 
     public async Task<ContactDto?> GetContactByEmailAsync(string email, CancellationToken ct = default)
     {
-        return await _db.Contacts
+        var contact = await _db.Contacts
             .Include(c => c.Company)
             .AsNoTracking()
-            .Where(c => c.Email == email.ToLower())
-            .Select(c => new ContactDto(
-                c.Id, c.FirstName, c.LastName, c.FullName,
-                c.Email, c.Phone, c.JobTitle,
-                c.CompanyId, c.Company != null ? c.Company.Name : null,
-                c.Status.ToString(), c.CreatedAt))
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(c => c.Email == email.ToLower(), ct);
+
+        if (contact is null) return null;
+
+        var customFields = await _customFields.GetValuesForContactAsync(contact.Id, ct);
+        return MapToDto(contact, customFields);
     }
 
     public async Task<ContactDto> CreateContactAsync(CreateContactRequest request, string userId, CancellationToken ct = default)
@@ -91,6 +119,8 @@ public class ContactService : IContactService
         _db.Contacts.Add(contact);
         await _db.SaveChangesAsync(ct);
 
+        await _customFields.UpsertValuesAsync(contact.Id, request.CustomFields ?? [], ct);
+
         return (await GetContactByIdAsync(contact.Id, ct))!;
     }
 
@@ -109,6 +139,8 @@ public class ContactService : IContactService
         contact.UpdatedAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+        await _customFields.UpsertValuesAsync(id, request.CustomFields ?? [], ct);
+
         return await GetContactByIdAsync(id, ct);
     }
 
@@ -119,5 +151,18 @@ public class ContactService : IContactService
         _db.Contacts.Remove(contact);
         await _db.SaveChangesAsync(ct);
         return true;
+    }
+
+    private static ContactDto MapToDto(Contact c, IReadOnlyList<CustomFieldValueDto> customFields) =>
+        new(c.Id, c.FirstName, c.LastName, c.FullName,
+            c.Email, c.Phone, c.JobTitle,
+            c.CompanyId, c.Company?.Name,
+            c.Status.ToString(), c.CreatedAt, customFields);
+
+    private static string[]? DeserializeOptions(string? json)
+    {
+        if (string.IsNullOrEmpty(json)) return null;
+        try { return System.Text.Json.JsonSerializer.Deserialize<string[]>(json); }
+        catch { return null; }
     }
 }

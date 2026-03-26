@@ -19,6 +19,7 @@ public class Contact
 
     public ICollection<Activity> Activities { get; set; } = new List<Activity>();
     public ICollection<Deal> Deals { get; set; } = new List<Deal>();
+    public ICollection<CustomFieldValue> CustomFieldValues { get; set; } = new List<CustomFieldValue>();
 }
 
 public enum ContactStatus { Active, Inactive, Lead, Customer }

@@ -1,0 +1,63 @@
+@using WarpBusiness.Shared.Crm
+
+<div class="mb-3">
+    <label class="form-label">
+        @Field.FieldName
+        @if (Field.IsRequired)
+        {
+            <span class="text-danger ms-1">*</span>
+        }
+    </label>
+
+    @if (Field.FieldType == "Text")
+    {
+        <input type="text" class="form-control" value="@Field.Value"
+               @onchange="e => OnValueChanged.InvokeAsync(e.Value?.ToString())" />
+    }
+    else if (Field.FieldType == "Number")
+    {
+        <input type="number" class="form-control" value="@Field.Value"
+               @onchange="e => OnValueChanged.InvokeAsync(e.Value?.ToString())" />
+    }
+    else if (Field.FieldType == "Date")
+    {
+        <input type="date" class="form-control" value="@FormatDate(Field.Value)"
+               @onchange="e => OnValueChanged.InvokeAsync(e.Value?.ToString())" />
+    }
+    else if (Field.FieldType == "Boolean")
+    {
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="field-@Field.FieldDefinitionId"
+                   checked="@(Field.Value == "true")"
+                   @onchange="e => OnValueChanged.InvokeAsync(e.Value is bool b && b ? "true" : "false")" />
+            <label class="form-check-label" for="field-@Field.FieldDefinitionId">Yes</label>
+        </div>
+    }
+    else if (Field.FieldType == "Select")
+    {
+        <select class="form-select" value="@Field.Value"
+                @onchange="e => OnValueChanged.InvokeAsync(e.Value?.ToString())">
+            <option value="">-- Select --</option>
+            @if (Field.SelectOptions is not null)
+            {
+                @foreach (var opt in Field.SelectOptions)
+                {
+                    <option value="@opt">@opt</option>
+                }
+            }
+        </select>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CustomFieldValueDto Field { get; set; } = null!;
+    [Parameter] public EventCallback<string?> OnValueChanged { get; set; }
+
+    private static string? FormatDate(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return null;
+        if (DateTimeOffset.TryParse(value, out var dto))
+            return dto.ToString("yyyy-MM-dd");
+        return value;
+    }
+}

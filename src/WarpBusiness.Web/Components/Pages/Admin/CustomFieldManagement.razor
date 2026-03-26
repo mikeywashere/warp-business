@@ -1,0 +1,353 @@
+@page "/admin/custom-fields"
+@attribute [Authorize(Roles = "Admin")]
+@using Microsoft.AspNetCore.Authorization
+@inject WarpApiClient Api
+@inject IJSRuntime JS
+
+<PageTitle>Custom Fields — Warp Business</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">Custom Fields</h1>
+    @if (!_showForm)
+    {
+        <button class="btn btn-primary" @onclick="ShowAddForm">
+            <span class="bi bi-plus-lg me-1"></span>Add Field
+        </button>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible" role="alert">
+        @_errorMessage
+        <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert-success alert-dismissible" role="alert">
+        @_successMessage
+        <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Required</th>
+                        <th>Display Order</th>
+                        <th>Active</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (_definitions.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No custom fields defined yet.</td>
+                        </tr>
+                    }
+                    @foreach (var def in _definitions.OrderBy(d => d.DisplayOrder))
+                    {
+                        <tr class="@(def.IsActive ? "" : "text-muted")">
+                            <td class="fw-semibold">@def.Name</td>
+                            <td><span class="badge bg-secondary">@def.FieldType</span></td>
+                            <td>
+                                @if (def.IsRequired)
+                                {
+                                    <span class="badge bg-warning text-dark">Required</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td>@def.DisplayOrder</td>
+                            <td>
+                                <button class="btn btn-sm @(def.IsActive ? "btn-success" : "btn-outline-secondary")"
+                                        @onclick="() => ToggleActive(def)"
+                                        title="@(def.IsActive ? "Deactivate" : "Activate")">
+                                    @(def.IsActive ? "Active" : "Inactive")
+                                </button>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" @onclick="() => ShowEditForm(def)">Edit</button>
+                                    <button class="btn btn-outline-danger" @onclick="() => DeleteField(def)">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (_showForm)
+    {
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">@(_editingId.HasValue ? "Edit Field" : "Add Field")</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" @bind="_formName" placeholder="e.g. Customer Segment" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Entity Type</label>
+                    <input type="text" class="form-control" value="Contact" disabled />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Field Type</label>
+                    <select class="form-select" @bind="_formFieldType">
+                        <option value="Text">Text</option>
+                        <option value="Number">Number</option>
+                        <option value="Date">Date</option>
+                        <option value="Boolean">Boolean</option>
+                        <option value="Select">Select</option>
+                    </select>
+                </div>
+
+                @if (_formFieldType == "Select")
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Options <span class="text-muted small">(comma-separated)</span></label>
+                        <textarea class="form-control" rows="2" @bind="_formSelectOptions"
+                                  placeholder="Option 1, Option 2, Option 3"></textarea>
+                    </div>
+                }
+
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="formRequired" @bind="_formIsRequired" />
+                    <label class="form-check-label" for="formRequired">Required</label>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Display Order</label>
+                    <input type="number" class="form-control" style="max-width: 120px;" @bind="_formDisplayOrder" />
+                </div>
+
+                @if (_editingId.HasValue)
+                {
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="formActive" @bind="_formIsActive" />
+                        <label class="form-check-label" for="formActive">Active</label>
+                    </div>
+                }
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" @onclick="SaveField" disabled="@_saving">
+                        @if (_saving)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        Save
+                    </button>
+                    <button class="btn btn-secondary" @onclick="CancelForm">Cancel</button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<CustomFieldDefinitionDto> _definitions = [];
+    private bool _loading = true;
+    private bool _saving = false;
+    private bool _showForm = false;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    // Form state
+    private Guid? _editingId;
+    private string _formName = "";
+    private string _formFieldType = "Text";
+    private string _formSelectOptions = "";
+    private bool _formIsRequired = false;
+    private int _formDisplayOrder = 0;
+    private bool _formIsActive = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDefinitionsAsync();
+    }
+
+    private async Task LoadDefinitionsAsync()
+    {
+        _loading = true;
+        _definitions = await Api.GetCustomFieldDefinitionsAsync("Contact");
+        _loading = false;
+    }
+
+    private void ShowAddForm()
+    {
+        _editingId = null;
+        _formName = "";
+        _formFieldType = "Text";
+        _formSelectOptions = "";
+        _formIsRequired = false;
+        _formDisplayOrder = _definitions.Count > 0 ? _definitions.Max(d => d.DisplayOrder) + 10 : 10;
+        _formIsActive = true;
+        _showForm = true;
+        _errorMessage = null;
+        _successMessage = null;
+    }
+
+    private void ShowEditForm(CustomFieldDefinitionDto def)
+    {
+        _editingId = def.Id;
+        _formName = def.Name;
+        _formFieldType = def.FieldType;
+        _formSelectOptions = def.SelectOptions is not null ? string.Join(", ", def.SelectOptions) : "";
+        _formIsRequired = def.IsRequired;
+        _formDisplayOrder = def.DisplayOrder;
+        _formIsActive = def.IsActive;
+        _showForm = true;
+        _errorMessage = null;
+        _successMessage = null;
+    }
+
+    private void CancelForm()
+    {
+        _showForm = false;
+        _editingId = null;
+    }
+
+    private string[]? ParseSelectOptions()
+    {
+        if (string.IsNullOrWhiteSpace(_formSelectOptions)) return null;
+        return _formSelectOptions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private async Task SaveField()
+    {
+        if (string.IsNullOrWhiteSpace(_formName))
+        {
+            _errorMessage = "Name is required.";
+            return;
+        }
+
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            var options = _formFieldType == "Select" ? ParseSelectOptions() : null;
+
+            if (_editingId.HasValue)
+            {
+                var request = new UpdateCustomFieldDefinitionRequest(
+                    _formName.Trim(),
+                    _formFieldType,
+                    options,
+                    _formIsRequired,
+                    _formDisplayOrder,
+                    _formIsActive
+                );
+                var result = await Api.UpdateCustomFieldDefinitionAsync(_editingId.Value, request);
+                if (result is not null)
+                {
+                    _successMessage = $"Field '{result.Name}' updated.";
+                    _showForm = false;
+                    await LoadDefinitionsAsync();
+                }
+                else
+                {
+                    _errorMessage = "Failed to update field. Please try again.";
+                }
+            }
+            else
+            {
+                var request = new CreateCustomFieldDefinitionRequest(
+                    _formName.Trim(),
+                    "Contact",
+                    _formFieldType,
+                    options,
+                    _formIsRequired,
+                    _formDisplayOrder
+                );
+                var result = await Api.CreateCustomFieldDefinitionAsync(request);
+                if (result is not null)
+                {
+                    _successMessage = $"Field '{result.Name}' created.";
+                    _showForm = false;
+                    await LoadDefinitionsAsync();
+                }
+                else
+                {
+                    _errorMessage = "Failed to create field. Please try again.";
+                }
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task ToggleActive(CustomFieldDefinitionDto def)
+    {
+        var request = new UpdateCustomFieldDefinitionRequest(
+            def.Name, def.FieldType, def.SelectOptions,
+            def.IsRequired, def.DisplayOrder, !def.IsActive
+        );
+        var result = await Api.UpdateCustomFieldDefinitionAsync(def.Id, request);
+        if (result is not null)
+        {
+            _successMessage = $"Field '{def.Name}' {(result.IsActive ? "activated" : "deactivated")}.";
+            await LoadDefinitionsAsync();
+        }
+        else
+        {
+            _errorMessage = "Failed to update field status.";
+        }
+    }
+
+    private async Task DeleteField(CustomFieldDefinitionDto def)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Delete field '{def.Name}'? This cannot be undone.");
+        if (!confirmed) return;
+
+        _errorMessage = null;
+        _successMessage = null;
+
+        // Capture the id for the lambda
+        var defId = def.Id;
+        var defName = def.Name;
+
+        // We need to call the API and check for 409 conflict
+        var response = await Api.DeleteCustomFieldDefinitionRawAsync(defId);
+        if (response == 409)
+        {
+            _errorMessage = $"Cannot delete '{defName}' — it has existing data. Deactivate it instead.";
+        }
+        else if (response == 200 || response == 204)
+        {
+            _successMessage = $"Field '{defName}' deleted.";
+            await LoadDefinitionsAsync();
+        }
+        else
+        {
+            _errorMessage = "Failed to delete field.";
+        }
+    }
+}
