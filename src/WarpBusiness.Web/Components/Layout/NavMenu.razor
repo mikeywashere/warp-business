@@ -1,5 +1,6 @@
 @implements IDisposable
 @using WarpBusiness.Web.Services
+@using WarpBusiness.Shared.Plugins
 @inject AuthStateService AuthState
 @inject NavigationManager Nav
 @inject WarpApiClient Api
@@ -55,6 +56,33 @@
                     <span class="bi bi-sliders" aria-hidden="true"></span> Custom Fields
                 </NavLink>
             </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/modules">
+                    <span class="bi bi-puzzle" aria-hidden="true"></span> Modules
+                </NavLink>
+            </div>
+        }
+
+        @if (_pluginNavItems.Count > 0)
+        {
+            <div class="nav-item px-3 mt-3 border-top pt-2">
+                <div class="text-white-50 small fw-semibold mb-2 ms-2">EXTENSIONS</div>
+            </div>
+            @foreach (var item in _pluginNavItems.OrderBy(x => x.DisplayOrder))
+            {
+                @if (item.RequiredRole == null || AuthState.Roles?.Contains(item.RequiredRole) == true)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="@item.Href">
+                            @if (!string.IsNullOrEmpty(item.Icon))
+                            {
+                                <span class="@item.Icon me-2" aria-hidden="true"></span>
+                            }
+                            @item.Label
+                        </NavLink>
+                    </div>
+                }
+            }
         }
 
         <div class="nav-item px-3 mt-3 border-top pt-2">
@@ -82,9 +110,37 @@
     private bool IsAdmin => AuthState.IsAuthenticated 
         && AuthState.Roles?.Contains("Admin") == true;
 
+    private List<ModuleNavItemDto> _pluginNavItems = [];
+
     protected override void OnInitialized()
     {
-        AuthState.OnChange += StateHasChanged;
+        AuthState.OnChange += OnAuthChanged;
+    }
+
+    private async void OnAuthChanged()
+    {
+        await LoadPluginNavItemsAsync();
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPluginNavItemsAsync();
+    }
+
+    private async Task LoadPluginNavItemsAsync()
+    {
+        try
+        {
+            if (AuthState.IsAuthenticated)
+                _pluginNavItems = await Api.GetModuleNavItemsAsync();
+            else
+                _pluginNavItems = [];
+        }
+        catch
+        {
+            _pluginNavItems = [];
+        }
     }
 
     private async Task Logout()
@@ -93,5 +149,5 @@
         Nav.NavigateTo("/login");
     }
 
-    public void Dispose() => AuthState.OnChange -= StateHasChanged;
+    public void Dispose() => AuthState.OnChange -= OnAuthChanged;
 }

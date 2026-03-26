@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Identity;
+using WarpBusiness.Api.Plugins;
 using WarpBusiness.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,6 +41,10 @@ builder.Services.AddScoped<IDealService, DealService>();
 builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<ICustomFieldService, CustomFieldService>();
 
+// Plugin/module discovery — must happen before AddControllers
+var pluginsDir = Path.Combine(builder.Environment.ContentRootPath, "plugins");
+builder.Services.AddCustomModules(builder.Configuration, pluginsDir);
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
@@ -61,6 +66,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseCustomModules();
 app.MapControllers();
 
 // Seed roles on startup

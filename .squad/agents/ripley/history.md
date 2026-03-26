@@ -8,9 +8,17 @@
 
 ## Learnings
 
-<!-- Append new learnings below. Each entry is something lasting about the project. -->
+### 2025-07-24: Plugin/Module System Foundation
 
-### 2025-07-24: Aspire solution scaffolded
+- **What was done:** Created `WarpBusiness.Plugin.Abstractions` and `WarpBusiness.Plugin.Sample`; both added to `WarpBusiness.slnx`; `docs/plugin-development.md` written.
+- **Interface contract:** `ICustomModule` has five concerns: identity (`ModuleId`, `DisplayName`, `Version`, `Description`), DI registration (`ConfigureServices`), pipeline integration (`Configure`), nav contribution (`GetNavItems`), and Blazor page contribution (`GetBlazorAssemblies`).
+- **Abstractions SDK:** `WarpBusiness.Plugin.Abstractions` uses `Microsoft.NET.Sdk` with a `FrameworkReference` to `Microsoft.AspNetCore.App`. This exposes `IServiceCollection`, `IConfiguration`, and `WebApplication` without pulling in a web SDK or NuGet package.
+- **Sample SDK:** `WarpBusiness.Plugin.Sample` uses `Microsoft.NET.Sdk.Razor` (for `.razor` compilation) + same `FrameworkReference`. Added `_Imports.razor` to resolve `PageTitle` and other Blazor component usings.
+- **`WithTags` omission:** Removed `.WithTags("Sample Plugin")` from the sample endpoint — it requires `Microsoft.AspNetCore.OpenApi` which is not a default dependency for plugin libraries.
+- **Discovery mechanism (not yet implemented):** The host-side loader (scanning `plugins/` at startup, `AssemblyLoadContext` isolation, calling `ConfigureServices`/`Configure`) is the next step — tracked separately.
+- **Decision:** `.squad/decisions/inbox/ripley-plugin-architecture.md`
+
+
 
 - **What was done:** Full .NET Aspire solution created with 6 projects, all references wired, NuGet packages added, build + tests green.
 - **.NET 10 uses `.slnx` format** — `dotnet new sln` creates `WarpBusiness.slnx`, not `.sln`. All tooling (`dotnet build`, `dotnet sln list`) works the same.

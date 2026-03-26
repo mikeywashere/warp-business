@@ -1,0 +1,74 @@
+@page "/admin/modules"
+@using Microsoft.AspNetCore.Authorization
+@using WarpBusiness.Shared.Plugins
+@attribute [Authorize(Roles = "Admin")]
+@inject WarpBusiness.Web.Services.WarpApiClient ApiClient
+
+<PageTitle>Module Management</PageTitle>
+
+<h1>Plugin Modules</h1>
+<p class="text-muted">Modules are discovered automatically from DLL files in the <code>plugins/</code> directory at startup. Restart the API service to pick up new plugins.</p>
+
+@if (_loading)
+{
+    <p><em>Loading modules...</em></p>
+}
+else if (_modules.Count == 0)
+{
+    <div class="alert alert-info">
+        <strong>No modules loaded.</strong> Drop a DLL implementing <code>ICustomModule</code> into the <code>plugins/</code> directory and restart the API.
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        @foreach (var m in _modules)
+        {
+            <div class="col-md-6">
+                <div class="card @(m.IsLoaded ? "" : "border-danger")">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong>@m.DisplayName</strong>
+                        <span class="badge @(m.IsLoaded ? "bg-success" : "bg-danger")">
+                            @(m.IsLoaded ? "Loaded" : "Failed")
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text text-muted small">@m.Description</p>
+                        <dl class="row mb-0 small">
+                            <dt class="col-sm-3">Version</dt>
+                            <dd class="col-sm-9">@m.Version</dd>
+                            <dt class="col-sm-3">Module ID</dt>
+                            <dd class="col-sm-9"><code>@m.ModuleId</code></dd>
+                            @if (m.LoadError != null)
+                            {
+                                <dt class="col-sm-3 text-danger">Error</dt>
+                                <dd class="col-sm-9 text-danger">@m.LoadError</dd>
+                            }
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ModuleInfoDto> _modules = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _modules = await ApiClient.GetModulesAsync();
+        }
+        catch
+        {
+            _modules = [];
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

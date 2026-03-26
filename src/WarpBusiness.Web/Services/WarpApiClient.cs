@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Components;
 using WarpBusiness.Shared.Auth;
 using WarpBusiness.Shared.Crm;
+using WarpBusiness.Shared.Plugins;
 
 namespace WarpBusiness.Web.Services;
 
@@ -246,5 +247,20 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
     {
         var response = await SendWithRefreshAsync(() => _httpClient.PostAsJsonAsync($"api/admin/users/{userId}/roles", new { role, add }));
         return response.IsSuccessStatusCode;
+    }
+
+    // Modules
+    public async Task<List<ModuleInfoDto>> GetModulesAsync()
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync("api/modules"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<ModuleInfoDto>>() ?? [];
+    }
+
+    public async Task<List<ModuleNavItemDto>> GetModuleNavItemsAsync()
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync("api/modules/nav-items"));
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<ModuleNavItemDto>>() ?? [];
     }
 }
