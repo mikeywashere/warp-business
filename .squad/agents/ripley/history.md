@@ -36,3 +36,11 @@
 - **ADR:** `docs/adr/001-aspire-solution-structure.md`
 - **Decision:** `.squad/decisions/inbox/ripley-aspire-architecture.md`
 - **Packages added:** `Aspire.Hosting.PostgreSQL` (AppHost), `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL` (Api)
+
+## 2026-03-26 — CRM Plugin Scaffold
+- **Decision:** Extracted CRM domain to WarpBusiness.Plugin.Crm (Razor SDK, EF Core 10.0.5 / Npgsql 10.0.1).
+- **Schema:** crm — isolated from identity schema, own CrmDbContext.
+- **Entry point:** CrmModule : ICustomModule — registered same pattern as EmployeeManagement (first-party, explicit ConfigureServices/Configure in Program.cs).
+- **Nav:** Contacts / Companies / Deals via GetNavItems().
+- **Blazor:** Pages live in plugin assembly, contributed via GetBlazorAssemblies().
+- **Rationale:** Keep host API lean (auth + plugin infra only). CRM is opt-in and independently deployable.
