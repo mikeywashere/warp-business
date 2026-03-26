@@ -52,3 +52,9 @@
 - **Ingress:** api/app/portal.warp-business.local → warp-api/warp-web/warp-portal:8080.
 - **Plugin dir:** `/app/plugins` created in API image; mount a PVC to add external DLLs without rebuild.
 - **Decision:** `.squad/decisions/inbox/ripley-k8s-strategy.md`
+
+## 2026-03-26 — Code Review Lead & Authorization Gap Discovery
+- **Full code review completed:** Identified 2 critical, 3 high, 4 medium, 2 low findings.
+- **Remediation spawned:** 3 agents (Hicks/Bishop/Hudson) with targeted PRs #3/#4/#5 all DONE.
+- **Critical discovery (Hudson):** CRM delete endpoints (Companies, Deals, Activities, Contacts) allow any authenticated user to delete (lack `[Authorize(Roles = "Admin")]`). Contrasts with EmployeesController which correctly restricts. Documented in decision inbox for audit phase.
+- **Recommendation:** Audit and apply role-based authorization to all destructive endpoints. Consider dual-layer for Contacts: Admin can delete any, Manager/Customer can only delete owned records, others forbidden.

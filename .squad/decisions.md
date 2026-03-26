@@ -151,6 +151,154 @@
 7. Missing input validation attributes on request DTOs
 **Why:** Code review findings — must track for remediation
 
+### 2026-03-26: Security Fix Decisions — Code Review Remediation
+
+**By:** Hicks (Backend Dev)  
+**Status:** Implemented (PR #3)
+
+#### 1. appsettings.json — Credential Placeholder
+
+**Decision:** Add a `DefaultConnection` key to `appsettings.json` with `Password=CHANGE_ME` instead of leaving the key absent.
+
+**Rationale:** Making the connection string schema explicit in source helps operators know what env vars to supply. The `CrmModule` already falls back to `DefaultConnection`; this documents that path without committing real credentials.
+
+**Impact:** No runtime behavior change. Operators must still override via env var or Aspire secrets.
+
+#### 2. IDOR Fix — ContactsController PUT Ownership Check
+
+**Decision:** Ownership enforcement lives in the controller, not the service layer.
+
+**Rationale:** The service layer (`ContactService.UpdateContactAsync`) is called by multiple callers — admin tools, background jobs, etc. — that legitimately bypass ownership checks. Authorization is a controller/HTTP concern. The pattern: load the resource via service → compare JWT email claim → `Forbid()` on mismatch for non-Admin/non-Manager roles.
+
+**Impact:** Portal users (`Customer` role or authenticated without Admin/Manager) now receive `403 Forbidden` when attempting to modify another contact's record.
+
+#### 3. Email Normalization — Service Layer, Not Controller
+
+**Decision:** `ToLowerInvariant()` applied in `ContactService.CreateContactAsync` and `UpdateContactAsync`, and in `EmployeeService.CreateAsync` and `UpdateAsync`.
+
+**Rationale:** Normalization belongs with data persistence, not with HTTP handling. Any caller (tests, admin tools, background sync) must get the same normalization guarantee. `GetContactByEmailAsync` already queries by lowercase; this closes the round-trip consistency gap.
+
+**Trade-off:** Existing contacts with mixed-case emails will not be retroactively normalized. A one-time migration script may be needed if mixed-case emails exist in production.
+
+#### 4. Data Annotations — Positional Record Parameters
+
+**Decision:** Validation attributes applied directly to positional record constructor parameters in `CreateContactRequest`, `UpdateContactRequest`, `RegisterRequest`, and `LoginRequest`.
+
+**Rationale:** ASP.NET Core model binding applies `[ApiController]` automatic model validation before the action runs, so no changes to `Program.cs` or controllers are needed. Attributes on positional params are fully supported since C# 9.
+
+**Scope:** `MaxLength` values match EF Core column constraints (100 for names, 256 for email, 50 for phone, 200 for job title). `Password` min/max follows OWASP guidance (8–128).
+
+### 2026-03-26: Auth Provider Assignment and K8s Infrastructure Fixes
+
+**By:** Bishop (Auth Specialist)  
+**Status:** Implemented (PR #4)
+
+#### 1. AuthProvider Assignment on OIDC Provisioning
+
+**Decision:** Set `AuthProvider = provider.ToString()` on new `ApplicationUser` records provisioned from OIDC providers. Also update `AuthProvider` on returning users whose value is `"Local"` or empty (accounts created via local registration that later authenticate via OIDC).
+
+**Rationale:** `AuthProvider` defaults to `"Local"` on `ApplicationUser`. Without explicit assignment, all OIDC-provisioned users silently misidentify as local users, breaking admin observability (UserManagement page shows wrong provider) and any future provider-specific logic.
+
+**Value used:** `provider.ToString()` — this produces `"Keycloak"` or `"Microsoft"` matching the `AuthProviderType` enum, consistent with how `AuthController.GetProvider` returns the active provider name and how `AdminController` displays it.
+
+#### 2. K8s Resource Limits
+
+**Decision:** Add resource requests/limits to all three deployments using tiered sizing:
+- **API** (256Mi/200m → 768Mi/750m): handles EF Core, business logic, auth pipeline
+- **Web** (256Mi/100m → 512Mi/500m): Blazor Server keeps per-circuit state in memory
+- **Portal** (128Mi/100m → 256Mi/500m): lightweight, minimal service
+
+**Rationale:** Without resource limits, noisy-neighbor scenarios can starve other pods. Without requests, the scheduler cannot make good placement decisions. These are production-safety requirements, not nice-to-haves.
+
+#### 3. Liveness Probes
+
+**Decision:** Add `livenessProbe` to web and portal deployments matching the API's existing pattern. Path `/`, port 8080, initialDelaySeconds 30, periodSeconds 30, failureThreshold 3.
+
+**Rationale:** Without liveness probes, Kubernetes cannot detect deadlocked or hung Blazor Server processes and will not restart them automatically. The 30s initial delay gives the app time to warm up before probing begins.
+
+#### 4. Secrets Template Sanitization
+
+**Decision:** Replace all base64-encoded values in `k8s/secrets.yaml.template` with `REPLACE_WITH_BASE64_ENCODED_VALUE` and standardize the header comment block.
+
+**Rationale:** The previous template contained base64-encoded strings that decoded to recognizable values (`warpuser`, `CHANGE_ME_strong_password`, a dev JWT key). These could be mistaken for valid values or accidentally deployed. The new placeholders make it unambiguously clear that real values must be substituted. Added `keycloak-admin-password` key that was missing.
+
+#### Trade-offs Considered
+
+- **`provider.ToString()` vs hardcoded scheme names:** Using the enum `.ToString()` keeps it in sync with the config-driven provider system. If a new provider is added to `AuthProviderType`, it automatically gets the right label.
+- **Resource values:** Conservative but not too tight. API gets more headroom because it runs EF migrations on startup and handles heavier workloads.
+
+### 2026-03-26: Test Coverage Audit — CRM Authorization Gaps
+
+**By:** Hudson (Tester)  
+**Status:** Identified (PR #5)
+
+#### Systemic Issue: Controllers Without Role-Based Authorization
+
+**Finding:** CRM delete endpoints (Companies, Deals, Activities, Contacts) lack `[Authorize(Roles = "Admin")]` annotation. Only class-level `[Authorize]` present — any authenticated user can delete any resource.
+
+**Contrast:** `EmployeesController` correctly uses `[Authorize(Roles = "Admin")]` on destructive actions.
+
+**Risk:** Test requests like "add admin-only delete tests" create false confidence if blindly accepted. Tests should reflect the actual authorization model, not the desired one.
+
+#### Affected Endpoints
+- `DELETE /api/companies/{id}` — no role restriction
+- `DELETE /api/deals/{id}` — no role restriction
+- `DELETE /api/activities/{id}` — no role restriction
+- `DELETE /api/contacts/{id}` — no role restriction (IDOR fix was about ownership, not roles)
+
+#### Recommendation
+
+Ripley or Hicks should audit all `[Authorize]` annotations on destructive endpoints (DELETE, deactivate, bulk operations) and apply role restrictions where business logic demands them.
+
+#### What Was Done
+
+Tests written documenting actual behavior, not assumed behavior. Test names updated to `_WhenAuthenticated` / `_WhenNotAuthenticated` instead of `_WhenAdmin` / `_WhenNotAdmin` for CRM delete endpoints.
+
+### 2026-03-26: CRM Backend Extraction to WarpBusiness.Plugin.Crm
+
+**By:** Hicks (Backend Dev)  
+**Status:** Implemented
+
+**Summary:** All CRM backend code (entities, configs, services, controllers) moved from `WarpBusiness.Api` into `WarpBusiness.Plugin.Crm`. New `CrmDbContext` with `crm` schema; migration `InitialCrm` for fresh databases. Connection string tries `"warpbusiness"` first (Aspire key), falls back to `"DefaultConnection"`.
+
+**Key Decision:** Empty `ExtractCrmToPlugin` migration in Api (no drop tables) — existing production data stays intact. Fresh databases served by `CrmDbContext` in `crm` schema.
+
+**First-party module pattern:** `AddCustomModules` accepts `IEnumerable<ICustomModule>? firstPartyModules`; CRM and Employee modules registered this way, appearing in `ModuleRegistry` and contributing nav items via `GET /api/modules/nav-items`.
+
+**Blazor pages:** Contacts/Companies/Deals pages stay in `WarpBusiness.Web` (use `WarpApiClient` with auth/refresh logic tied to Web project).
+
+**CustomFieldsController:** Injects `CrmDbContext` directly for duplicate-name/delete-guard checks before delegating to service (authz is controller concern).
+
+### 2026-03-26: Custom Fields Integration Test Coverage
+
+**By:** Hudson (Tester)  
+**Status:** Implemented
+
+#### 1. Duplicate-name guard in controller
+
+`CustomFieldService` has no uniqueness check. Controller performs `AnyAsync` pre-flight before calling service, returning `409 Conflict` when a field with same `Name + EntityType` already exists.
+
+#### 2. Shared in-memory DB — Guid-suffix field names
+
+All tests in `CustomFieldsControllerTests` share one `WarpTestFactory` instance and same in-memory database. Field definition names suffixed with `Guid.NewGuid():N` to prevent cross-test collisions.
+
+#### 3. GET contact returns all active definitions
+
+`GetValuesForContactAsync` always returns every active `Contact` field definition, with `Value = null` for unset fields.
+
+### 2026-03-26: Test Factory Pattern for CRM Plugin
+
+**By:** Hudson (Tester)  
+**Status:** Implemented
+
+**Pattern:** `WarpTestFactory` calls `AddApplicationPart` + plugin `ConfigureServices` for each first-party plugin. Tests reference `WarpBusiness.Plugin.Crm` directly.
+
+**Details:**
+- Dummy `ConnectionStrings:warpbusiness` setting via `builder.UseSetting(...)` before `ConfigureServices`
+- `ReplaceWithInMemory<TContext>` helper swaps `CrmDbContext`, `EmployeeDbContext`, and `ApplicationDbContext` for in-memory equivalents
+- `<ProjectReference>` for each plugin in Tests.csproj so DbContext types accessible at compile time
+- `AddApplicationPart` for plugin assemblies already in Program.cs, inherited by `WebApplicationFactory`
+
 ## Governance
 
 - All meaningful changes require team consensus
