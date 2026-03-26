@@ -31,6 +31,8 @@ public class WarpTestFactory : WebApplicationFactory<Program>
                 options.UseInMemoryDatabase(dbName));
         });
 
+        // Set test environment name to prevent migrations from running
+        builder.UseEnvironment("Test");
         builder.UseSetting("Jwt:Key", "test-secret-key-32-chars-minimum!!");
         builder.UseSetting("Jwt:Issuer", "WarpBusiness.Api.Test");
         builder.UseSetting("Jwt:Audience", "WarpBusiness.Web.Test");

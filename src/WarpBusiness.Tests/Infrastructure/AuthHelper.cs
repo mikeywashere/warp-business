@@ -1,4 +1,7 @@
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using WarpBusiness.Api.Identity;
 using WarpBusiness.Shared.Auth;
 
 namespace WarpBusiness.Tests.Infrastructure;
@@ -24,5 +27,20 @@ public static class AuthHelper
     {
         client.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+    }
+
+    public static async Task PromoteToAdminAsync(WarpTestFactory factory, string email)
+    {
+        using var scope = factory.Services.CreateScope();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        
+        // Ensure Admin role exists
+        if (!await roleManager.RoleExistsAsync("Admin"))
+            await roleManager.CreateAsync(new IdentityRole("Admin"));
+
+        var user = await userManager.FindByEmailAsync(email);
+        if (user != null)
+            await userManager.AddToRoleAsync(user, "Admin");
     }
 }

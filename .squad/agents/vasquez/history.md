@@ -88,3 +88,18 @@
 
 **Razor Gotcha:** Cannot use escaped quotes `\"` in @onclick lambda expressions — Razor parser treats backslash as escape character. Fixed by extracting "Admin" to const `AdminRole`.
 
+### 2026-03-25: 401→Refresh→Retry Pattern + Server-Side Logout
+
+**WarpApiClient Transparent Token Refresh:**
+- Added `TryRefreshAsync()`: Calls `POST /api/auth/refresh` (cookie-based, no request body), updates bearer token in HttpClient.DefaultRequestHeaders on success, updates AuthStateService
+- Added `SendWithRefreshAsync(Func<Task<HttpResponseMessage>>)`: Retry wrapper that catches 401, attempts refresh, retries original request once. On refresh failure, clears auth state and redirects to `/login`
+- All authenticated methods now flow through `SendWithRefreshAsync()`: GetContactsAsync, GetContactAsync, CreateContactAsync, UpdateContactAsync, DeleteContactAsync, GetCompaniesAsync, CreateCompanyAsync, DeleteCompanyAsync, GetUsersAsync, SetUserRoleAsync
+- Added `LogoutAsync()`: Calls `POST /api/auth/logout` to revoke server-side refresh tokens, clears bearer header + AuthState regardless of response (silent fail)
+- Injected `NavigationManager` in constructor (DI resolves automatically alongside HttpClient via `AddHttpClient<WarpApiClient>` registration)
+
+**NavMenu Logout Update:**
+- Logout handler now calls `Api.LogoutAsync()` instead of `AuthState.ClearAuth()` directly → ensures server-side token revocation
+- Handler changed from `void` to `async Task` to support async API call
+
+**Pattern:** Components never handle 401 manually — all auth'd API calls now auto-refresh and retry seamlessly. Only refresh failure triggers re-login.
+
