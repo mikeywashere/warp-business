@@ -30,3 +30,5 @@ public record UserSummaryDto(
     IReadOnlyList<string> Roles,
     string Provider,
     DateTimeOffset? LastLoginAt);
+
+public record SetRoleRequest(string Role, bool Add);

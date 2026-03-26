@@ -58,6 +58,20 @@ public class ContactService : IContactService
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<ContactDto?> GetContactByEmailAsync(string email, CancellationToken ct = default)
+    {
+        return await _db.Contacts
+            .Include(c => c.Company)
+            .AsNoTracking()
+            .Where(c => c.Email == email.ToLower())
+            .Select(c => new ContactDto(
+                c.Id, c.FirstName, c.LastName, c.FullName,
+                c.Email, c.Phone, c.JobTitle,
+                c.CompanyId, c.Company != null ? c.Company.Name : null,
+                c.Status.ToString(), c.CreatedAt))
+            .FirstOrDefaultAsync(ct);
+    }
+
     public async Task<ContactDto> CreateContactAsync(CreateContactRequest request, string userId, CancellationToken ct = default)
     {
         var contact = new Contact

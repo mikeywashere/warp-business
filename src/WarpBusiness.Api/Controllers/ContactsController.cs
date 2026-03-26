@@ -27,6 +27,18 @@ public class ContactsController : ControllerBase
         return Ok(await _contacts.GetContactsAsync(page, pageSize, search, ct));
     }
 
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMe(CancellationToken ct = default)
+    {
+        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                    ?? User.FindFirst("email")?.Value;
+        if (string.IsNullOrEmpty(email))
+            return Unauthorized();
+
+        var contact = await _contacts.GetContactByEmailAsync(email, ct);
+        return contact == null ? NotFound() : Ok(contact);
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<ContactDto>> GetContact(Guid id, CancellationToken ct = default)
     {

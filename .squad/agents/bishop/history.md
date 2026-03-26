@@ -58,3 +58,15 @@ Implemented secure refresh token infrastructure for Local JWT provider with defe
 
 **Frontend Integration:** Vasquez notified to implement 401 → refresh → retry flow in WarpApiClient.cs. Refresh is cookie-based, no manual token management needed on client.
 
+### 2026-03-26: AddRefreshTokens EF Core Migration
+
+Created and committed the `20260326030154_AddRefreshTokens` migration to persist the RefreshToken entity schema to PostgreSQL.
+
+**Migration Details:**
+- **Table:** `RefreshTokens` with 9 columns (Id, UserId, TokenHash, FamilyId, ExpiresAt, CreatedAt, RevokedAt, ReplacedByTokenHash, DeviceHint)
+- **Indexes:** Unique index on `TokenHash` (for fast token lookups), composite index on `(UserId, FamilyId)` (for reuse detection queries)
+- **Column Types:** UUIDs for Id, varchar with appropriate lengths for identifiers, timestamptz for temporal columns
+- **Generated:** Using `dotnet ef migrations add` with DesignTimeDbContextFactory pointing to `warpbusiness_dev` database
+
+**Status:** Migration file committed to repository but not yet applied. Database update will happen during deployment or manual `dotnet ef database update`.
+
