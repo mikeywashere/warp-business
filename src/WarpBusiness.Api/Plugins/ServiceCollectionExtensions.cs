@@ -6,15 +6,15 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Discovers plugins in the plugins directory, calls ConfigureServices on each,
-    /// and registers ModuleRegistry in DI.
+    /// and registers ModuleRegistry in DI. Also accepts optional first-party modules
+    /// that are pre-registered and included in the ModuleRegistry alongside folder-scanned modules.
     /// Call this BEFORE AddControllers().
-    /// Note: Controller-based plugins require a custom ApplicationPart registration step.
-    /// Prefer Minimal API endpoints registered in Configure() as the primary plugin contribution point.
     /// </summary>
     public static IServiceCollection AddCustomModules(
         this IServiceCollection services,
         IConfiguration configuration,
-        string pluginsDirectory)
+        string pluginsDirectory,
+        IEnumerable<ICustomModule>? firstPartyModules = null)
     {
         var loggerFactory = LoggerFactory.Create(b => b.AddConsole());
         var loader = new PluginLoader(loggerFactory.CreateLogger<PluginLoader>(), pluginsDirectory);
@@ -30,6 +30,18 @@ public static class ServiceCollectionExtensions
 
             module.ConfigureServices(services, configuration);
             loadedModules.Add(module);
+        }
+
+        if (firstPartyModules is not null)
+        {
+            foreach (var module in firstPartyModules)
+            {
+                module.ConfigureServices(services, configuration);
+                loadedModules.Add(module);
+                moduleInfos.Add(new ModuleInfo(
+                    module.ModuleId, module.DisplayName, module.Version,
+                    module.Description, "built-in", IsLoaded: true, LoadError: null));
+            }
         }
 
         services.AddSingleton(new ModuleRegistry(loadedModules, moduleInfos));

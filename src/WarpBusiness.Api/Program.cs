@@ -6,7 +6,8 @@ using Microsoft.IdentityModel.Tokens;
 using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Identity;
 using WarpBusiness.Api.Plugins;
-using WarpBusiness.Api.Services;
+using WarpBusiness.Plugin.Crm;
+using WarpBusiness.Plugin.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,21 +36,18 @@ builder.Services.AddWarpAuthentication(builder.Configuration);
 builder.Services.AddScoped<IExternalIdentityMapper, ExternalIdentityMapper>();
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IContactService, ContactService>();
-builder.Services.AddScoped<ICompanyService, CompanyService>();
-builder.Services.AddScoped<IDealService, DealService>();
-builder.Services.AddScoped<IActivityService, ActivityService>();
-builder.Services.AddScoped<ICustomFieldService, CustomFieldService>();
 
 // Plugin/module discovery — must happen before AddControllers
 var pluginsDir = Path.Combine(builder.Environment.ContentRootPath, "plugins");
-builder.Services.AddCustomModules(builder.Configuration, pluginsDir);
-
-// Employee Management plugin (first-party, registered directly)
+var crmModule = new CrmModule();
 var employeeModule = new WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule();
-employeeModule.ConfigureServices(builder.Services, builder.Configuration);
+builder.Services.AddCustomModules(
+    builder.Configuration,
+    pluginsDir,
+    firstPartyModules: new ICustomModule[] { crmModule, employeeModule });
 
 builder.Services.AddControllers()
+    .AddApplicationPart(typeof(CrmModule).Assembly)
     .AddApplicationPart(typeof(WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule).Assembly);
 builder.Services.AddOpenApi();
 
@@ -72,7 +70,6 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCustomModules();
-employeeModule.Configure(app);
 app.MapControllers();
 
 // Seed roles on startup

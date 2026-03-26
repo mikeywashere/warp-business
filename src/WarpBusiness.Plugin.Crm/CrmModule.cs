@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.Crm.Data;
+using WarpBusiness.Plugin.Crm.Services;
 
 namespace WarpBusiness.Plugin.Crm;
 
@@ -18,15 +19,16 @@ public class CrmModule : ICustomModule
 
     public void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        var connStr = configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("DefaultConnection is required for the CRM plugin.");
+        var connStr = configuration.GetConnectionString("warpbusiness")
+            ?? configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("A connection string (warpbusiness or DefaultConnection) is required for the CRM plugin.");
 
         services.AddDbContext<CrmDbContext>(options => options.UseNpgsql(connStr));
-
-        // Hicks will add service registrations here:
-        // services.AddScoped<IContactService, ContactService>();
-        // services.AddScoped<ICompanyService, CompanyService>();
-        // etc.
+        services.AddScoped<ICustomFieldService, CustomFieldService>();
+        services.AddScoped<IContactService, ContactService>();
+        services.AddScoped<ICompanyService, CompanyService>();
+        services.AddScoped<IDealService, DealService>();
+        services.AddScoped<IActivityService, ActivityService>();
     }
 
     public void Configure(WebApplication app)
