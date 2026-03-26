@@ -10,6 +10,17 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-03-26: Custom Fields Integration Tests
+
+**Duplicate-name uniqueness is enforced in the controller, not the service:**  
+`CustomFieldService.CreateDefinitionAsync` has no uniqueness guard. The controller does an `AnyAsync` check before calling the service and returns `409 Conflict` if a field with the same `Name + EntityType` already exists. In-memory EF does not enforce DB unique indexes, so this application-level check is mandatory in tests.
+
+**Admin pattern for custom field tests:**  
+Follow the same promote-then-relogin flow as `AdminControllerTests`: register → `PromoteToAdminAsync` → POST `/api/auth/login` → `SetBearerToken(auth.Token)`. The fresh token carries the Admin role claim required by `[Authorize(Roles = "Admin")]`.
+
+**GetContact always returns all active field definitions:**  
+`CustomFieldService.GetValuesForContactAsync` returns every active `Contact` definition with `Value = null` for fields the contact hasn't set. Tests asserting "all definitions included" should expect null values for unset fields, not missing entries.
+
 ### 2026-03-25: Integration Test Infrastructure
 
 **WebApplicationFactory setup pattern:**  
