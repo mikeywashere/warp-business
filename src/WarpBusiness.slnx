@@ -9,5 +9,6 @@
   <Project Path="WarpBusiness.ServiceDefaults/WarpBusiness.ServiceDefaults.csproj" />
   <Project Path="WarpBusiness.Shared/WarpBusiness.Shared.csproj" />
   <Project Path="WarpBusiness.Tests/WarpBusiness.Tests.csproj" />
+  <Project Path="WarpBusiness.Tests.E2E/WarpBusiness.Tests.E2E.csproj" />
   <Project Path="WarpBusiness.Web/WarpBusiness.Web.csproj" />
 </Solution>
