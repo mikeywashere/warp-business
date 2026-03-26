@@ -173,3 +173,40 @@
 
 **Razor Gotcha:** Can't use `$"..."` string interpolation with escaped quotes (`$\"...\"`) inside `@onclick` attributes in Razor — Razor parser chokes on the backslash escape. Use a plain `<a href="/deals/@id">` anchor instead of `Nav.NavigateTo` in `@onclick`.
 
+### 2026-03-26: Custom Fields UI — Admin Management + Dynamic Contact Forms
+
+**WarpApiClient Additions:**
+- `GetCustomFieldDefinitionsAsync(entityType)`: GET /api/custom-fields?entityType=...
+- `CreateCustomFieldDefinitionAsync`, `UpdateCustomFieldDefinitionAsync`, `DeleteCustomFieldDefinitionAsync`
+- `DeleteCustomFieldDefinitionRawAsync`: returns int status code — used to detect 409 conflict (field has data → deactivate instead)
+- All use `SendWithRefreshAsync` pattern
+
+**Components/Shared/CustomFieldInput.razor (new reusable component):**
+- Renders appropriate input by `FieldType`: Text → text, Number → number, Date → date, Boolean → checkbox, Select → select dropdown
+- `Field.FieldName` as label with `*` for required fields; Bootstrap form classes
+- Boolean change extracted to `HandleBoolChange()` method — cannot inline `"true"/"false"` string literals inside Razor `@onchange` attributes (Razor quote gotcha)
+
+**Admin/CustomFieldManagement.razor (/admin/custom-fields):**
+- `[Authorize(Roles = "Admin")]` matches UserManagement pattern
+- Table: Name, Type badge, Required badge, Display Order, Active toggle, Edit/Delete actions
+- Inline create/edit form below table (not modal) — single `_showForm` bool with `_editingId` for edit vs. create branch
+- Select field type shows textarea for comma-separated options, parsed via `Split(',', TrimEntries)`
+- 409 conflict on delete: message "Field has data — deactivate it instead"
+- Toggle Active: quick PUT with `!def.IsActive` directly from table row button
+
+**NavMenu.razor:** Custom Fields link added under Admin section (after Users link)
+
+**ContactDetail.razor extensions:**
+- `OnInitializedAsync` now runs `LoadContactAsync()` and `LoadFieldDefinitionsAsync()` in parallel via `Task.WhenAll`
+- View mode: Custom Fields section shows fields with a value OR that are required; Boolean rendered as Yes/No
+- Edit mode: `<CustomFieldInput>` per active definition, ordered by `DisplayOrder`; `_fieldValues` dict pre-populated from `contact.CustomFields`
+- Save: `UpsertCustomFieldValueRequest` list built from `_fieldValues` dict
+
+**CustomerPortal/MyProfile.razor extensions:**
+- Inline replicated field type logic (portal doesn't share components with Web)
+- `HandlePortalBoolChange(defId, e)` method for boolean toggle (same Razor quote gotcha fix)
+- `OnInitializedAsync` loads contact + field defs in parallel
+- Save includes custom fields in `UpdateContactRequest`
+
+**Razor Gotcha (confirmed again):** Cannot embed `"true"` or `"false"` string literals inside `@onchange="..."` attribute lambdas — Razor parser terminates the attribute at the first `"`. Always extract to a method.
+
