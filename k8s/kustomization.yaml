@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: warp-business
+
+resources:
+- namespace.yaml
+- secrets.yaml          # copy from secrets.yaml.template before deploying
+- postgres/pvc.yaml
+- postgres/statefulset.yaml
+- postgres/service.yaml
+- keycloak/deployment.yaml
+- keycloak/service.yaml
+- api/configmap.yaml
+- api/deployment.yaml
+- api/service.yaml
+- web/configmap.yaml
+- web/deployment.yaml
+- web/service.yaml
+- portal/configmap.yaml
+- portal/deployment.yaml
+- portal/service.yaml
+- ingress.yaml

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warp-portal-config
+  namespace: warp-business
+data:
+  ASPNETCORE_ENVIRONMENT: Production
+  ASPNETCORE_URLS: "http://+:8080"
+  services__api__http__0: "http://warp-api:8080"

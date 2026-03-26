@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: warp-api
+  namespace: warp-business
+  labels:
+    app: warp-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: warp-api
+  template:
+    metadata:
+      labels:
+        app: warp-api
+    spec:
+      initContainers:
+      - name: wait-for-postgres
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z warp-postgres 5432; do echo waiting for postgres; sleep 2; done']
+      containers:
+      - name: warp-api
+        image: warp-business/api:latest
+        imagePullPolicy: Never   # use locally built image
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: warp-api-config
+        env:
+        - name: WARP_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: warp-secrets
+              key: postgres-password
+        - name: ConnectionStrings__DefaultConnection
+          value: "Host=warp-postgres;Port=5432;Database=warpbusiness;Username=warpuser;Password=$(WARP_DB_PASSWORD)"
+        - name: Jwt__Key
+          valueFrom:
+            secretKeyRef:
+              name: warp-secrets
+              key: jwt-key
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30

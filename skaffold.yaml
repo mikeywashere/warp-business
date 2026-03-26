@@ -1,0 +1,44 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: warp-business
+
+build:
+  artifacts:
+  - image: warp-business/api
+    context: src
+    docker:
+      dockerfile: WarpBusiness.Api/Dockerfile
+  - image: warp-business/web
+    context: src
+    docker:
+      dockerfile: WarpBusiness.Web/Dockerfile
+  - image: warp-business/portal
+    context: src
+    docker:
+      dockerfile: WarpBusiness.CustomerPortal/Dockerfile
+  local:
+    push: false
+    useBuildkit: true
+
+deploy:
+  kubectl:
+    manifests:
+    - k8s/kustomization.yaml
+
+portForward:
+- resourceType: service
+  resourceName: warp-api
+  namespace: warp-business
+  port: 8080
+  localPort: 5001
+- resourceType: service
+  resourceName: warp-web
+  namespace: warp-business
+  port: 8080
+  localPort: 5002
+- resourceType: service
+  resourceName: warp-portal
+  namespace: warp-business
+  port: 8080
+  localPort: 5003

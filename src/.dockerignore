@@ -1,0 +1,9 @@
+**/.git
+**/.gitignore
+**/bin
+**/obj
+**/*.user
+**/*.suo
+**/node_modules
+**/.vs
+**/TestResults

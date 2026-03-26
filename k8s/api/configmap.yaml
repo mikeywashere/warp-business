@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: warp-api-config
+  namespace: warp-business
+data:
+  ASPNETCORE_ENVIRONMENT: Production
+  ASPNETCORE_URLS: "http://+:8080"
+  AuthProvider__ActiveProvider: Local
+  Keycloak__Authority: "http://warp-keycloak:8080/realms/warp"
+  Keycloak__ClientId: warp-api

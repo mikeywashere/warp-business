@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: warp-portal
+  namespace: warp-business
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: warp-portal
+  template:
+    metadata:
+      labels:
+        app: warp-portal
+    spec:
+      containers:
+      - name: warp-portal
+        image: warp-business/portal:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        envFrom:
+        - configMapRef:
+            name: warp-portal-config
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
