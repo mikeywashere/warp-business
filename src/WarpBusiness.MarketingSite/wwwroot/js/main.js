@@ -111,6 +111,108 @@
     revealEls.forEach(function (el) { el.classList.add('revealed'); });
   }
 
+  /* ---- Plugin Showcase Carousel ---- */
+  // PLUGIN SHOWCASE — Add new plugins here when they are created in the solution.
+  // Do NOT include WarpBusiness.Plugin.Sample — it is a developer scaffold template only.
+  // Format: { icon, name, tagline, description, badge }
+  var plugins = [
+    {
+      icon: '🎯',
+      name: 'CRM',
+      tagline: 'Customer Relationship Management',
+      description: 'Track every contact, company, deal, and activity. Build relationships that scale.',
+      badge: 'Available Now',
+    },
+    {
+      icon: '👥',
+      name: 'Employee Management',
+      tagline: 'People Operations at Scale',
+      description: 'Onboard, manage, and empower your workforce from a unified dashboard.',
+      badge: 'Available Now',
+    },
+  ];
+
+  var track = document.getElementById('pluginTrack');
+  var dotsContainer = document.getElementById('pluginDots');
+
+  if (track && dotsContainer && plugins.length > 0) {
+    var current = 0;
+    var rotateTimer = null;
+    var INTERVAL = 4000;
+
+    // Build cards
+    var cards = plugins.map(function (p, i) {
+      var card = document.createElement('div');
+      card.className = 'plugin-card' + (i === 0 ? ' plugin-card--active' : '');
+      card.setAttribute('role', 'tabpanel');
+      card.setAttribute('aria-label', p.name);
+      card.innerHTML =
+        '<div class="plugin-card__icon">' + p.icon + '</div>' +
+        '<span class="plugin-card__badge">' + p.badge + '</span>' +
+        '<h3 class="plugin-card__name">' + p.name + '</h3>' +
+        '<p class="plugin-card__tagline">' + p.tagline + '</p>' +
+        '<p class="plugin-card__desc">' + p.description + '</p>';
+      track.appendChild(card);
+      return card;
+    });
+
+    // Set track min-height based on tallest card after paint
+    function syncTrackHeight() {
+      var max = 0;
+      cards.forEach(function (c) {
+        c.style.position = 'relative';
+        var h = c.offsetHeight;
+        c.style.position = '';
+        if (h > max) max = h;
+      });
+      track.style.minHeight = max + 'px';
+    }
+
+    // Build dots
+    var dots = plugins.map(function (p, i) {
+      var btn = document.createElement('button');
+      btn.className = 'plugin-dot' + (i === 0 ? ' plugin-dot--active' : '');
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-label', 'Show ' + p.name + ' plugin');
+      btn.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+      btn.addEventListener('click', function () { goTo(i); });
+      dotsContainer.appendChild(btn);
+      return btn;
+    });
+
+    function goTo(index) {
+      cards[current].classList.remove('plugin-card--active');
+      dots[current].classList.remove('plugin-dot--active');
+      dots[current].setAttribute('aria-selected', 'false');
+      current = (index + plugins.length) % plugins.length;
+      cards[current].classList.add('plugin-card--active');
+      dots[current].classList.add('plugin-dot--active');
+      dots[current].setAttribute('aria-selected', 'true');
+    }
+
+    function startRotation() {
+      stopRotation();
+      rotateTimer = setInterval(function () {
+        goTo(current + 1);
+      }, INTERVAL);
+    }
+
+    function stopRotation() {
+      clearInterval(rotateTimer);
+    }
+
+    var carousel = document.getElementById('pluginCarousel');
+    if (carousel) {
+      carousel.addEventListener('mouseenter', stopRotation);
+      carousel.addEventListener('mouseleave', startRotation);
+      carousel.addEventListener('focusin', stopRotation);
+      carousel.addEventListener('focusout', startRotation);
+    }
+
+    window.addEventListener('load', syncTrackHeight);
+    startRotation();
+  }
+
   /* ---- Smooth scroll for anchor links ---- */
   document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
     anchor.addEventListener('click', function (e) {

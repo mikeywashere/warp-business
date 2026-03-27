@@ -208,7 +208,37 @@
 - `OnInitializedAsync` loads contact + field defs in parallel
 - Save includes custom fields in `UpdateContactRequest`
 
-### 2026-03-26: Plugin nav items wired — CRM hardcoded links removed from NavMenu
+### 2026-03-26: WarpBusiness.MarketingSite — Static HTML/CSS/JS Advertising Site
+
+**Project Created:** `src/WarpBusiness.MarketingSite/` — standalone marketing site, NOT part of Aspire orchestration.
+
+**Stack:** Pure HTML5, CSS custom properties, vanilla JS (no frameworks), served by minimal ASP.NET Core (`UseDefaultFiles` + `UseStaticFiles`).
+
+**Design:**
+- Dark space theme: deep navy/black (`#050b18`) backgrounds, electric blue/cyan (`#00c8ff`) accents
+- Google Fonts: Orbitron (headings) + Inter (body)
+- Full-viewport hero with animated star-field canvas (vanilla JS, requestAnimationFrame)
+- CSS `@keyframes` animations: `fadeDown` (hero reveal), `revealUp` (scroll-in cards), `bounce` (scroll arrow)
+- IntersectionObserver scroll-reveal for feature cards, stat numbers, CTA box
+- Mobile-first responsive: hamburger nav menu below 768px
+
+**Sections:** Nav → Hero → Features (4 cards) → Stats → CTA → Footer
+
+**Gotcha:** `cta-section__sub` has `margin-bottom` declared twice (once as part of the `margin-inline: auto` shorthand group and once standalone) — functionally OK, last value wins, but worth cleaning if editing the CSS later.
+
+**Added to solution:** `dotnet sln add` to `WarpBusiness.slnx` succeeded. Project targets `net10.0`, `Microsoft.NET.Sdk.Web`.
+
+### 2026-03-27: Rotating Plugin Showcase Added to MarketingSite
+
+**Plugin Carousel:**
+- Added `.plugins` section to `index.html` between Features and Stats, with developer reminder HTML comment above it
+- Two plugins: CRM (🎯) and Employee Management (👥), each with icon, name, tagline, description, glowing "Available Now" badge
+- Auto-rotates every 4 seconds; pauses on hover/focus; dot nav for manual jump; smooth CSS opacity/transform fade transition
+- All vanilla JS — plugins array in `main.js` with maintenance comment; `syncTrackHeight()` normalises card container height after paint
+
+**Convention captured:** New plugins must be added to the `plugins` array in `js/main.js`. Sample plugin excluded (developer scaffold only). Decision written to `.squad/decisions/inbox/vasquez-plugin-showcase-reminder.md`.
+
+
 
 **NavMenu.razor cleanup:**
 - Removed hardcoded `Contacts`, `Companies`, `Deals`, and `Activities` nav links
