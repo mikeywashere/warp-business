@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.Crm.Domain;
 using WarpBusiness.Shared.Crm;
@@ -9,11 +10,13 @@ public class ContactService : IContactService
 {
     private readonly CrmDbContext _db;
     private readonly ICustomFieldService _customFields;
+    private readonly ITenantContext _tenantContext;
 
-    public ContactService(CrmDbContext db, ICustomFieldService customFields)
+    public ContactService(CrmDbContext db, ICustomFieldService customFields, ITenantContext tenantContext)
     {
         _db = db;
         _customFields = customFields;
+        _tenantContext = tenantContext;
     }
 
     public async Task<PagedResult<ContactDto>> GetContactsAsync(int page, int pageSize, string? search, CancellationToken ct = default)
@@ -105,6 +108,7 @@ public class ContactService : IContactService
         var contact = new Contact
         {
             Id = Guid.NewGuid(),
+            TenantId = _tenantContext.TenantId,
             FirstName = request.FirstName,
             LastName = request.LastName,
             Email = request.Email?.ToLowerInvariant(),

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.Crm.Domain;
 using WarpBusiness.Shared.Crm;
@@ -8,10 +9,12 @@ namespace WarpBusiness.Plugin.Crm.Services;
 public class CompanyService : ICompanyService
 {
     private readonly CrmDbContext _db;
+    private readonly ITenantContext _tenantContext;
 
-    public CompanyService(CrmDbContext db)
+    public CompanyService(CrmDbContext db, ITenantContext tenantContext)
     {
         _db = db;
+        _tenantContext = tenantContext;
     }
 
     public async Task<PagedResult<CompanyDto>> GetCompaniesAsync(int page, int pageSize, string? search, CancellationToken ct = default)
@@ -96,6 +99,7 @@ public class CompanyService : ICompanyService
         var company = new Company
         {
             Id = Guid.NewGuid(),
+            TenantId = _tenantContext.TenantId,
             Name = request.Name,
             Website = request.Website,
             Industry = request.Industry,
