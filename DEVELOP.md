@@ -16,6 +16,24 @@ Install the following before starting:
 - **skaffold** — [Download here](https://skaffold.dev/docs/install/) (required for Kubernetes dev workflow)
 - **GitHub CLI `gh`** (optional) — [Download here](https://cli.github.com/) (useful for PR workflows)
 
+### Quick Install
+
+Run the appropriate script for your platform to install all required tools:
+
+**Linux / macOS:**
+```bash
+bash scripts/install-prerequisites.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\install-prerequisites.ps1
+```
+
+> **Note:** Visual Studio and VS Code are not installed by these scripts — install them manually from [visualstudio.microsoft.com](https://visualstudio.microsoft.com) or [code.visualstudio.com](https://code.visualstudio.com).
+>
+> After running the script, **restart your terminal** so PATH changes take effect before running `dotnet` or other newly installed tools.
+
 ## Project Structure
 
 The solution is organized as follows:
