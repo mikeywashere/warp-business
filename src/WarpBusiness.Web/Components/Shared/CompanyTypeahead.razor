@@ -1,0 +1,172 @@
+@inject WarpApiClient Api
+
+<div class="company-typeahead position-relative">
+    <div class="input-group">
+        <input type="text"
+               class="form-control"
+               placeholder="Search companies..."
+               value="@_inputText"
+               @oninput="OnInput"
+               @onkeydown="OnKeyDown"
+               @onfocus="OnFocus"
+               @onblur="OnBlur" />
+        @if (_isSearching)
+        {
+            <span class="input-group-text">
+                <span class="spinner-border spinner-border-sm" role="status" aria-label="Searching..."></span>
+            </span>
+        }
+        else if (Value.HasValue)
+        {
+            <button type="button" class="btn btn-outline-secondary" @onclick="Clear" title="Clear company">
+                <span class="bi bi-x-lg"></span>
+            </button>
+        }
+    </div>
+
+    @if (_showDropdown)
+    {
+        @if (_results.Count > 0)
+        {
+            <div class="dropdown-menu show w-100 shadow-sm" style="max-height: 220px; overflow-y: auto; position: absolute; z-index: 1050;">
+                @for (int i = 0; i < _results.Count; i++)
+                {
+                    var idx = i;
+                    var company = _results[i];
+                    <button type="button"
+                            class="dropdown-item @(idx == _selectedIndex ? "active" : "")"
+                            @onmousedown="() => SelectCompany(company)">
+                        <span class="fw-semibold">@company.Name</span>
+                        @if (!string.IsNullOrEmpty(company.Industry))
+                        {
+                            <small class="text-muted ms-2">@company.Industry</small>
+                        }
+                    </button>
+                }
+            </div>
+        }
+        else if (_hasSearched && !_isSearching)
+        {
+            <div class="dropdown-menu show w-100 shadow-sm" style="position: absolute; z-index: 1050;">
+                <span class="dropdown-item-text text-muted">
+                    No companies found — <a href="/companies" target="_blank">add one first</a>
+                </span>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public Guid? Value { get; set; }
+    [Parameter] public EventCallback<Guid?> ValueChanged { get; set; }
+    [Parameter] public string? DisplayName { get; set; }
+
+    private string _inputText = string.Empty;
+    private List<CompanyDto> _results = [];
+    private bool _isSearching = false;
+    private bool _showDropdown = false;
+    private bool _hasSearched = false;
+    private int _selectedIndex = -1;
+    private Timer? _debounceTimer;
+    private Guid? _localValue;
+
+    protected override void OnParametersSet()
+    {
+        if (Value != _localValue)
+        {
+            _localValue = Value;
+            if (Value.HasValue && !string.IsNullOrEmpty(DisplayName))
+                _inputText = DisplayName;
+            else if (!Value.HasValue)
+                _inputText = string.Empty;
+        }
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        _inputText = e.Value?.ToString() ?? string.Empty;
+        _selectedIndex = -1;
+
+        _debounceTimer?.Dispose();
+        _debounceTimer = new Timer(async _ =>
+        {
+            await SearchAsync(_inputText);
+            await InvokeAsync(StateHasChanged);
+        }, null, 300, Timeout.Infinite);
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (_selectedIndex < _results.Count - 1) _selectedIndex++;
+                break;
+            case "ArrowUp":
+                if (_selectedIndex > 0) _selectedIndex--;
+                break;
+            case "Enter":
+                if (_selectedIndex >= 0 && _selectedIndex < _results.Count)
+                    await SelectCompany(_results[_selectedIndex]);
+                break;
+            case "Escape":
+                _showDropdown = false;
+                break;
+        }
+    }
+
+    private void OnFocus()
+    {
+        if (_results.Count > 0 || _hasSearched)
+            _showDropdown = true;
+    }
+
+    private void OnBlur()
+    {
+        // Delay to allow onmousedown on dropdown items to fire first
+        _ = Task.Delay(200).ContinueWith(_ => InvokeAsync(() =>
+        {
+            _showDropdown = false;
+            StateHasChanged();
+        }));
+    }
+
+    private async Task SearchAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            _results = [];
+            _showDropdown = false;
+            _hasSearched = false;
+            return;
+        }
+
+        _isSearching = true;
+        _showDropdown = true;
+        await InvokeAsync(StateHasChanged);
+
+        _results = await Api.SearchCompaniesAsync(query);
+        _isSearching = false;
+        _hasSearched = true;
+        _selectedIndex = -1;
+    }
+
+    private async Task SelectCompany(CompanyDto company)
+    {
+        _inputText = company.Name;
+        _localValue = company.Id;
+        _showDropdown = false;
+        _results = [];
+        await ValueChanged.InvokeAsync(company.Id);
+    }
+
+    private async Task Clear()
+    {
+        _inputText = string.Empty;
+        _localValue = null;
+        _results = [];
+        _showDropdown = false;
+        _hasSearched = false;
+        await ValueChanged.InvokeAsync(null);
+    }
+}
