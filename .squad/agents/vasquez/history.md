@@ -255,3 +255,50 @@
 - Build succeeds (0 errors); EF Core 10.0.4 vs 10.0.5 MSB3277 warning is a pre-existing Plugin.Crm dependency mismatch, not a frontend concern
 
 
+### 2026-03-27: Companies Feature UI — List, Detail, Typeahead
+
+**CompanyDetail.razor (`/companies/{Id:guid}` + `/companies/{Id:guid}/edit`):**
+- Dual `@page` directives; `/edit` URL auto-enters edit mode on init via `Nav.Uri.EndsWith("/edit")`
+- View mode: industry, website (link), phone, email, created date, contacts table
+- Edit mode: inline toggle with `EditCompanyModel` inner class; PUT on save
+- Contacts section: table of linked contacts (Name→detail link, Title, Email)
+- Delete guard: 409 from `DeleteCompanyRawAsync` shows "Cannot delete — contacts are linked" message
+
+**CompanyList.razor upgrades:**
+- Company name is now a link → `/companies/{id}`; eye + pencil icon action buttons added
+- Website column added (truncated with max-width: 200px)
+- Delete switched to `DeleteCompanyRawAsync` (int status) for 409-aware messaging
+- Modal "New Company" simplified to spec fields only (Name, Industry, Website, Phone, Email)
+
+**CompanyTypeahead.razor (new reusable component in Components/Shared/):**
+- `Guid? Value` + `EventCallback<Guid?> ValueChanged` — standard two-way binding (`@bind-Value` compatible)
+- Optional `string? DisplayName` parameter — pre-populates input when editing an existing record with a company already set
+- `_localValue` tracks self-initiated changes so `OnParametersSet` doesn't clobber live input
+- `@onmousedown` (not `@onclick`) on dropdown items — fires before `@onblur` so click registers before dropdown hides
+- 300ms debounce via `System.Threading.Timer`; spinner shown during search; keyboard nav (↑↓ Enter Esc)
+- "No companies found — add one first" shown when search returns empty
+
+**ContactDetail.razor — company field migration:**
+- Removed `PagedResult<CompanyDto>? _companies` and `bool _companiesLoading` fields
+- Removed `GetCompaniesAsync(1, 100)` call from `EnterEditMode`
+- `EditContactModel.CompanyId` changed from `string?` → `Guid?`; `SaveChanges` uses it directly (no `Guid.Parse`)
+- Company label now renders `<CompanyTypeahead Value="_editRequest.CompanyId" ValueChanged="v => _editRequest.CompanyId = v" DisplayName="@_contact?.CompanyName" />`
+
+**Navigation:**
+- Companies already registered in `CrmModule.GetNavItems()` (DisplayOrder 20, `bi-building` icon)
+- No NavMenu changes needed — dynamic plugin nav handles it
+
+**Gotcha — `@onmousedown` vs `@onclick` in typeahead dropdown:**
+The `@onblur` handler fires before `@onclick`. Using `@onmousedown` on dropdown items ensures the click registers before the input loses focus and the dropdown hides.
+
+### 2026-03-27: Companies Feature Frontend — Complete
+
+- **Deliverable:** Full Companies UI integration with list, detail, and typeahead search components.
+- **CompanyDetail.razor:** Dual-route component for view/edit; shows industry, website, phone, email, creation date, linked contacts table; 409-aware delete guard.
+- **CompanyList.razor:** Updated with name links to detail, website column, view/edit action buttons, 409-aware delete with messaging.
+- **CompanyTypeahead.razor:** Reusable autocomplete component with 300ms debounce, keyboard nav, spinner, empty state message; uses `@onmousedown` pattern to capture clicks before blur.
+- **ContactDetail.razor:** Migrated company field from paginated dropdown to CompanyTypeahead; DisplayName pre-population for existing contacts; CompanyId type changed to Guid?.
+- **Navigation:** Companies nav link served dynamically via CrmModule.GetNavItems() — no manual NavMenu update needed.
+- **Status:** ✅ Committed and pushed to main.
+
+

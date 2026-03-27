@@ -165,3 +165,13 @@
 - **Test pattern:** For role-restricted endpoints, need both an "Admin succeeds (204)" test and a "non-Admin forbidden (403)" test. `AuthHelper.PromoteToAdminAsync` + re-login pattern is the correct way to get a fresh Admin JWT.
 - **Pre-existing failure:** The IDOR protection added by the security fix (regular users can only update their own contacts) broke UpdateContact tests that created contacts with different emails. Fixed by updating those tests to use Admin client for update operations.
 - **Shared environment gotcha:** In multi-agent shared repo, other agents push to main while you're working. Always rebase your branch before committing. The stash from branch switches can contain mixed agent changes — cherry-pick individual files from stash instead of popping blindly.
+
+### 2026-03-27: Companies API — CRUD Implementation Complete
+
+- **Deliverable:** Full Company CRUD API with autocomplete search, unique name constraint, and delete guards.
+- **SearchCompaniesAsync:** Case-insensitive contains search, ordered by name, capped at 20 results (configurable).
+- **GetCompanyDetailAsync:** Returns CompanyDetailDto with embedded ContactSummaryDto list for UI display.
+- **DELETE endpoint guard:** `GetCompanyAsync` returns `DeleteCompanyResult` enum (`Deleted`, `NotFound`, `HasContacts`). Controller maps `HasContacts` to 409 Conflict response to prevent orphaning contacts.
+- **Migration:** Added unique index on Companies.Name to enforce controlled-vocabulary (prevents duplicates).
+- **API Client:** GetCompanyAsync and SearchCompaniesAsync added to WarpApiClient for Blazor frontend integration.
+- **Status:** ✅ Committed and pushed to main.
