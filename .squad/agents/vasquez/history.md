@@ -318,3 +318,23 @@ The `@onblur` handler fires before `@onclick`. Using `@onmousedown` on dropdown 
 - **Status:** ✅ Committed and pushed to main.
 
 **Key pattern:** Use id="nav-glow" (not id="glow") for inline SVG filter in nav to avoid ID collision with other SVG elements on the page.
+
+## Learnings — 2026-03-27: Tenant Selection & Admin UI
+
+### What Was Built
+- **TenantSelect.razor** (/tenant/select): Workspace picker. Loads GET /api/auth/my-tenants → 0=signup redirect, 1=auto-select, multiple=show card grid.
+- **TenantSignup.razor** (/tenant/signup): Create workspace form with debounced slug generation and live availability check. Uses TenantSignupResponse.AccessToken directly instead of separate select-tenant call.
+- **Settings/TenantAdmin.razor** (/settings/workspace): 3-tab workspace admin (General/Members/Security). Members table with role toggle and remove-with-confirm. Security tab is "coming soon" SAML stub. Requires TenantAdmin role.
+- **Post-login flow**: Login.razor calls GetMyTenantsAsync() after auth and routes to signup/select/auto-select.
+- **NavMenu**: Tenant name in nav footer section. Workspace Settings link for TenantAdmin role.
+- **AuthStateService**: Added TenantId, TenantName, SetTenant(), cleared in ClearAuth().
+- **WarpApiClient**: Tenant API methods — GetMyTenantsAsync(), SelectTenantAsync(), GetTenantAsync(), UpdateTenantAsync(), SetTenantMemberRoleAsync(), RemoveTenantMemberAsync(), InviteTenantMemberAsync(), SignupTenantAsync(), CheckSlugAvailabilityAsync().
+
+### Key Decisions / Gotchas
+- API already had TenantsController with local DTOs (TenantSignupRequest, TenantSummaryDto, etc.) AND AuthController with GET /api/auth/my-tenants using MyTenantDto. Both import WarpBusiness.Shared.Auth. Local types shadow shared types in controllers — no ambiguity needed.
+- TenantDetailDto returns members inline — no separate GetTenantMembersAsync() needed.
+- POST /api/tenants/signup returns AccessToken (tenant-scoped JWT) directly. TenantSignup.razor uses it via 
+ew AuthResponse(result.AccessToken, ...).
+- POST /api/auth/select-tenant didn't exist at implementation time — Auth team will add it. Frontend handles failure gracefully (falls through to /).
+- Route /settings/workspace uses [Authorize(Roles = "TenantAdmin")]. Always check role names match backend exactly.
+- CSS: tenant-card hover + tenant-avatar classes added to global pp.css.
