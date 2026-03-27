@@ -15,12 +15,27 @@ public static class AuthHelper
         string firstName = "Test",
         string lastName = "User")
     {
-        var response = await client.PostAsJsonAsync("api/auth/register",
+        // 1. Register the user — returns a basic (no tenant) token
+        var registerResponse = await client.PostAsJsonAsync("api/auth/register",
             new RegisterRequest(email, password, firstName, lastName));
+        registerResponse.EnsureSuccessStatusCode();
+        var auth = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
 
-        response.EnsureSuccessStatusCode();
-        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>();
-        return auth!.Token;
+        // 2. Signup for a new tenant — returns a tenant-scoped token required by
+        //    the RequireActiveTenant policy on CRM and Employee Management endpoints.
+        client.SetBearerToken(auth!.Token);
+        var slug = "test-" + Guid.NewGuid().ToString("N")[..10];
+        var signupResponse = await client.PostAsJsonAsync("api/tenants/signup",
+            new { CompanyName = $"{firstName}'s Test Company", Slug = slug });
+
+        if (signupResponse.IsSuccessStatusCode)
+        {
+            var signup = await signupResponse.Content.ReadFromJsonAsync<WarpBusiness.Api.Controllers.TenantSignupResponse>();
+            return signup!.AccessToken;
+        }
+
+        // Fallback: return the basic token if signup fails (should not happen in normal test flow)
+        return auth.Token;
     }
 
     public static void SetBearerToken(this HttpClient client, string token)

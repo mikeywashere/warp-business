@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "WarpBusiness.AppHost": {
+      "commandName": "Project"
+    }
+  }
+}

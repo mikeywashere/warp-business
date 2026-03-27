@@ -1,14 +1,16 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace WarpBusiness.Shared.Auth;
 
 public record RegisterRequest(
-    string Email,
-    string Password,
-    string FirstName,
-    string LastName);
+    [Required, EmailAddress, MaxLength(256)] string Email,
+    [Required, MinLength(8), MaxLength(128)] string Password,
+    [Required, MaxLength(100)] string FirstName,
+    [Required, MaxLength(100)] string LastName);
 
 public record LoginRequest(
-    string Email,
-    string Password);
+    [Required, EmailAddress] string Email,
+    [Required] string Password);
 
 public record AuthResponse(
     string Token,

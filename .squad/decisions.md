@@ -139,6 +139,36 @@
 - **Trade-offs:** Entity type hardcoded to "Contact" in admin UI (multi-entity support is future); portal replicates input logic instead of sharing (acceptable for contained scope).
 - **Owner:** Vasquez (Frontend Dev)
 
+### 2026-03-26: Admin Role Required for All CRM Delete Operations
+
+**Status:** Implemented
+
+- **Decision:** All CRM DELETE endpoints require the `Admin` role. Authenticated non-Admin users receive `403 Forbidden`.
+- **Affected endpoints:** DELETE /api/contacts/{id}, DELETE /api/companies/{id}, DELETE /api/deals/{id}, DELETE /api/activities/{id}
+- **Rationale:** Delete operations are destructive and irreversible. Any authenticated user being able to delete CRM records poses significant data integrity risk. Restricting to Admin follows principle of least privilege.
+- **Implementation:** Added `[Authorize(Roles = "Admin")]` on each DELETE action method. Class-level `[Authorize]` ensures authentication; method-level attribute additionally requires Admin role (AND semantics in ASP.NET Core).
+- **Alternatives Considered:** Manager role was rejected (deletes too permanent); soft delete out of scope for this fix.
+- **Impact on Tests:** Updated integration tests to assert Admin DELETE → 204 No Content, non-Admin DELETE → 403 Forbidden. Fixed pre-existing UpdateContact test failures caused by IDOR protection fix.
+- **Owner:** Hicks (Backend Dev)
+- **PR:** fix/crm-delete-authorization (#7)
+
+### 2026-03-26: Playwright E2E Test Suite
+
+**Status:** Implemented
+
+- **Project:** WarpBusiness.Tests.E2E (net10.0, 18 files, NUnit + Microsoft.Playwright.NUnit 1.51.0)
+- **Framework Choice:** NUnit chosen over xUnit for SetUpFixture lifecycle mapping to browser → context → page hierarchy.
+- **Browser Lifecycle:** Shared IBrowser per test class (startup cost), fresh IBrowserContext per test (auth state isolation).
+- **Configuration:** E2E_BASE_URL env var (default http://localhost:5002) allows CI/multi-dev compatibility.
+- **Auto-Bootstrapping:** AuthHelper.LoginAsync() auto-registers test user on login failure (no manual data seeding needed).
+- **Test Structure:** PlaywrightSetup (one-time install), PageTestBase (lifecycle), AuthHelper (login/register), page objects (LoginPage, ContactsPage, CompaniesPage, DealsPage, EmployeesPage), 6 test classes.
+- **Selectors:** GetByLabel/GetByRole/GetByPlaceholder/CSS (no data-testid attributes). Labels and roles exist; CSS class `table` used consistently.
+- **Filtering:** [Category("E2E")] allows `dotnet test --filter "Category!=E2E"` to exclude from normal runs.
+- **App Health:** RequireAppAsync() skips tests with Assert.Ignore if app not reachable (prevents false red builds in CI).
+- **Critical Fix:** Added .gitignore negation `!src/WarpBusiness.Tests.E2E/` (VS *.e2e pattern was blocking directory).
+- **Owner:** Hudson (Tester)
+- **PR:** https://github.com/mikeywashere/warp-business/pull/8 (merged)
+
 ### 2026-03-26T20:10:00Z: Code Review Critical Findings
 **By:** Ripley (code review)
 **What:** Full code review completed. Critical issues identified:

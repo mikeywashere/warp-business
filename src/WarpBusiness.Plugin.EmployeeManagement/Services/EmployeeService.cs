@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.EmployeeManagement.Data;
 using WarpBusiness.Plugin.EmployeeManagement.Domain;
 
 namespace WarpBusiness.Plugin.EmployeeManagement.Services;
 
-public class EmployeeService(EmployeeDbContext db) : IEmployeeService
+public class EmployeeService(EmployeeDbContext db, ITenantContext tenantContext) : IEmployeeService
 {
     public async Task<(List<Employee> Items, int Total)> GetPagedAsync(
         int page, int pageSize, bool includeInactive = false,
@@ -41,6 +42,8 @@ public class EmployeeService(EmployeeDbContext db) : IEmployeeService
 
     public async Task<Employee> CreateAsync(Employee employee)
     {
+        employee.TenantId = tenantContext.TenantId;
+        employee.Email = employee.Email.ToLowerInvariant();
         employee.CreatedAt = DateTime.UtcNow;
         employee.UpdatedAt = DateTime.UtcNow;
         db.Employees.Add(employee);
@@ -55,7 +58,7 @@ public class EmployeeService(EmployeeDbContext db) : IEmployeeService
 
         existing.FirstName = updated.FirstName;
         existing.LastName = updated.LastName;
-        existing.Email = updated.Email;
+        existing.Email = updated.Email?.ToLowerInvariant() ?? string.Empty;
         existing.Phone = updated.Phone;
         existing.Department = updated.Department;
         existing.JobTitle = updated.JobTitle;

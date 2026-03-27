@@ -1,0 +1,374 @@
+@page "/settings/workspace"
+@attribute [Authorize(Roles = "TenantAdmin")]
+@using WarpBusiness.Shared.Auth
+@using WarpBusiness.Web.Services
+@using Microsoft.AspNetCore.Authorization
+@inject WarpApiClient Api
+@inject AuthStateService AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Workspace Settings — Warp Business</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-white">
+        <span class="bi bi-building me-2"></span>Workspace Settings
+    </h1>
+</div>
+
+@if (!string.IsNullOrEmpty(_errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible" role="alert">
+        @_errorMessage
+        <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+    </div>
+}
+@if (!string.IsNullOrEmpty(_successMessage))
+{
+    <div class="alert alert-success alert-dismissible" role="alert">
+        @_successMessage
+        <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-light" role="status"></div>
+    </div>
+}
+else
+{
+    <ul class="nav nav-tabs border-secondary mb-4">
+        <li class="nav-item">
+            <button class="nav-link @(_activeTab == "general" ? "active" : "text-white-50")"
+                    @onclick='() => SetTab("general")'>
+                General
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(_activeTab == "members" ? "active" : "text-white-50")"
+                    @onclick='() => SetTab("members")'>
+                Members
+                @if (_members.Count > 0)
+                {
+                    <span class="badge bg-secondary ms-1">@_members.Count</span>
+                }
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(_activeTab == "security" ? "active" : "text-white-50")"
+                    @onclick='() => SetTab("security")'>
+                Security
+            </button>
+        </li>
+    </ul>
+
+    @if (_activeTab == "general")
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card border-secondary mb-4" style="background: rgba(255,255,255,0.03);">
+                    <div class="card-header border-secondary">
+                        <h6 class="mb-0 text-white">General Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="_editModel" OnValidSubmit="SaveGeneralAsync">
+                            <DataAnnotationsValidator />
+
+                            <div class="mb-3">
+                                <label class="form-label text-white-50 small text-uppercase fw-semibold">Workspace Name</label>
+                                <InputText @bind-Value="_editModel.Name"
+                                           class="form-control bg-transparent text-white border-secondary" />
+                                <ValidationMessage For="() => _editModel.Name" class="text-danger small" />
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label text-white-50 small text-uppercase fw-semibold">Workspace URL</label>
+                                <div class="input-group">
+                                    <span class="form-control bg-transparent text-white-50 border-secondary">@_tenant?.Slug</span>
+                                    <span class="input-group-text bg-transparent text-white-50 border-secondary">.warp-business.com</span>
+                                </div>
+                                <div class="form-text text-white-50 small">Workspace URL cannot be changed after creation.</div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary" disabled="@_savingGeneral">
+                                @if (_savingGeneral)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                }
+                                Save Changes
+                            </button>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (_activeTab == "members")
+    {
+        <div class="card border-secondary mb-4" style="background: rgba(255,255,255,0.03);">
+            <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 text-white">Members</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-4">
+                    <div class="col">
+                        <input type="email"
+                               class="form-control bg-transparent text-white border-secondary"
+                               placeholder="colleague@example.com"
+                               @bind="_inviteEmail" />
+                    </div>
+                    <div class="col-auto">
+                        <button class="btn btn-outline-light" @onclick="SendInviteAsync" disabled="@_sendingInvite">
+                            @if (_sendingInvite)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            }
+                            <span class="bi bi-envelope me-1"></span>Send Invite
+                        </button>
+                    </div>
+                </div>
+
+                @if (_loadingMembers)
+                {
+                    <div class="text-center py-3"><div class="spinner-border spinner-border-sm text-light" role="status"></div></div>
+                }
+                else if (_members.Count == 0)
+                {
+                    <p class="text-white-50 text-center py-3">No members yet.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr class="text-white-50 small text-uppercase">
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Joined</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var member in _members)
+                                {
+                                    var m = member;
+                                    <tr>
+                                        <td class="text-white">@m.FullName</td>
+                                        <td class="text-white-50 small">@m.Email</td>
+                                        <td>
+                                            <span class="badge @(m.Role == "TenantAdmin" ? "bg-warning text-dark" : "bg-secondary")">
+                                                @(m.Role == "TenantAdmin" ? "Admin" : "Member")
+                                            </span>
+                                        </td>
+                                        <td class="text-white-50 small">@m.JoinedAt.LocalDateTime.ToString("MMM d, yyyy")</td>
+                                        <td class="text-end">
+                                            @if (_confirmRemoveId != m.UserId)
+                                            {
+                                                <button class="btn btn-sm btn-outline-secondary me-1"
+                                                        @onclick="() => ToggleRoleAsync(m)"
+                                                        disabled="@(_actingOnId == m.UserId)">
+                                                    @(m.Role == "TenantAdmin" ? "Remove Admin" : "Make Admin")
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger"
+                                                        @onclick="() => ConfirmRemove(m.UserId)">
+                                                    Remove
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-danger small me-2">Remove @m.FullName?</span>
+                                                <button class="btn btn-sm btn-danger me-1"
+                                                        @onclick="() => RemoveMemberAsync(m.UserId)"
+                                                        disabled="@(_actingOnId == m.UserId)">
+                                                    Confirm
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                        @onclick="CancelRemove">
+                                                    Cancel
+                                                </button>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else if (_activeTab == "security")
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card border-secondary" style="background: rgba(255,255,255,0.03);">
+                    <div class="card-header border-secondary">
+                        <h6 class="mb-0 text-white">Single Sign-On (SAML)</h6>
+                    </div>
+                    <div class="card-body text-center py-5">
+                        <div class="text-white-50 mb-3" style="font-size: 3rem;">🔐</div>
+                        <h5 class="text-white">Coming Soon</h5>
+                        <p class="text-white-50 small mb-0">
+                            SAML SSO configuration will allow your organization to use your identity provider
+                            (Okta, Azure AD, etc.) to authenticate into Warp Business.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private TenantDetailDto? _tenant;
+    private List<TenantMemberDto> _members = [];
+    private bool _loading = true;
+    private bool _loadingMembers;
+    private bool _savingGeneral;
+    private bool _sendingInvite;
+    private string _activeTab = "general";
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string? _confirmRemoveId;
+    private string? _actingOnId;
+    private string _inviteEmail = string.Empty;
+    private readonly GeneralEditModel _editModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _loading = true;
+
+        if (AuthState.TenantId is null)
+        {
+            Nav.NavigateTo("/tenant/select");
+            return;
+        }
+
+        try
+        {
+            _tenant = await Api.GetTenantAsync(AuthState.TenantId.Value);
+
+            if (_tenant is not null)
+            {
+                _editModel.Name = _tenant.Name;
+                _members = [.. _tenant.Members];
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to load workspace settings.";
+        }
+
+        _loading = false;
+    }
+
+    private void SetTab(string tab)
+    {
+        _activeTab = tab;
+        _errorMessage = null;
+        _successMessage = null;
+        _confirmRemoveId = null;
+    }
+
+    private async Task SaveGeneralAsync()
+    {
+        if (_tenant is null) return;
+
+        _savingGeneral = true;
+        _errorMessage = null;
+
+        var success = await Api.UpdateTenantAsync(_tenant.TenantId, new UpdateTenantRequest(_editModel.Name));
+        if (success)
+        {
+            AuthState.SetTenant(_tenant.TenantId, _editModel.Name);
+            _successMessage = "Workspace settings saved.";
+        }
+        else
+        {
+            _errorMessage = "Failed to save changes.";
+        }
+
+        _savingGeneral = false;
+    }
+
+    private async Task SendInviteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_inviteEmail) || AuthState.TenantId is null) return;
+
+        _sendingInvite = true;
+        var success = await Api.InviteTenantMemberAsync(AuthState.TenantId.Value, _inviteEmail);
+        if (success)
+        {
+            _successMessage = $"Invite sent to {_inviteEmail}.";
+            _inviteEmail = string.Empty;
+        }
+        else
+        {
+            _errorMessage = "Failed to send invite. Please try again.";
+        }
+        _sendingInvite = false;
+    }
+
+    private async Task ToggleRoleAsync(TenantMemberDto member)
+    {
+        if (AuthState.TenantId is null) return;
+
+        _actingOnId = member.UserId;
+        var newRole = member.Role == "TenantAdmin" ? "Member" : "TenantAdmin";
+        var success = await Api.SetTenantMemberRoleAsync(AuthState.TenantId.Value, member.UserId, newRole);
+        if (success)
+        {
+            var idx = _members.FindIndex(m => m.UserId == member.UserId);
+            if (idx >= 0)
+                _members[idx] = member with { Role = newRole };
+        }
+        else
+        {
+            _errorMessage = "Failed to update role.";
+        }
+        _actingOnId = null;
+    }
+
+    private void ConfirmRemove(string userId)
+    {
+        _confirmRemoveId = userId;
+    }
+
+    private void CancelRemove()
+    {
+        _confirmRemoveId = null;
+    }
+
+    private async Task RemoveMemberAsync(string userId)
+    {
+        if (AuthState.TenantId is null) return;
+
+        _actingOnId = userId;
+        var success = await Api.RemoveTenantMemberAsync(AuthState.TenantId.Value, userId);
+        if (success)
+        {
+            _members.RemoveAll(m => m.UserId == userId);
+            _confirmRemoveId = null;
+        }
+        else
+        {
+            _errorMessage = "Failed to remove member.";
+            _confirmRemoveId = null;
+        }
+        _actingOnId = null;
+    }
+
+    private class GeneralEditModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Workspace name is required")]
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string Name { get; set; } = string.Empty;
+    }
+}

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.Crm.Domain;
 using WarpBusiness.Shared.Crm;
@@ -9,10 +10,12 @@ namespace WarpBusiness.Plugin.Crm.Services;
 public class CustomFieldService : ICustomFieldService
 {
     private readonly CrmDbContext _db;
+    private readonly ITenantContext _tenantContext;
 
-    public CustomFieldService(CrmDbContext db)
+    public CustomFieldService(CrmDbContext db, ITenantContext tenantContext)
     {
         _db = db;
+        _tenantContext = tenantContext;
     }
 
     public async Task<IReadOnlyList<CustomFieldDefinitionDto>> GetDefinitionsAsync(string entityType, CancellationToken ct = default)
@@ -36,6 +39,7 @@ public class CustomFieldService : ICustomFieldService
         var def = new CustomFieldDefinition
         {
             Id = Guid.NewGuid(),
+            TenantId = _tenantContext.TenantId,
             Name = request.Name,
             EntityType = request.EntityType,
             FieldType = request.FieldType,

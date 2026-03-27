@@ -91,3 +91,83 @@ Created and committed the `20260326030154_AddRefreshTokens` migration to persist
 
 **Status:** Migration file committed to repository but not yet applied. Database update will happen during deployment or manual `dotnet ef database update`.
 
+### 2026-03-27: Multi-Tenancy Auth Architecture Analysis
+
+Performed comprehensive analysis of authentication and authorization implications for adding multi-tenancy to Warp Business. Analysis saved to `.squad/decisions/inbox/bishop-tenancy-auth.md`.
+
+**Key Architectural Decisions:**
+
+**User-Tenant Model:** Recommended single-tenant-per-user for MVP (add `TenantId` to `ApplicationUser`), with future path to multi-tenant membership via join table. Store tenant membership in Warp Business DB (not IdP) for maximum control during early stage.
+
+**JWT Claim Design:** Bake `tenant_id` claim into token at login time (not per-request lookup). Use lowercase-with-underscore naming (`tenant_id`, not `tid`) to avoid Azure AD collision. Add `tenant_name` for display purposes.
+
+**OIDC Strategy Progression:**
+1. **Phase 1 (MVP):** Single IdP, Shared — one Keycloak/Auth0 realm, tenant as claim. Simplest implementation.
+2. **Phase 2 (Subdomains):** Single IdP, Tenant-Aware — per-tenant Keycloak realms, subdomain determines realm. Enables `[tenant].warp-business.com`.
+3. **Phase 3 (Enterprise):** Per-Tenant IdP — each tenant brings their own OIDC provider. Complex, reserve for enterprise contracts only.
+
+**Subdomain Auth Flow:** For `[business-name].warp-business.com`, recommend **Shared Callback Domain** pattern: all tenants redirect to `https://auth.warp-business.com/signin-oidc`, then post-login redirect to tenant subdomain with wildcard cookie domain (`.warp-business.com`). Avoids IdP redirect_uri wildcard limitation. Requires wildcard DNS and TLS cert.
+
+**Authorization Model:** Keep global roles (`Admin`, `Manager`, `User`) but enforce tenant filtering at data layer. Admin is admin **within their tenant only**. Add policies: `RequireTenant` (requires `tenant_id` claim), `TenantAdmin` (role + tenant claim). Reject composite roles (`tenant-id:role`) as over-engineered for current needs.
+
+**Critical Security Risks Identified:**
+1. **Missing Tenant Filter in Query:** Most common isolation breach. Mitigate with base `TenantScopedService` class and integration tests for cross-tenant access attempts.
+2. **Tenant Claim Tampering:** JWT signing key in appsettings.json (already flagged by Ripley). Move to secrets manager, enforce short expiry (already 15 min).
+3. **Subdomain Hijacking:** Reserve critical slugs (`admin`, `api`, `www`, `auth`), validate slug format, pre-register DNS for reserved names.
+
+**Defense-in-Depth Recommendations:** PostgreSQL Row-Level Security as last resort, audit logging with `(UserId, TenantId, Action)` tuple, per-tenant rate limiting, tenant isolation test suite.
+
+**Implementation Sequence:** Phase 1 adds `TenantId` to all entities + JWT claims + service filtering (1-2 weeks). Phase 2 adds subdomain routing + wildcard DNS/TLS (2-3 weeks). Phase 3 (optional) adds Keycloak realm-per-tenant (4-6 weeks).
+
+**Current State Observations:**
+- No tenant concept exists anywhere in codebase yet
+- CRM entities have `CreatedBy`/`OwnerId` (user-scoped), no tenant scope
+- Employee entity has zero ownership tracking
+- Roles are global (Admin can delete across all data)
+- Blazor Server uses HttpOnly cookies — tenant isolation via cookie domain (`.warp-business.com`) is straightforward
+- `[Authorize(Roles = "Admin")]` used on AdminController and DELETE endpoints; needs tenant-scoping via data filter
+
+**Tech Stack Fit:** Multi-provider OIDC architecture (already implemented) supports all three tenancy strategies without refactoring. `ExternalIdentityMapper.EnsureUserAsync` is natural injection point for tenant assignment from IdP claims. Refresh token rotation (already implemented) works with tenant-scoped sessions (no changes needed).
+
+### 2026-03-27: Multi-Tenancy Auth Layer Implementation
+
+Implemented the full auth layer for multi-tenancy. Key patterns and decisions:
+
+**JWT Claims Design:**
+- `GenerateAccessToken(user, roles, tenantId?, tenantSlug?, tenantRole?, allTenantIds?)` — optional tenant params; when tenantId provided, bakes `tenant_id`, `tenant_slug`, `tenant_role`, `tenants[]` into token
+- `GeneratePreAuthToken(user, tenantIds[])` — used for multi-tenant login: includes `tenants` list but NO `tenant_id`; forces client to call `/select-tenant`
+- `RefreshToken.ActiveTenantId` (nullable Guid) — carries the user's active tenant through token rotation so refresh preserves tenant selection
+
+**Login flow:**
+- 0 tenants → basic token
+- 1 tenant → full token (auto-resolved)
+- 2+ tenants → pre-auth token with `tenants[]` list; user picks via UI, POST /api/auth/select-tenant issues full token
+
+**Claims Transformation (`TenantClaimsTransformation`):**
+- Runs on every request via `IClaimsTransformation`
+- If `tenant_id` already in token → no-op (token is authoritative)
+- If missing but user has 1 active tenant → auto-inject (handles legacy tokens)
+- Always injects `tenants[]` list if missing
+
+**Authorization Policies:**
+- `RequireActiveTenant` → `RequireClaim("tenant_id")` — applied to all CRM and EmployeeManagement controllers
+- `RequireTenantAdmin` → `RequireClaim("tenant_id") + RequireClaim("tenant_role", "TenantAdmin")` — applied to SAML endpoints and future tenant admin endpoints
+
+**Cross-Tenant Guard (`RequireTenantRouteMatchAttribute`):**
+- Action filter applied to routes with `{tenantId}` route param
+- Validates JWT `tenant_id` matches the URL param
+- Returns 403 on mismatch — prevents IDOR at the tenant boundary
+
+**TenantResolutionMiddleware:**
+- Extracts subdomain slug from Host header, stores in `HttpContext.Items["TenantSlug"]`
+- Enabled via `WarpBusiness:SubdomainRoutingEnabled` config (default false = Phase 2 prep)
+- When enabled: validates JWT `tenant_slug` matches subdomain, rejects with 403 on mismatch
+- Reserved slugs: `www, api, auth, admin, mail, cdn, static, app, portal`
+
+**SAML:**
+- `ITenantSamlService` / `TenantSamlService` — config storage fully implemented (GET, save, enable with validation)
+- `TestConnectionAsync` stubbed with TODO for Sustainsys.Saml2 integration
+- SAML endpoints use `RequireTenantAdmin` policy + `RequireTenantRouteMatch` filter
+
+**Key observation:** TenantsController and ITokenService already existed with partial tenant support from Hicks. I extended both rather than replacing them. The `TenantClaimsTransformation` was also already in HEAD — confirmed it was properly registered and working.
+

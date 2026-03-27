@@ -1,0 +1,16 @@
+{
+  "name": "Warp Business",
+  "short_name": "WarpBiz",
+  "description": "Business at Warp Speed",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#00d4ff",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -57,6 +57,9 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
                     b.Property<DateTimeOffset>("ScheduledAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -112,6 +115,9 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
                     b.Property<string>("Phone")
                         .HasColumnType("text");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -121,7 +127,8 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name");
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
 
                     b.ToTable("Companies", "crm");
                 });
@@ -170,6 +177,9 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -220,14 +230,17 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EntityType", "DisplayOrder");
+                    b.HasIndex("TenantId", "EntityType", "DisplayOrder");
 
-                    b.HasIndex("EntityType", "Name")
+                    b.HasIndex("TenantId", "EntityType", "Name")
                         .IsUnique();
 
                     b.ToTable("CustomFieldDefinitions", "crm");
@@ -309,6 +322,9 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
 
                     b.Property<int>("Stage")
                         .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Title")
                         .IsRequired()

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.Crm.Domain;
 using WarpBusiness.Shared.Crm;
@@ -8,10 +9,12 @@ namespace WarpBusiness.Plugin.Crm.Services;
 public class DealService : IDealService
 {
     private readonly CrmDbContext _db;
+    private readonly ITenantContext _tenantContext;
 
-    public DealService(CrmDbContext db)
+    public DealService(CrmDbContext db, ITenantContext tenantContext)
     {
         _db = db;
+        _tenantContext = tenantContext;
     }
 
     public async Task<PagedResult<DealDto>> GetDealsAsync(int page, int pageSize, string? search, string? stage, CancellationToken ct = default)
@@ -71,6 +74,7 @@ public class DealService : IDealService
         var deal = new Deal
         {
             Id = Guid.NewGuid(),
+            TenantId = _tenantContext.TenantId,
             Title = request.Title,
             Value = request.Value,
             Currency = request.Currency,

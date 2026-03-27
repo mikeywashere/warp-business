@@ -3,6 +3,7 @@ namespace WarpBusiness.Plugin.Crm.Domain;
 public class Company
 {
     public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Website { get; set; }
     public string? Industry { get; set; }

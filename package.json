@@ -1,4 +1,7 @@
 {
+  "name": "warp-business",
+  "version": "1.0.0",
+  "description": "Warp Business — a modular, plugin-first business management system",
   "dependencies": {
     "@github/copilot-sdk": "^0.2.0",
     "vscode-jsonrpc": "^8.2.1"

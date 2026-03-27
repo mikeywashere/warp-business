@@ -13,7 +13,8 @@ public class CustomFieldDefinitionConfiguration : IEntityTypeConfiguration<Custo
         builder.Property(x => x.EntityType).IsRequired().HasMaxLength(50);
         builder.Property(x => x.FieldType).IsRequired().HasMaxLength(50);
         builder.Property(x => x.SelectOptions).HasMaxLength(2000);
-        builder.HasIndex(x => new { x.EntityType, x.Name }).IsUnique();
-        builder.HasIndex(x => new { x.EntityType, x.DisplayOrder });
+        // Unique per tenant — each tenant manages their own field definitions
+        builder.HasIndex(x => new { x.TenantId, x.EntityType, x.Name }).IsUnique();
+        builder.HasIndex(x => new { x.TenantId, x.EntityType, x.DisplayOrder });
     }
 }

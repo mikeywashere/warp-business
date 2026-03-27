@@ -12,6 +12,9 @@ public class AuthStateService
     public IList<string> Roles => _currentAuth?.Roles ?? [];
     public string? Token => _currentAuth?.Token;
 
+    public Guid? TenantId { get; private set; }
+    public string? TenantName { get; private set; }
+
     public event Action? OnChange;
 
     public void SetAuth(AuthResponse auth)
@@ -20,9 +23,18 @@ public class AuthStateService
         OnChange?.Invoke();
     }
 
+    public void SetTenant(Guid id, string name)
+    {
+        TenantId = id;
+        TenantName = name;
+        OnChange?.Invoke();
+    }
+
     public void ClearAuth()
     {
         _currentAuth = null;
+        TenantId = null;
+        TenantName = null;
         OnChange?.Invoke();
     }
 }
