@@ -30,6 +30,13 @@
 - **Data annotation attributes on records:** C# positional record constructors support `[Required]`, `[MaxLength]`, `[EmailAddress]`, `[Phone]`, `[MinLength]` directly on the parameter. Add `using System.ComponentModel.DataAnnotations;` at top of file. ASP.NET Core model validation runs automatically with `AddControllers()` — no extra setup needed.
 - **Shared git environment:** In a squad environment multiple agents share one working tree. Always check `git status` before `git add -A` — other agents may have staged changes. Use targeted `git add <file>` or `git checkout <commit> -- <file>` patterns to avoid mixing commits.
 
+### 2026-03-26: Authorization Gaps Found in CRM Delete Endpoints (Hudson Finding)
+
+- **Critical discovery:** CRM delete endpoints (Companies, Deals, Activities, Contacts) lack `[Authorize(Roles = "Admin")]`. Only class-level `[Authorize]` present — any authenticated user can delete.
+- **Contrast:** EmployeesController correctly applies role restriction on Delete action.
+- **Impact:** IDOR fix addressed ownership checks, but role-based authorization for destructive operations should be audited across all CRM controllers.
+- **Next step:** Add `[Authorize(Roles = "Admin")]` to CompaniesController.Delete, DealsController.Delete, ActivitiesController.Delete, and review ContactsController.Delete scope (may need dual-level: Admin can delete any, Manager/Customer can only delete owned contacts, others forbidden).
+
 ### 2026-03-25: CRM Domain Model Implemented
 
 - **Domain Entities:** Created Contact, Company, Deal, and Activity entities with proper relationships
