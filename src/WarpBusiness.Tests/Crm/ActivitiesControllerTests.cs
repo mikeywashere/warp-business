@@ -104,6 +104,19 @@ public class ActivitiesControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
+    public async Task DeleteActivity_ReturnsNoContent_WhenAuthorized()
+    {
+        // Arrange
+        var client = await AuthenticateAsync();
+        var created = await CreateTestActivityAsync(client, "Activity To Delete");
+
+        // Act
+        var response = await client.DeleteAsync($"api/activities/{created.Id}");
+                // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
     public async Task DeleteActivity_ReturnsNoContent_WhenAdmin()
     {
         // Arrange

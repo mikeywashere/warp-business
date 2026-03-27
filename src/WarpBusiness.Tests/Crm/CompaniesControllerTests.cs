@@ -94,7 +94,9 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var company = await response.Content.ReadFromJsonAsync<CompanyDetailDto>();
+        var company = await response.Content.ReadFromJsonAsync<CompanyDto>();
+        var companyDetail = await response.Content.ReadFromJsonAsync<CompanyDetailDto>();
+
         company!.Id.Should().Be(created.Id);
         company.Name.Should().Be("Globex Inc");
     }
@@ -144,6 +146,20 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var updated = await response.Content.ReadFromJsonAsync<CompanyDto>();
         updated!.Name.Should().Be("New Name");
+    }
+
+    [Fact]
+    public async Task DeleteCompany_ReturnsNoContent_WhenAuthenticated()
+    {
+        // Arrange — any authenticated user can delete (no role restriction on this endpoint)
+        var (client, _) = await AuthenticateAsync();
+        var created = await CreateTestCompanyAsync(client, "Delete Me Corp");
+
+        // Act
+        var response = await client.DeleteAsync($"api/companies/{created.Id}");
+
+                // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
     [Fact]

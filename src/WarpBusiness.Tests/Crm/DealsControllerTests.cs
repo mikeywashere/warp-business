@@ -136,6 +136,20 @@ public class DealsControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
+    public async Task DeleteDeal_ReturnsNoContent_WhenAuthorized()
+    {
+        // Arrange
+        var client = await AuthenticateAsync();
+        var created = await CreateTestDealAsync(client, "Deal To Delete");
+
+        // Act
+        var response = await client.DeleteAsync($"api/deals/{created.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
     public async Task DeleteDeal_ReturnsNoContent_WhenAdmin()
     {
         // Arrange
