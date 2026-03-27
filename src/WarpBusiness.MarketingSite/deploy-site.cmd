@@ -1,0 +1,1 @@
+netlify deploy --site  warp-business.com --dir .\wwwroot --prod
