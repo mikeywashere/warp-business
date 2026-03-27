@@ -135,6 +135,7 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     {
         // Arrange
         var adminClient = await CreateAdminClientAsync();
+
         var created = await CreateTestContactWithClientAsync(adminClient, "Delete", "Me");
 
         // Act
@@ -149,6 +150,7 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     {
         // Arrange — create with admin, attempt delete with regular user
         var adminClient = await CreateAdminClientAsync();
+
         var created = await CreateTestContactWithClientAsync(adminClient, "Forbidden", "Delete");
         await AuthenticateAsync();
 
@@ -189,13 +191,17 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     }
 
     private async Task<ContactDto> CreateTestContactAsync(
-        string firstName, string lastName)
+        string firstName, string lastName) =>
+        await CreateTestContactAsync(_client, firstName, lastName);
+
+    private static async Task<ContactDto> CreateTestContactAsync(
+        HttpClient client, string firstName, string lastName)
     {
         var request = new CreateContactRequest(
             firstName, lastName,
-            $"{firstName.ToLower()}.{lastName.ToLower()}@test.com",
+            $"{firstName.ToLower()}.{lastName.ToLower()}-{Guid.NewGuid():N}@test.com",
             null, null, null);
-        var response = await _client.PostAsJsonAsync("api/contacts", request);
+        var response = await client.PostAsJsonAsync("api/contacts", request);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<ContactDto>())!;
     }
