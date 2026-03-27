@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "WarpBusiness.AppHost": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ASPNETCORE_URLS": "https://localhost:8181",
+        "ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:8182",
+        "ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL": "https://localhost:8182"
+      }
+    }
+  }
+}
