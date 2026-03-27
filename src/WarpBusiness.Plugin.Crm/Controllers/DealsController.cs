@@ -5,7 +5,7 @@ using WarpBusiness.Shared.Crm;
 
 namespace WarpBusiness.Plugin.Crm.Controllers;
 
-[Authorize]
+[Authorize(Policy = "RequireActiveTenant")]
 [ApiController]
 [Route("api/[controller]")]
 public class DealsController : ControllerBase
@@ -58,6 +58,7 @@ public class DealsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteDeal(Guid id, CancellationToken ct = default)
     {
         var deleted = await _deals.DeleteDealAsync(id, ct);

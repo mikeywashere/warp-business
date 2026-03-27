@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using WarpBusiness.Plugin.Abstractions;
 
 namespace WarpBusiness.Plugin.EmployeeManagement.Data;
 
@@ -12,6 +13,6 @@ public class EmployeeDbContextFactory : IDesignTimeDbContextFactory<EmployeeDbCo
 
         var optionsBuilder = new DbContextOptionsBuilder<EmployeeDbContext>();
         optionsBuilder.UseNpgsql(connStr);
-        return new EmployeeDbContext(optionsBuilder.Options);
+        return new EmployeeDbContext(optionsBuilder.Options, NullTenantContext.Instance);
     }
 }

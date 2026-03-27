@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace WarpBusiness.Shared.Crm;
 
 public record ContactDto(
@@ -15,22 +17,22 @@ public record ContactDto(
     IReadOnlyList<CustomFieldValueDto> CustomFields);
 
 public record CreateContactRequest(
-    string FirstName,
-    string LastName,
-    string? Email,
-    string? Phone,
-    string? JobTitle,
+    [Required, MaxLength(100)] string FirstName,
+    [Required, MaxLength(100)] string LastName,
+    [EmailAddress, MaxLength(256)] string? Email,
+    [Phone, MaxLength(50)] string? Phone,
+    [MaxLength(200)] string? JobTitle,
     Guid? CompanyId,
     IReadOnlyList<UpsertCustomFieldValueRequest>? CustomFields = null);
 
 public record UpdateContactRequest(
-    string FirstName,
-    string LastName,
-    string? Email,
-    string? Phone,
-    string? JobTitle,
+    [Required, MaxLength(100)] string FirstName,
+    [Required, MaxLength(100)] string LastName,
+    [EmailAddress, MaxLength(256)] string? Email,
+    [Phone, MaxLength(50)] string? Phone,
+    [MaxLength(200)] string? JobTitle,
     Guid? CompanyId,
-    string Status,
+    [Required] string Status,
     IReadOnlyList<UpsertCustomFieldValueRequest>? CustomFields = null);
 
 public record PagedResult<T>(

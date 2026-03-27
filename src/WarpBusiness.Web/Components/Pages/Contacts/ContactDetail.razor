@@ -111,23 +111,9 @@ else
 
                     <div class="mb-3">
                         <label class="form-label">Company</label>
-                        @if (_companiesLoading)
-                        {
-                            <div class="spinner-border spinner-border-sm ms-2" role="status"></div>
-                        }
-                        else
-                        {
-                            <InputSelect @bind-Value="_editRequest.CompanyId" class="form-select">
-                                <option value="">-- No Company --</option>
-                                @if (_companies is not null)
-                                {
-                                    @foreach (var company in _companies.Items)
-                                    {
-                                        <option value="@company.Id">@company.Name</option>
-                                    }
-                                }
-                            </InputSelect>
-                        }
+                        <CompanyTypeahead Value="_editRequest.CompanyId"
+                                         ValueChanged="v => _editRequest.CompanyId = v"
+                                         DisplayName="@_contact?.CompanyName" />
                     </div>
 
                     @if (_fieldDefinitions.Any(d => d.IsActive))
@@ -291,11 +277,9 @@ else
     public Guid Id { get; set; }
 
     private ContactDto? _contact;
-    private PagedResult<CompanyDto>? _companies;
     private List<CustomFieldDefinitionDto> _fieldDefinitions = [];
     private Dictionary<Guid, string?> _fieldValues = [];
     private bool _loading = true;
-    private bool _companiesLoading = false;
     private bool _editMode = false;
     private bool _saving = false;
     private bool _deleting = false;
@@ -335,7 +319,7 @@ else
             Email = _contact.Email,
             Phone = _contact.Phone,
             JobTitle = _contact.JobTitle,
-            CompanyId = _contact.CompanyId?.ToString(),
+            CompanyId = _contact.CompanyId,
             Status = _contact.Status
         };
 
@@ -347,9 +331,6 @@ else
             _fieldValues[def.Id] = existing?.Value;
         }
 
-        _companiesLoading = true;
-        _companies = await Api.GetCompaniesAsync(1, 100);
-        _companiesLoading = false;
     }
 
     private void CancelEdit()
@@ -370,7 +351,7 @@ else
             _editRequest.Email,
             _editRequest.Phone,
             _editRequest.JobTitle,
-            string.IsNullOrEmpty(_editRequest.CompanyId) ? null : Guid.Parse(_editRequest.CompanyId),
+            _editRequest.CompanyId,
             _editRequest.Status!,
             _fieldValues.Select(kv => new UpsertCustomFieldValueRequest(kv.Key, kv.Value)).ToList()
         );
@@ -425,7 +406,7 @@ else
         public string? Email { get; set; }
         public string? Phone { get; set; }
         public string? JobTitle { get; set; }
-        public string? CompanyId { get; set; }
+        public Guid? CompanyId { get; set; }
         public string? Status { get; set; }
     }
 }

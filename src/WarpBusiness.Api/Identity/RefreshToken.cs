@@ -14,6 +14,7 @@ public class RefreshToken
     public DateTimeOffset? RevokedAt { get; set; }
     public string? ReplacedByTokenHash { get; set; }
     public string? DeviceHint { get; set; }  // optional: user-agent or device name
+    public Guid? ActiveTenantId { get; set; } // active tenant at time of issuance, carried through rotation
 
     public bool IsExpired => DateTimeOffset.UtcNow >= ExpiresAt;
     public bool IsRevoked => RevokedAt.HasValue;

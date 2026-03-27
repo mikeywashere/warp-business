@@ -42,6 +42,18 @@
             </div>
         }
 
+        @if (IsTenantAdmin)
+        {
+            <div class="nav-item px-3 mt-3 border-top pt-2">
+                <div class="text-white-50 small fw-semibold mb-2 ms-2">SETTINGS</div>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="settings/workspace">
+                    <span class="bi bi-building" aria-hidden="true"></span> Workspace Settings
+                </NavLink>
+            </div>
+        }
+
         @if (_pluginNavItems.Count > 0)
         {
             <div class="nav-item px-3 mt-3 border-top pt-2">
@@ -67,6 +79,12 @@
         <div class="nav-item px-3 mt-3 border-top pt-2">
             @if (AuthState.IsAuthenticated)
             {
+                @if (!string.IsNullOrEmpty(AuthState.TenantName))
+                {
+                    <div class="text-white-50 small mb-1 ms-2">
+                        <span class="bi bi-building me-1"></span>@AuthState.TenantName
+                    </div>
+                }
                 <div class="nav-link text-white-50 small">
                     <span class="bi bi-person-circle me-1"></span>
                     @AuthState.UserFullName
@@ -88,6 +106,9 @@
 @code {
     private bool IsAdmin => AuthState.IsAuthenticated 
         && AuthState.Roles?.Contains("Admin") == true;
+
+    private bool IsTenantAdmin => AuthState.IsAuthenticated
+        && AuthState.Roles?.Contains("TenantAdmin") == true;
 
     private List<ModuleNavItemDto> _pluginNavItems = [];
 

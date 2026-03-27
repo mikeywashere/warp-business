@@ -5,7 +5,7 @@ using WarpBusiness.Shared.Crm;
 
 namespace WarpBusiness.Plugin.Crm.Controllers;
 
-[Authorize]
+[Authorize(Policy = "RequireActiveTenant")]
 [ApiController]
 [Route("api/[controller]")]
 public class CompaniesController : ControllerBase
@@ -27,10 +27,19 @@ public class CompaniesController : ControllerBase
         return Ok(await _companies.GetCompaniesAsync(page, pageSize, search, ct));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<CompanyDto>> GetCompany(Guid id, CancellationToken ct = default)
+    [HttpGet("search")]
+    public async Task<ActionResult<IReadOnlyList<CompanyDto>>> SearchCompanies(
+        [FromQuery] string q = "",
+        CancellationToken ct = default)
     {
-        var company = await _companies.GetCompanyByIdAsync(id, ct);
+        if (string.IsNullOrWhiteSpace(q)) return Ok(Array.Empty<CompanyDto>());
+        return Ok(await _companies.SearchCompaniesAsync(q, 20, ct));
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<CompanyDetailDto>> GetCompany(Guid id, CancellationToken ct = default)
+    {
+        var company = await _companies.GetCompanyDetailAsync(id, ct);
         return company is null ? NotFound() : Ok(company);
     }
 
@@ -51,6 +60,7 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteCompany(Guid id, CancellationToken ct = default)
     {
         var result = await _companies.DeleteCompanyAsync(id, ct);

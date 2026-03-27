@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using WarpBusiness.Shared.Auth;
 using WarpBusiness.Shared.Crm;
 using WarpBusiness.Tests.Infrastructure;
 
@@ -21,6 +22,18 @@ public class ActivitiesControllerTests : IClassFixture<WarpTestFactory>
         var token = await AuthHelper.RegisterAndGetTokenAsync(
             client, $"acts-{Guid.NewGuid()}@example.com");
         client.SetBearerToken(token);
+        return client;
+    }
+
+    private async Task<HttpClient> AuthenticateAsAdminAsync()
+    {
+        var client = _factory.CreateClient();
+        var email = $"acts-admin-{Guid.NewGuid()}@example.com";
+        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        await AuthHelper.PromoteToAdminAsync(_factory, email);
+        var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
+        var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
+        client.SetBearerToken(auth!.Token);
         return client;
     }
 
@@ -99,9 +112,37 @@ public class ActivitiesControllerTests : IClassFixture<WarpTestFactory>
 
         // Act
         var response = await client.DeleteAsync($"api/activities/{created.Id}");
+                // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeleteActivity_ReturnsNoContent_WhenAdmin()
+    {
+        // Arrange
+        var adminClient = await AuthenticateAsAdminAsync();
+        var created = await CreateTestActivityAsync(adminClient, "Activity To Delete");
+
+        // Act
+        var response = await adminClient.DeleteAsync($"api/activities/{created.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task DeleteActivity_ReturnsForbidden_WhenNotAdmin()
+    {
+        // Arrange — create with admin, attempt delete with regular user
+        var adminClient = await AuthenticateAsAdminAsync();
+        var created = await CreateTestActivityAsync(adminClient, "Forbidden Activity Delete");
+        var userClient = await AuthenticateAsync();
+
+        // Act
+        var response = await userClient.DeleteAsync($"api/activities/{created.Id}");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     private static async Task<ActivityDto> CreateTestActivityAsync(

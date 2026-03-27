@@ -5,7 +5,7 @@ using WarpBusiness.Shared.Crm;
 
 namespace WarpBusiness.Plugin.Crm.Controllers;
 
-[Authorize]
+[Authorize(Policy = "RequireActiveTenant")]
 [ApiController]
 [Route("api/[controller]")]
 public class ContactsController : ControllerBase
@@ -58,11 +58,24 @@ public class ContactsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ContactDto>> UpdateContact(Guid id, UpdateContactRequest request, CancellationToken ct = default)
     {
+        var existing = await _contacts.GetContactByIdAsync(id, ct);
+        if (existing is null) return NotFound();
+
+        // Portal users (non-admin/non-manager) can only update their own contact
+        if (!User.IsInRole("Admin") && !User.IsInRole("Manager"))
+        {
+            var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                         ?? User.FindFirst("email")?.Value;
+            if (!string.Equals(existing.Email, userEmail, StringComparison.OrdinalIgnoreCase))
+                return Forbid();
+        }
+
         var contact = await _contacts.UpdateContactAsync(id, request, ct);
         return contact is null ? NotFound() : Ok(contact);
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteContact(Guid id, CancellationToken ct = default)
     {
         var deleted = await _contacts.DeleteContactAsync(id, ct);

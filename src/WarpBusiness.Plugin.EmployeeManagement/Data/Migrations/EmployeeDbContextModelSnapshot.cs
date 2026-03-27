@@ -71,6 +71,9 @@ namespace WarpBusiness.Plugin.EmployeeManagement.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateOnly?>("TerminationDate")
                         .HasColumnType("date");
 
@@ -79,10 +82,10 @@ namespace WarpBusiness.Plugin.EmployeeManagement.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
-
                     b.HasIndex("ManagerId");
+
+                    b.HasIndex("TenantId", "Email")
+                        .IsUnique();
 
                     b.ToTable("Employees", "employees");
                 });

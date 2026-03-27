@@ -1,0 +1,392 @@
+@page "/companies/{Id:guid}"
+@page "/companies/{Id:guid}/edit"
+@using WarpBusiness.Shared.Crm
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>@(_company?.Name ?? "Company") — Warp Business</PageTitle>
+
+@if (_loading)
+{
+    <div class="d-flex justify-content-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (_company is null)
+{
+    <div class="alert alert-warning">
+        <h4 class="alert-heading">Company not found</h4>
+        <p>The company you're looking for doesn't exist or has been deleted.</p>
+        <a href="/companies" class="btn btn-primary">Back to Companies</a>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <a href="/companies" class="text-muted text-decoration-none small">
+                <span class="bi bi-arrow-left"></span> Companies
+            </a>
+            <h1 class="h3 mb-0 mt-1">@_company.Name</h1>
+        </div>
+        <div class="d-flex gap-2">
+            @if (!_editMode)
+            {
+                <button class="btn btn-primary" @onclick="EnterEditMode">
+                    <span class="bi bi-pencil"></span> Edit
+                </button>
+                <button class="btn btn-outline-danger" @onclick="ShowDeleteConfirmation">
+                    <span class="bi bi-trash"></span> Delete
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible" role="alert">
+            @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible" role="alert">
+            @_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (_editMode)
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Edit Company</h5>
+                <EditForm Model="_editRequest" OnValidSubmit="SaveChanges">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <InputText @bind-Value="_editRequest.Name" class="form-control" />
+                        <ValidationMessage For="() => _editRequest.Name" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Industry</label>
+                        <InputText @bind-Value="_editRequest.Industry" class="form-control" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Website</label>
+                        <InputText @bind-Value="_editRequest.Website" class="form-control" />
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <InputText @bind-Value="_editRequest.Phone" class="form-control" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText @bind-Value="_editRequest.Email" class="form-control" type="email" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" disabled="@_saving">
+                            @if (_saving)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            Save Changes
+                        </button>
+                        <button type="button" class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Industry</label>
+                        <p class="mb-0 fw-semibold">@(_company.Industry ?? "—")</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Website</label>
+                        <p class="mb-0">
+                            @if (!string.IsNullOrEmpty(_company.Website))
+                            {
+                                <a href="@_company.Website" target="_blank">@_company.Website</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Phone</label>
+                        <p class="mb-0">@(_company.Phone ?? "—")</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Email</label>
+                        <p class="mb-0">
+                            @if (!string.IsNullOrEmpty(_company.Email))
+                            {
+                                <a href="mailto:@_company.Email">@_company.Email</a>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Contact Count</label>
+                        <p class="mb-0">
+                            <span class="badge bg-secondary">@_company.ContactCount</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="text-muted small">Created</label>
+                        <p class="mb-0 text-muted small">@_company.CreatedAt.ToString("g")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Contacts</h5>
+            <span class="badge bg-secondary">@_company.Contacts.Count</span>
+        </div>
+        @if (_company.Contacts.Count == 0)
+        {
+            <div class="card-body text-muted text-center py-4">
+                No contacts linked to this company yet.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Title</th>
+                            <th>Email</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var contact in _company.Contacts)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="/contacts/@contact.Id" class="text-decoration-none fw-semibold">
+                                        @contact.FirstName @contact.LastName
+                                    </a>
+                                </td>
+                                <td>@(contact.Title ?? "—")</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(contact.Email))
+                                    {
+                                        <a href="mailto:@contact.Email">@contact.Email</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    @if (_showDeleteModal)
+    {
+        <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete <strong>@_company.Name</strong>?</p>
+                        @if (_company.ContactCount > 0)
+                        {
+                            <div class="alert alert-warning mb-0">
+                                <span class="bi bi-exclamation-triangle me-2"></span>
+                                Cannot delete — <strong>@_company.ContactCount contact(s)</strong> are linked to this company.
+                                Reassign or remove them first.
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-danger mb-0">This action cannot be undone.</p>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                        @if (_company.ContactCount == 0)
+                        {
+                            <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@_deleting">
+                                @if (_deleting)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                Delete
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private CompanyDetailDto? _company;
+    private bool _loading = true;
+    private bool _editMode = false;
+    private bool _saving = false;
+    private bool _deleting = false;
+    private bool _showDeleteModal = false;
+    private string? _errorMessage;
+    private string? _successMessage;
+
+    private EditCompanyModel _editRequest = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompanyAsync();
+
+        // If navigated to /edit URL, enter edit mode automatically
+        if (Nav.Uri.EndsWith("/edit", StringComparison.OrdinalIgnoreCase) && _company is not null)
+            EnterEditMode();
+    }
+
+    private async Task LoadCompanyAsync()
+    {
+        _loading = true;
+        _company = await Api.GetCompanyAsync(Id);
+        _loading = false;
+    }
+
+    private void EnterEditMode()
+    {
+        if (_company is null) return;
+        _editMode = true;
+        _errorMessage = null;
+        _successMessage = null;
+        _editRequest = new EditCompanyModel
+        {
+            Name = _company.Name,
+            Industry = _company.Industry,
+            Website = _company.Website,
+            Phone = _company.Phone,
+            Email = _company.Email
+        };
+    }
+
+    private void CancelEdit()
+    {
+        _editMode = false;
+        _errorMessage = null;
+    }
+
+    private async Task SaveChanges()
+    {
+        if (_company is null) return;
+        _saving = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        var request = new UpdateCompanyRequest(
+            _editRequest.Name!,
+            _editRequest.Website,
+            _editRequest.Industry,
+            _company.EmployeeCount,
+            _editRequest.Phone,
+            _editRequest.Email
+        );
+
+        var result = await Api.UpdateCompanyAsync(Id, request);
+
+        if (result is not null)
+        {
+            _editMode = false;
+            _successMessage = "Company updated successfully.";
+            await LoadCompanyAsync();
+        }
+        else
+        {
+            _errorMessage = "Failed to update company. Please try again.";
+        }
+
+        _saving = false;
+    }
+
+    private void ShowDeleteConfirmation()
+    {
+        _showDeleteModal = true;
+        _errorMessage = null;
+    }
+
+    private void CancelDelete()
+    {
+        _showDeleteModal = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        _deleting = true;
+        _errorMessage = null;
+
+        var statusCode = await Api.DeleteCompanyRawAsync(Id);
+
+        if (statusCode == 204)
+        {
+            Nav.NavigateTo("/companies");
+        }
+        else if (statusCode == 409)
+        {
+            _errorMessage = $"Cannot delete — contacts are linked to this company.";
+            _showDeleteModal = false;
+        }
+        else
+        {
+            _errorMessage = "Failed to delete company. Please try again.";
+        }
+
+        _deleting = false;
+    }
+
+    private class EditCompanyModel
+    {
+        public string? Name { get; set; }
+        public string? Industry { get; set; }
+        public string? Website { get; set; }
+        public string? Phone { get; set; }
+        public string? Email { get; set; }
+    }
+}
