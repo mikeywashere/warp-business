@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.Crm.Domain;
 using WarpBusiness.Shared.Crm;
@@ -8,10 +9,12 @@ namespace WarpBusiness.Plugin.Crm.Services;
 public class CompanyService : ICompanyService
 {
     private readonly CrmDbContext _db;
+    private readonly ITenantContext _tenantContext;
 
-    public CompanyService(CrmDbContext db)
+    public CompanyService(CrmDbContext db, ITenantContext tenantContext)
     {
         _db = db;
+        _tenantContext = tenantContext;
     }
 
     public async Task<PagedResult<CompanyDto>> GetCompaniesAsync(int page, int pageSize, string? search, CancellationToken ct = default)
@@ -52,11 +55,51 @@ public class CompanyService : ICompanyService
             .FirstOrDefaultAsync(ct);
     }
 
+    public async Task<CompanyDetailDto?> GetCompanyDetailAsync(Guid id, CancellationToken ct = default)
+    {
+        var company = await _db.Companies
+            .AsNoTracking()
+            .Include(c => c.Contacts)
+            .Where(c => c.Id == id)
+            .FirstOrDefaultAsync(ct);
+
+        if (company is null) return null;
+
+        var contacts = company.Contacts
+            .OrderBy(c => c.LastName).ThenBy(c => c.FirstName)
+            .Select(c => new ContactSummaryDto(c.Id, c.FirstName, c.LastName, c.Email, c.JobTitle))
+            .ToList();
+
+        return new CompanyDetailDto(
+            company.Id, company.Name, company.Industry, company.Website,
+            company.Phone, company.Email, company.EmployeeCount,
+            company.CreatedAt, contacts.Count, contacts);
+    }
+
+    public async Task<IReadOnlyList<CompanyDto>> SearchCompaniesAsync(string query, int maxResults = 20, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return [];
+
+        var term = query.ToLower();
+        return await _db.Companies
+            .AsNoTracking()
+            .Where(c => c.Name.ToLower().Contains(term))
+            .OrderBy(c => c.Name)
+            .Take(maxResults)
+            .Select(c => new CompanyDto(
+                c.Id, c.Name, c.Website, c.Industry, c.EmployeeCount,
+                c.Phone, c.Email,
+                c.Contacts.Count,
+                c.CreatedAt))
+            .ToListAsync(ct);
+    }
+
     public async Task<CompanyDto> CreateCompanyAsync(CreateCompanyRequest request, string userId, CancellationToken ct = default)
     {
         var company = new Company
         {
             Id = Guid.NewGuid(),
+            TenantId = _tenantContext.TenantId,
             Name = request.Name,
             Website = request.Website,
             Industry = request.Industry,

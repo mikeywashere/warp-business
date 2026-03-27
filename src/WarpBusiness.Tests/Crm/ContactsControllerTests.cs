@@ -114,14 +114,14 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     [Fact]
     public async Task UpdateContact_ExistingContact_ReturnsUpdated()
     {
-        // Arrange
-        await AuthenticateAsync();
-        var created = await CreateTestContactAsync("Charlie", "Brown");
+        // Arrange — Admin can update any contact (IDOR protection: non-admins can only update own contact)
+        var adminClient = await CreateAdminClientAsync();
+        var created = await CreateTestContactWithClientAsync(adminClient, "Charlie", "Brown");
         var updateRequest = new UpdateContactRequest(
             "Charles", "Brown", "charles@example.com", null, "Manager", null, "Active");
 
         // Act
-        var response = await _client.PutAsJsonAsync($"api/contacts/{created.Id}", updateRequest);
+        var response = await adminClient.PutAsJsonAsync($"api/contacts/{created.Id}", updateRequest);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -135,7 +135,8 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     {
         // Arrange
         var adminClient = await CreateAdminClientAsync();
-        var created = await CreateTestContactAsync(adminClient, "Delete", "Me");
+
+        var created = await CreateTestContactWithClientAsync(adminClient, "Delete", "Me");
 
         // Act
         var response = await adminClient.DeleteAsync($"api/contacts/{created.Id}");
@@ -149,7 +150,8 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     {
         // Arrange — create with admin, attempt delete with regular user
         var adminClient = await CreateAdminClientAsync();
-        var created = await CreateTestContactAsync(adminClient, "Forbidden", "Delete");
+
+        var created = await CreateTestContactWithClientAsync(adminClient, "Forbidden", "Delete");
         await AuthenticateAsync();
 
         // Act
@@ -193,6 +195,18 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
         await CreateTestContactAsync(_client, firstName, lastName);
 
     private static async Task<ContactDto> CreateTestContactAsync(
+        HttpClient client, string firstName, string lastName)
+    {
+        var request = new CreateContactRequest(
+            firstName, lastName,
+            $"{firstName.ToLower()}.{lastName.ToLower()}-{Guid.NewGuid():N}@test.com",
+            null, null, null);
+        var response = await client.PostAsJsonAsync("api/contacts", request);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<ContactDto>())!;
+    }
+
+    private static async Task<ContactDto> CreateTestContactWithClientAsync(
         HttpClient client, string firstName, string lastName)
     {
         var request = new CreateContactRequest(

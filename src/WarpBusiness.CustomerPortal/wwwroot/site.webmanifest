@@ -1,0 +1,16 @@
+{
+  "name": "Warp Business — Customer Portal",
+  "short_name": "WarpBiz Portal",
+  "description": "Your Warp Business Customer Portal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#00d4ff",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

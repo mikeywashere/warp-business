@@ -208,7 +208,37 @@
 - `OnInitializedAsync` loads contact + field defs in parallel
 - Save includes custom fields in `UpdateContactRequest`
 
-### 2026-03-26: Plugin nav items wired — CRM hardcoded links removed from NavMenu
+### 2026-03-26: WarpBusiness.MarketingSite — Static HTML/CSS/JS Advertising Site
+
+**Project Created:** `src/WarpBusiness.MarketingSite/` — standalone marketing site, NOT part of Aspire orchestration.
+
+**Stack:** Pure HTML5, CSS custom properties, vanilla JS (no frameworks), served by minimal ASP.NET Core (`UseDefaultFiles` + `UseStaticFiles`).
+
+**Design:**
+- Dark space theme: deep navy/black (`#050b18`) backgrounds, electric blue/cyan (`#00c8ff`) accents
+- Google Fonts: Orbitron (headings) + Inter (body)
+- Full-viewport hero with animated star-field canvas (vanilla JS, requestAnimationFrame)
+- CSS `@keyframes` animations: `fadeDown` (hero reveal), `revealUp` (scroll-in cards), `bounce` (scroll arrow)
+- IntersectionObserver scroll-reveal for feature cards, stat numbers, CTA box
+- Mobile-first responsive: hamburger nav menu below 768px
+
+**Sections:** Nav → Hero → Features (4 cards) → Stats → CTA → Footer
+
+**Gotcha:** `cta-section__sub` has `margin-bottom` declared twice (once as part of the `margin-inline: auto` shorthand group and once standalone) — functionally OK, last value wins, but worth cleaning if editing the CSS later.
+
+**Added to solution:** `dotnet sln add` to `WarpBusiness.slnx` succeeded. Project targets `net10.0`, `Microsoft.NET.Sdk.Web`.
+
+### 2026-03-27: Rotating Plugin Showcase Added to MarketingSite
+
+**Plugin Carousel:**
+- Added `.plugins` section to `index.html` between Features and Stats, with developer reminder HTML comment above it
+- Two plugins: CRM (🎯) and Employee Management (👥), each with icon, name, tagline, description, glowing "Available Now" badge
+- Auto-rotates every 4 seconds; pauses on hover/focus; dot nav for manual jump; smooth CSS opacity/transform fade transition
+- All vanilla JS — plugins array in `main.js` with maintenance comment; `syncTrackHeight()` normalises card container height after paint
+
+**Convention captured:** New plugins must be added to the `plugins` array in `js/main.js`. Sample plugin excluded (developer scaffold only). Decision written to `.squad/decisions/inbox/vasquez-plugin-showcase-reminder.md`.
+
+
 
 **NavMenu.razor cleanup:**
 - Removed hardcoded `Contacts`, `Companies`, `Deals`, and `Activities` nav links
@@ -225,3 +255,86 @@
 - Build succeeds (0 errors); EF Core 10.0.4 vs 10.0.5 MSB3277 warning is a pre-existing Plugin.Crm dependency mismatch, not a frontend concern
 
 
+### 2026-03-27: Companies Feature UI — List, Detail, Typeahead
+
+**CompanyDetail.razor (`/companies/{Id:guid}` + `/companies/{Id:guid}/edit`):**
+- Dual `@page` directives; `/edit` URL auto-enters edit mode on init via `Nav.Uri.EndsWith("/edit")`
+- View mode: industry, website (link), phone, email, created date, contacts table
+- Edit mode: inline toggle with `EditCompanyModel` inner class; PUT on save
+- Contacts section: table of linked contacts (Name→detail link, Title, Email)
+- Delete guard: 409 from `DeleteCompanyRawAsync` shows "Cannot delete — contacts are linked" message
+
+**CompanyList.razor upgrades:**
+- Company name is now a link → `/companies/{id}`; eye + pencil icon action buttons added
+- Website column added (truncated with max-width: 200px)
+- Delete switched to `DeleteCompanyRawAsync` (int status) for 409-aware messaging
+- Modal "New Company" simplified to spec fields only (Name, Industry, Website, Phone, Email)
+
+**CompanyTypeahead.razor (new reusable component in Components/Shared/):**
+- `Guid? Value` + `EventCallback<Guid?> ValueChanged` — standard two-way binding (`@bind-Value` compatible)
+- Optional `string? DisplayName` parameter — pre-populates input when editing an existing record with a company already set
+- `_localValue` tracks self-initiated changes so `OnParametersSet` doesn't clobber live input
+- `@onmousedown` (not `@onclick`) on dropdown items — fires before `@onblur` so click registers before dropdown hides
+- 300ms debounce via `System.Threading.Timer`; spinner shown during search; keyboard nav (↑↓ Enter Esc)
+- "No companies found — add one first" shown when search returns empty
+
+**ContactDetail.razor — company field migration:**
+- Removed `PagedResult<CompanyDto>? _companies` and `bool _companiesLoading` fields
+- Removed `GetCompaniesAsync(1, 100)` call from `EnterEditMode`
+- `EditContactModel.CompanyId` changed from `string?` → `Guid?`; `SaveChanges` uses it directly (no `Guid.Parse`)
+- Company label now renders `<CompanyTypeahead Value="_editRequest.CompanyId" ValueChanged="v => _editRequest.CompanyId = v" DisplayName="@_contact?.CompanyName" />`
+
+**Navigation:**
+- Companies already registered in `CrmModule.GetNavItems()` (DisplayOrder 20, `bi-building` icon)
+- No NavMenu changes needed — dynamic plugin nav handles it
+
+**Gotcha — `@onmousedown` vs `@onclick` in typeahead dropdown:**
+The `@onblur` handler fires before `@onclick`. Using `@onmousedown` on dropdown items ensures the click registers before the input loses focus and the dropdown hides.
+
+### 2026-03-27: Companies Feature Frontend — Complete
+
+- **Deliverable:** Full Companies UI integration with list, detail, and typeahead search components.
+- **CompanyDetail.razor:** Dual-route component for view/edit; shows industry, website, phone, email, creation date, linked contacts table; 409-aware delete guard.
+- **CompanyList.razor:** Updated with name links to detail, website column, view/edit action buttons, 409-aware delete with messaging.
+- **CompanyTypeahead.razor:** Reusable autocomplete component with 300ms debounce, keyboard nav, spinner, empty state message; uses `@onmousedown` pattern to capture clicks before blur.
+- **ContactDetail.razor:** Migrated company field from paginated dropdown to CompanyTypeahead; DisplayName pre-population for existing contacts; CompanyId type changed to Guid?.
+- **Navigation:** Companies nav link served dynamically via CrmModule.GetNavItems() — no manual NavMenu update needed.
+- **Status:** ✅ Committed and pushed to main.
+
+
+
+### 2026-03-27: Brand Icon & Favicon — Complete
+
+- **Deliverable:** Warp Business SVG icon designed and deployed across all three web properties.
+- **favicon.svg:** Master SVG icon — cyan W-mark with glow effect on dark circle (#0a0e1a background, #00d4ff accent). Placed in MarketingSite/wwwroot/ and copied to Web/wwwroot/ and CustomerPortal/wwwroot/.
+- **site.webmanifest:** PWA manifest created for all three properties with correct name/theme.
+- **MarketingSite index.html:** Favicon link tags added (<link rel="icon" type="image/svg+xml">), theme-color meta added, nav logo updated with inline SVG icon + "WARP BUSINESS" text.
+- **CSS (style.css):** .nav-logo and .nav-logo-icon classes added for flex layout and drop-shadow glow.
+- **WarpBusiness.Web App.razor:** Title set to "Warp Business", favicon updated from PNG to SVG, manifest link added.
+- **WarpBusiness.CustomerPortal App.razor:** Title set to "Warp Business — Customer Portal", favicon updated from PNG to SVG, manifest link added.
+- **scripts/generate-icons.py:** Python script to generate PNG icons (16,32,48,192,512px) + ICO + apple-touch-icon from favicon.svg using cairosvg + pillow.
+- **DEVELOP.md:** Icon regeneration instructions added.
+- **Build:** ✅ Clean build, 0 errors.
+- **Status:** ✅ Committed and pushed to main.
+
+**Key pattern:** Use id="nav-glow" (not id="glow") for inline SVG filter in nav to avoid ID collision with other SVG elements on the page.
+
+## Learnings — 2026-03-27: Tenant Selection & Admin UI
+
+### What Was Built
+- **TenantSelect.razor** (/tenant/select): Workspace picker. Loads GET /api/auth/my-tenants → 0=signup redirect, 1=auto-select, multiple=show card grid.
+- **TenantSignup.razor** (/tenant/signup): Create workspace form with debounced slug generation and live availability check. Uses TenantSignupResponse.AccessToken directly instead of separate select-tenant call.
+- **Settings/TenantAdmin.razor** (/settings/workspace): 3-tab workspace admin (General/Members/Security). Members table with role toggle and remove-with-confirm. Security tab is "coming soon" SAML stub. Requires TenantAdmin role.
+- **Post-login flow**: Login.razor calls GetMyTenantsAsync() after auth and routes to signup/select/auto-select.
+- **NavMenu**: Tenant name in nav footer section. Workspace Settings link for TenantAdmin role.
+- **AuthStateService**: Added TenantId, TenantName, SetTenant(), cleared in ClearAuth().
+- **WarpApiClient**: Tenant API methods — GetMyTenantsAsync(), SelectTenantAsync(), GetTenantAsync(), UpdateTenantAsync(), SetTenantMemberRoleAsync(), RemoveTenantMemberAsync(), InviteTenantMemberAsync(), SignupTenantAsync(), CheckSlugAvailabilityAsync().
+
+### Key Decisions / Gotchas
+- API already had TenantsController with local DTOs (TenantSignupRequest, TenantSummaryDto, etc.) AND AuthController with GET /api/auth/my-tenants using MyTenantDto. Both import WarpBusiness.Shared.Auth. Local types shadow shared types in controllers — no ambiguity needed.
+- TenantDetailDto returns members inline — no separate GetTenantMembersAsync() needed.
+- POST /api/tenants/signup returns AccessToken (tenant-scoped JWT) directly. TenantSignup.razor uses it via 
+ew AuthResponse(result.AccessToken, ...).
+- POST /api/auth/select-tenant didn't exist at implementation time — Auth team will add it. Frontend handles failure gracefully (falls through to /).
+- Route /settings/workspace uses [Authorize(Roles = "TenantAdmin")]. Always check role names match backend exactly.
+- CSS: tenant-card hover + tenant-avatar classes added to global pp.css.

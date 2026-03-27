@@ -9,7 +9,7 @@ namespace WarpBusiness.Plugin.Crm.Controllers;
 
 [ApiController]
 [Route("api/custom-fields")]
-[Authorize]
+[Authorize(Policy = "RequireActiveTenant")]
 public class CustomFieldsController : ControllerBase
 {
     private readonly ICustomFieldService _customFields;

@@ -1,0 +1,186 @@
+@page "/tenant/signup"
+@using WarpBusiness.Shared.Auth
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject AuthStateService AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Create your workspace — Warp Business</PageTitle>
+
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-lg border-0" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1) !important;">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <h2 class="text-white fw-bold">Create your workspace</h2>
+                    <p class="text-white-50 small">Set up your organization in Warp Business</p>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_errorMessage))
+                {
+                    <div class="alert alert-danger py-2 small">@_errorMessage</div>
+                }
+                @if (!string.IsNullOrEmpty(_successMessage))
+                {
+                    <div class="alert alert-success py-2 small">@_successMessage</div>
+                }
+
+                <EditForm Model="_model" OnValidSubmit="HandleSignup">
+                    <DataAnnotationsValidator />
+
+                    <div class="mb-4">
+                        <label class="form-label text-white-50 small text-uppercase fw-semibold">Company Name</label>
+                        <InputText @bind-Value="_model.CompanyName"
+                                   class="form-control form-control-lg bg-transparent text-white border-secondary"
+                                   placeholder="Acme Corporation"
+                                   @oninput="OnCompanyNameInput" />
+                        <ValidationMessage For="() => _model.CompanyName" class="text-danger small" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-white-50 small text-uppercase fw-semibold">Workspace URL</label>
+                        <div class="input-group">
+                            <InputText @bind-Value="_model.Slug"
+                                       class="form-control bg-transparent text-white border-secondary"
+                                       placeholder="acme-corporation"
+                                       @oninput="OnSlugInput" />
+                            <span class="input-group-text bg-transparent text-white-50 border-secondary">.warp-business.com</span>
+                        </div>
+                        <ValidationMessage For="() => _model.Slug" class="text-danger small" />
+
+                        <div class="mt-2 small">
+                            @if (_checkingSlug)
+                            {
+                                <span class="text-white-50">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    Checking availability…
+                                </span>
+                            }
+                            else if (_slugAvailable == true)
+                            {
+                                <span class="text-success">✓ Available</span>
+                            }
+                            else if (_slugAvailable == false)
+                            {
+                                <span class="text-danger">✗ Already taken — try a different name</span>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(_model.Slug))
+                            {
+                                <span class="text-white-50">@(_model.Slug).warp-business.com</span>
+                            }
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 btn-lg" disabled="@(_submitting || _slugAvailable == false)">
+                        @if (_submitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Create Workspace
+                    </button>
+                </EditForm>
+
+                <p class="text-center text-white-50 small mt-4 mb-0">
+                    Already have an invite? Contact your admin
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private readonly SignupFormModel _model = new();
+    private string? _errorMessage;
+    private string? _successMessage;
+    private bool _submitting;
+    private bool _checkingSlug;
+    private bool? _slugAvailable;
+    private CancellationTokenSource? _slugDebounce;
+
+    private void OnCompanyNameInput(ChangeEventArgs e)
+    {
+        var name = e.Value?.ToString() ?? string.Empty;
+        _model.CompanyName = name;
+        _model.Slug = GenerateSlug(name);
+        _slugAvailable = null;
+        TriggerSlugCheck();
+    }
+
+    private void OnSlugInput(ChangeEventArgs e)
+    {
+        _model.Slug = e.Value?.ToString() ?? string.Empty;
+        _slugAvailable = null;
+        TriggerSlugCheck();
+    }
+
+    private void TriggerSlugCheck()
+    {
+        _slugDebounce?.Cancel();
+        _slugDebounce = new CancellationTokenSource();
+        var token = _slugDebounce.Token;
+        var slug = _model.Slug;
+
+        _ = Task.Delay(500, token).ContinueWith(async t =>
+        {
+            if (t.IsCanceled || string.IsNullOrWhiteSpace(slug)) return;
+            _checkingSlug = true;
+            await InvokeAsync(StateHasChanged);
+            var available = await Api.CheckSlugAvailabilityAsync(slug);
+            _slugAvailable = available;
+            _checkingSlug = false;
+            await InvokeAsync(StateHasChanged);
+        }, TaskScheduler.Default);
+    }
+
+    private async Task HandleSignup()
+    {
+        _submitting = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        var result = await Api.SignupTenantAsync(new TenantSignupRequest(_model.CompanyName, _model.Slug));
+        if (result is not null)
+        {
+            _successMessage = "Workspace created! Signing you in…";
+            StateHasChanged();
+
+            // Signup returns a tenant-scoped JWT directly — use it to set auth state
+            var authResponse = new AuthResponse(
+                result.AccessToken,
+                AuthState.UserEmail ?? string.Empty,
+                AuthState.UserFullName ?? string.Empty,
+                AuthState.Roles,
+                "Local");
+            AuthState.SetAuth(authResponse);
+            AuthState.SetTenant(result.TenantId, result.Name);
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            _errorMessage = "Failed to create workspace. The URL may already be taken or there was an error.";
+        }
+
+        _submitting = false;
+    }
+
+    private static string GenerateSlug(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+        return System.Text.RegularExpressions.Regex
+            .Replace(name.ToLowerInvariant().Trim(), @"[^a-z0-9]+", "-")
+            .Trim('-');
+    }
+
+    private class SignupFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Company name is required")]
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string CompanyName { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Workspace URL is required")]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^[a-z0-9][a-z0-9\-]*[a-z0-9]$",
+            ErrorMessage = "Only lowercase letters, numbers, and hyphens. Cannot start or end with a hyphen.")]
+        public string Slug { get; set; } = string.Empty;
+    }
+}

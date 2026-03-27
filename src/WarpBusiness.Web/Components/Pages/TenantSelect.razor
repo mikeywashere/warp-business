@@ -1,0 +1,143 @@
+@page "/tenant/select"
+@using WarpBusiness.Shared.Auth
+@using WarpBusiness.Web.Services
+@inject WarpApiClient Api
+@inject AuthStateService AuthState
+@inject NavigationManager Nav
+
+<PageTitle>Choose your workspace — Warp Business</PageTitle>
+
+<div class="tenant-select-wrapper">
+
+    @if (_loading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-light" role="status" style="width:3rem;height:3rem;"></div>
+            <p class="text-white-50 mt-3">Loading your workspaces…</p>
+        </div>
+    }
+    else if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="text-center py-5">
+            <div class="alert alert-danger d-inline-block px-5">
+                <span class="bi bi-exclamation-triangle me-2"></span>@_errorMessage
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-outline-light" @onclick="LoadTenantsAsync">Retry</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center mb-5">
+            <h1 class="display-6 text-white fw-bold">Choose your workspace</h1>
+            <p class="text-white-50">You have access to multiple organizations</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+            @foreach (var tenant in _tenants)
+            {
+                var t = tenant;
+                <div class="col-md-4 col-sm-6">
+                    <div class="tenant-card card h-100" @onclick="() => SelectTenantAsync(t)">
+                        <div class="card-body d-flex flex-column p-4">
+                            <div class="d-flex align-items-start justify-content-between mb-3">
+                                <div class="tenant-avatar">
+                                    @(t.Name.Length > 0 ? t.Name[0].ToString().ToUpperInvariant() : "?")
+                                </div>
+                                <span class="badge @(t.Role == "TenantAdmin" ? "bg-warning text-dark" : "bg-secondary")">
+                                    @(t.Role == "TenantAdmin" ? "Admin" : "Member")
+                                </span>
+                            </div>
+                            <h5 class="card-title text-white mb-1">@t.Name</h5>
+                            <p class="text-white-50 small mb-auto">
+                                <span class="bi bi-globe2 me-1"></span>@(t.Slug).warp-business.com
+                            </p>
+                            <div class="mt-3 text-end">
+                                @if (_selectingId == t.Id)
+                                {
+                                    <span class="spinner-border spinner-border-sm text-light" role="status"></span>
+                                }
+                                else
+                                {
+                                    <span class="text-white fw-semibold">Enter →</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="text-center mt-5">
+            <a href="/tenant/signup" class="text-white-50 small">
+                <span class="bi bi-plus-circle me-1"></span>Create a new workspace
+            </a>
+        </div>
+    }
+</div>
+
+@code {
+    private List<MyTenantDto> _tenants = [];
+    private bool _loading = true;
+    private string? _errorMessage;
+    private Guid? _selectingId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTenantsAsync();
+    }
+
+    private async Task LoadTenantsAsync()
+    {
+        _loading = true;
+        _errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            _tenants = await Api.GetMyTenantsAsync();
+        }
+        catch
+        {
+            _errorMessage = "Unable to load your workspaces. Please try again.";
+            _loading = false;
+            return;
+        }
+
+        if (_tenants.Count == 0)
+        {
+            Nav.NavigateTo("/tenant/signup");
+            return;
+        }
+
+        if (_tenants.Count == 1)
+        {
+            _loading = false;
+            await SelectTenantAsync(_tenants[0]);
+            return;
+        }
+
+        _loading = false;
+    }
+
+    private async Task SelectTenantAsync(MyTenantDto tenant)
+    {
+        _selectingId = tenant.Id;
+        StateHasChanged();
+
+        var auth = await Api.SelectTenantAsync(tenant.Id);
+        if (auth is not null)
+        {
+            AuthState.SetAuth(auth);
+            AuthState.SetTenant(tenant.Id, tenant.Name);
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            _errorMessage = "Failed to select workspace. Please try again.";
+        }
+
+        _selectingId = null;
+    }
+}

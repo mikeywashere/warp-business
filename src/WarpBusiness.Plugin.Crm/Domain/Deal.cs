@@ -3,6 +3,7 @@ namespace WarpBusiness.Plugin.Crm.Domain;
 public class Deal
 {
     public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
     public string Title { get; set; } = string.Empty;
     public decimal Value { get; set; }
     public string Currency { get; set; } = "USD";

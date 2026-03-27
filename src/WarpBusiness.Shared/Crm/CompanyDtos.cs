@@ -11,6 +11,25 @@ public record CompanyDto(
     int ContactCount,
     DateTimeOffset CreatedAt);
 
+public record ContactSummaryDto(
+    Guid Id,
+    string FirstName,
+    string LastName,
+    string? Email,
+    string? Title);
+
+public record CompanyDetailDto(
+    Guid Id,
+    string Name,
+    string? Industry,
+    string? Website,
+    string? Phone,
+    string? Email,
+    int? EmployeeCount,
+    DateTimeOffset CreatedAt,
+    int ContactCount,
+    IReadOnlyList<ContactSummaryDto> Contacts);
+
 public record CreateCompanyRequest(
     string Name,
     string? Website,

@@ -52,3 +52,30 @@
 - **Ingress:** api/app/portal.warp-business.local → warp-api/warp-web/warp-portal:8080.
 - **Plugin dir:** `/app/plugins` created in API image; mount a PVC to add external DLLs without rebuild.
 - **Decision:** `.squad/decisions/inbox/ripley-k8s-strategy.md`
+
+## 2026-03-27 — Multi-Tenancy Architecture Analysis
+
+- **What was done:** Full multi-tenancy architecture analysis and recommendation for Warp Business.
+- **Recommendation:** Shared schema with TenantId column (Option A) — simplest approach for current stage, clean upgrade path if needed.
+- **Three models evaluated:**
+  1. Shared schema + TenantId: Logical isolation via EF query filters. Low complexity, lowest cost. Risk: application bugs can leak data.
+  2. Schema-per-tenant: PostgreSQL schema isolation. Medium complexity. Risk: schema explosion at scale.
+  3. Database-per-tenant: Maximum isolation. High complexity, highest cost. Best for compliance-heavy enterprise.
+- **TenantId propagation pattern:**
+  - Phase 1: Resolve from JWT `tenant_id` claim
+  - Phase 2: Subdomain extraction middleware (`acme.warp-business.com` → tenant slug)
+  - `ITenantContext` scoped service injected into DbContexts
+- **EF Core enforcement:** Global query filters on all data entities. Insert sets TenantId from context.
+- **Schema changes identified:**
+  - New `identity.Tenants` table (Id, Name, Slug, IsActive, Settings jsonb)
+  - TenantId FK on: Company, Contact, Deal, Activity, CustomFieldDefinition, Employee
+  - Unique indexes must become composite (TenantId + field) — e.g., `Company.Name` unique per tenant, not globally
+- **Plugin isolation:** Each plugin DbContext (CrmDbContext, EmployeeDbContext) applies its own query filters. Shared `ITenantContext` from abstractions.
+- **Migration strategy:** Add TenantId as nullable → create default tenant → backfill → make non-nullable → add FK
+- **Auth intersection (for Bishop):** User-tenant membership model, JWT tenant claim, tenant switching, OIDC tenant mapping
+- **Phased plan:**
+  - Phase 1 (now): TenantId columns, query filters, JWT claim, test isolation
+  - Phase 2 (later): Subdomain routing, wildcard DNS/Ingress, Blazor subdomain detection
+  - Phase 3 (future): Per-tenant database option, per-tenant IdP, branding
+- **Current state:** No tenancy infrastructure exists today — clean-slate implementation.
+- **Decision:** `.squad/decisions/inbox/ripley-tenancy-architecture.md`
