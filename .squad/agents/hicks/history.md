@@ -146,6 +146,18 @@
 - **Makefile targets:** build, load-kind, deploy (guards for secrets.yaml), undeploy, status, logs-api/web/portal, restart, clean.
 - **skaffold.yaml:** Local dev loop with auto-rebuild + port-forward (5001/5002/5003).
 
+### 2026-03-27: Companies API — SearchCompaniesAsync and CompanyDetailDto
+
+- **Audit result:** Company entity, Contact.CompanyId FK, ICompanyService, CompanyService, and CompaniesController all pre-existed from the initial CRM buildout.
+- **Added:** `SearchCompaniesAsync(string query, int maxResults = 20, CancellationToken ct)` for autocomplete — case-insensitive contains match, ordered by name, capped at maxResults (default 20).
+- **Added:** `GetCompanyDetailAsync(Guid id)` returning `CompanyDetailDto` with embedded `IReadOnlyList<ContactSummaryDto>` — loads company with `.Include(c => c.Contacts)`.
+- **Added:** `CompanyDetailDto` and `ContactSummaryDto` to WarpBusiness.Shared.Crm.
+- **Added:** `GET /api/companies/search?q=` endpoint in CompaniesController (declared before `{id:guid}` to avoid routing conflict).
+- **Changed:** `GET /api/companies/{id}` now returns `CompanyDetailDto` (with contact list) instead of the flat `CompanyDto`.
+- **Added:** `GetCompanyAsync` and `SearchCompaniesAsync` to WarpApiClient for Blazor frontend.
+- **Migration:** `AddCompanyUniqueNameIndex` — adds unique constraint to `Companies.Name` to enforce controlled-vocabulary company names.
+- **Test updated:** `GetCompany_ReturnsCompany_WhenExists` now deserializes as `CompanyDetailDto`.
+
 ### 2026-03-26: CRM Delete Authorization — Admin Role Required
 
 - **Pattern:** `[Authorize]` at class level (any authenticated user) + `[Authorize(Roles = "Admin")]` on specific action overrides/narrows for that action. Used on all CRM DELETE endpoints.

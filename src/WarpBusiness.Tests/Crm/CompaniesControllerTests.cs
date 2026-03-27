@@ -94,7 +94,7 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var company = await response.Content.ReadFromJsonAsync<CompanyDto>();
+        var company = await response.Content.ReadFromJsonAsync<CompanyDetailDto>();
         company!.Id.Should().Be(created.Id);
         company.Name.Should().Be("Globex Inc");
     }

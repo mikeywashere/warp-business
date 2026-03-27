@@ -135,9 +135,33 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
             : null;
     }
 
+    public async Task<CompanyDetailDto?> GetCompanyAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync($"api/companies/{id}"));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<CompanyDetailDto>()
+            : null;
+    }
+
+    public async Task<List<CompanyDto>> SearchCompaniesAsync(string query)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync($"api/companies/search?q={Uri.EscapeDataString(query)}"));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<List<CompanyDto>>() ?? []
+            : [];
+    }
+
     public async Task<CompanyDto?> CreateCompanyAsync(CreateCompanyRequest request)
     {
         var response = await SendWithRefreshAsync(() => _httpClient.PostAsJsonAsync("api/companies", request));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<CompanyDto>()
+            : null;
+    }
+
+    public async Task<CompanyDto?> UpdateCompanyAsync(Guid id, UpdateCompanyRequest request)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.PutAsJsonAsync($"api/companies/{id}", request));
         return response.IsSuccessStatusCode
             ? await response.Content.ReadFromJsonAsync<CompanyDto>()
             : null;
@@ -147,6 +171,12 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
     {
         var response = await SendWithRefreshAsync(() => _httpClient.DeleteAsync($"api/companies/{id}"));
         return response.IsSuccessStatusCode;
+    }
+
+    public async Task<int> DeleteCompanyRawAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.DeleteAsync($"api/companies/{id}"));
+        return (int)response.StatusCode;
     }
 
     // Deals

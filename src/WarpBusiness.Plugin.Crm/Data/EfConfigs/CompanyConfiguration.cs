@@ -13,6 +13,6 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
         builder.Property(c => c.Website).HasMaxLength(500);
         builder.Property(c => c.Industry).HasMaxLength(100);
         builder.Property(c => c.CreatedBy).IsRequired().HasMaxLength(450);
-        builder.HasIndex(c => c.Name);
+        builder.HasIndex(c => c.Name).IsUnique();
     }
 }
