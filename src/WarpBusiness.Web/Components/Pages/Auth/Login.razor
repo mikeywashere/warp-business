@@ -137,7 +137,7 @@
         if (result is not null)
         {
             AuthState.SetAuth(result);
-            Nav.NavigateTo("/contacts");
+            await RedirectAfterLoginAsync();
         }
         else
         {
@@ -145,6 +145,37 @@
         }
 
         _submitting = false;
+    }
+
+    private async Task RedirectAfterLoginAsync()
+    {
+        try
+        {
+            var tenants = await Api.GetMyTenantsAsync();
+            if (tenants.Count == 0)
+            {
+                Nav.NavigateTo("/tenant/signup");
+            }
+            else if (tenants.Count == 1)
+            {
+                var auth = await Api.SelectTenantAsync(tenants[0].Id);
+                if (auth is not null)
+                {
+                    AuthState.SetAuth(auth);
+                    AuthState.SetTenant(tenants[0].Id, tenants[0].Name);
+                }
+                Nav.NavigateTo("/");
+            }
+            else
+            {
+                Nav.NavigateTo("/tenant/select");
+            }
+        }
+        catch
+        {
+            // Tenant API not yet available — fall through to app
+            Nav.NavigateTo("/");
+        }
     }
 
     private void RedirectToMicrosoft()

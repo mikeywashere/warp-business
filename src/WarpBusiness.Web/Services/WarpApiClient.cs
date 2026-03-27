@@ -27,6 +27,84 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
                 ? t.Result.Content.ReadFromJsonAsync<AuthResponse>().Result
                 : null);
 
+    // Tenants
+    public async Task<List<MyTenantDto>> GetMyTenantsAsync()
+    {
+        // GET /api/auth/my-tenants — returns tenant list for post-login picker flow
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync("api/auth/my-tenants"));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<List<MyTenantDto>>() ?? []
+            : [];
+    }
+
+    public async Task<AuthResponse?> SelectTenantAsync(Guid tenantId)
+    {
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.PostAsJsonAsync("api/auth/select-tenant", new SelectTenantRequest(tenantId)));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<AuthResponse>()
+            : null;
+    }
+
+    public async Task<TenantDetailDto?> GetTenantAsync(Guid id)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync($"api/tenants/{id}"));
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<TenantDetailDto>()
+            : null;
+    }
+
+    public async Task<bool> UpdateTenantAsync(Guid id, UpdateTenantRequest request)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.PutAsJsonAsync($"api/tenants/{id}", request));
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> SetTenantMemberRoleAsync(Guid tenantId, string userId, string role)
+    {
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.PutAsJsonAsync($"api/tenants/{tenantId}/members/{userId}/role", new { role }));
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> RemoveTenantMemberAsync(Guid tenantId, string userId)
+    {
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.DeleteAsync($"api/tenants/{tenantId}/members/{userId}"));
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> InviteTenantMemberAsync(Guid tenantId, string email)
+    {
+        // POST /api/tenants/{id}/members with {email, role} per TenantsController.AddMember
+        var response = await SendWithRefreshAsync(() =>
+            _httpClient.PostAsJsonAsync($"api/tenants/{tenantId}/members", new { email, role = "Member" }));
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<TenantSignupResponse?> SignupTenantAsync(TenantSignupRequest request)
+    {
+        var response = await _httpClient.PostAsJsonAsync("api/tenants/signup", request);
+        return response.IsSuccessStatusCode
+            ? await response.Content.ReadFromJsonAsync<TenantSignupResponse>()
+            : null;
+    }
+
+    public async Task<bool?> CheckSlugAvailabilityAsync(string slug)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/tenants/check-slug?slug={Uri.EscapeDataString(slug)}");
+            if (!response.IsSuccessStatusCode) return null;
+            var result = await response.Content.ReadFromJsonAsync<SlugAvailabilityResponse>();
+            return result?.Available;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task LogoutAsync()
     {
         try

@@ -10,6 +10,17 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### 2026-03-27: Multi-Tenancy Infrastructure
+
+- **ITenantContext in Plugin.Abstractions:** Interface + NullTenantContext live in WarpBusiness.Plugin.Abstractions (already referenced by all plugins). `NullTenantContext.Instance` is the singleton used by design-time factories so EF tooling can instantiate DbContexts without a real DI container.
+- **DbContext constructor pattern:** Plugin DbContexts changed from primary constructor syntax to explicit constructor injecting `ITenantContext`. EF Core DI integration auto-injects registered services — no change to `AddDbContext` calls in module ConfigureServices.
+- **Global query filter closure:** `modelBuilder.Entity<T>().HasQueryFilter(e => e.TenantId == _tenantContext.TenantId)` is a closure evaluated at query time. Returns zero rows when TenantId == Guid.Empty (safe default). Admin/cross-tenant operations must call `IgnoreQueryFilters()` explicitly.
+- **Design-time factory update:** Both CrmDbContextFactory and EmployeeDbContextFactory pass `NullTenantContext.Instance` as the second constructor arg. This is the only required change for migrations to continue working.
+- **UserTenant.UserId is string:** ApplicationUser.Id (IdentityUser) is string. `UserTenant.UserId` must be `string`, not `Guid`, to match the FK type. Composite key is (UserId, TenantId).
+- **TenantClaimsTransformation:** Bishop placed this in Identity/Tenancy/. Registered as `IClaimsTransformation` in Program.cs. It auto-injects tenant_id/tenant_slug claims for single-tenant users on every request without requiring them to call a separate tenant-select endpoint.
+- **Per-tenant unique indexes:** Company.Name (global→per-tenant), CustomFieldDefinition (EntityType,Name → TenantId,EntityType,Name), Employee.Email (global → TenantId,Email).
+- **Migration commands:** `dotnet ef migrations add <Name> --project src\<Project>.csproj --startup-project src\<Project>.csproj --output-dir Data\Migrations` — each plugin uses its own startup project via its IDesignTimeDbContextFactory.
+
 ### 2026-03-26: Security Fixes — Code Review Remediation
 
 - **appsettings.json DefaultConnection:** Added a placeholder `DefaultConnection` key with `Password=CHANGE_ME` so the config schema is visible and no real credentials can be committed. Real creds must be supplied via env var (`ConnectionStrings__DefaultConnection`) or Aspire secrets.
