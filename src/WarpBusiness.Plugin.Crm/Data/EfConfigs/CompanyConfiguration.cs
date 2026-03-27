@@ -13,6 +13,7 @@ public class CompanyConfiguration : IEntityTypeConfiguration<Company>
         builder.Property(c => c.Website).HasMaxLength(500);
         builder.Property(c => c.Industry).HasMaxLength(100);
         builder.Property(c => c.CreatedBy).IsRequired().HasMaxLength(450);
-        builder.HasIndex(c => c.Name).IsUnique();
+        // Unique per tenant — two tenants can both have a company named "Acme"
+        builder.HasIndex(c => new { c.TenantId, c.Name }).IsUnique();
     }
 }

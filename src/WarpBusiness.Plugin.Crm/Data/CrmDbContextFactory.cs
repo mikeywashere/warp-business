@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using WarpBusiness.Plugin.Abstractions;
 
 namespace WarpBusiness.Plugin.Crm.Data;
 
@@ -11,6 +12,6 @@ public class CrmDbContextFactory : IDesignTimeDbContextFactory<CrmDbContext>
             ?? "Host=localhost;Port=5432;Database=warpbusiness_dev;Username=postgres;Password=postgres";
         var optionsBuilder = new DbContextOptionsBuilder<CrmDbContext>();
         optionsBuilder.UseNpgsql(connStr);
-        return new CrmDbContext(optionsBuilder.Options);
+        return new CrmDbContext(optionsBuilder.Options, NullTenantContext.Instance);
     }
 }

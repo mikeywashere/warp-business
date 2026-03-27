@@ -1,10 +1,12 @@
 using System.Text;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Identity;
+using WarpBusiness.Api.Identity.Tenancy;
 using WarpBusiness.Api.Plugins;
 using WarpBusiness.Plugin.Crm;
 using WarpBusiness.Plugin.Abstractions;
@@ -36,6 +38,11 @@ builder.Services.AddWarpAuthentication(builder.Configuration);
 builder.Services.AddScoped<IExternalIdentityMapper, ExternalIdentityMapper>();
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
+
+// Tenant context — resolved from JWT tenant_id claim
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantContext, JwtTenantContext>();
+builder.Services.AddScoped<IClaimsTransformation, TenantClaimsTransformation>();
 
 // Plugin/module discovery — must happen before AddControllers
 var pluginsDir = Path.Combine(builder.Environment.ContentRootPath, "plugins");
@@ -76,7 +83,7 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    foreach (var role in new[] { "Admin", "Manager", "User" })
+    foreach (var role in new[] { "Admin", "Manager", "User", "TenantAdmin" })
     {
         if (!await roleManager.RoleExistsAsync(role))
             await roleManager.CreateAsync(new IdentityRole(role));

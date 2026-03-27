@@ -3,6 +3,7 @@ namespace WarpBusiness.Plugin.Crm.Domain;
 public class CustomFieldDefinition
 {
     public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string EntityType { get; set; } = "Contact"; // expandable: "Company", "Deal"
     public string FieldType { get; set; } = "Text"; // "Text","Number","Date","Boolean","Select"

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WarpBusiness.Api.Identity;
+using WarpBusiness.Api.Identity.Tenancy;
 
 namespace WarpBusiness.Api.Data;
 
@@ -13,6 +14,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     // Auth
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    // Tenancy
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<TenantSamlConfig> TenantSamlConfigs => Set<TenantSamlConfig>();
+    public DbSet<UserTenant> UserTenants => Set<UserTenant>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
