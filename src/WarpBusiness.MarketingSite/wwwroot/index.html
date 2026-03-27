@@ -9,13 +9,42 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <!-- Favicon & App Icons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#00d4ff">
 </head>
 <body>
 
   <!-- NAV -->
   <nav class="nav" id="nav">
     <div class="nav__inner">
-      <a href="#" class="nav__logo">WARP <span>BUSINESS</span></a>
+      <a href="#" class="nav-logo">
+        <svg class="nav-logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" aria-hidden="true">
+          <defs>
+            <filter id="nav-glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <circle cx="50" cy="50" r="50" fill="#0a0e1a"/>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.4"/>
+          <line x1="8" y1="50" x2="20" y2="50" stroke="#00d4ff" stroke-width="2" opacity="0.3"/>
+          <line x1="80" y1="50" x2="92" y2="50" stroke="#00d4ff" stroke-width="2" opacity="0.3"/>
+          <line x1="5" y1="42" x2="15" y2="42" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <line x1="85" y1="42" x2="95" y2="42" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <line x1="5" y1="58" x2="15" y2="58" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <line x1="85" y1="58" x2="95" y2="58" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <polyline points="15,28 32,72 45,45 58,72 75,28" fill="none" stroke="#00d4ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="15,28 32,72 45,45 58,72 75,28" fill="none" stroke="#00d4ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" filter="url(#nav-glow)" opacity="0.7"/>
+        </svg>
+        <span>WARP BUSINESS</span>
+      </a>
       <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
         <span></span><span></span><span></span>
       </button>
@@ -142,3 +171,5 @@
   <script src="js/main.js"></script>
 </body>
 </html>
+
+<!-- Update -->

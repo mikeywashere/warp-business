@@ -1,0 +1,26 @@
+plugins = []
+headers = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "C:\\src\\mikeywashere\\warp-business\\src\\WarpBusiness.MarketingSite"
+publishOrigin = "default"
+base = "C:\\src\\mikeywashere\\warp-business\\src\\WarpBusiness.MarketingSite"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]

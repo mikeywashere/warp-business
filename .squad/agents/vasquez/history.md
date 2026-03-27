@@ -302,3 +302,19 @@ The `@onblur` handler fires before `@onclick`. Using `@onmousedown` on dropdown 
 - **Status:** ✅ Committed and pushed to main.
 
 
+
+### 2026-03-27: Brand Icon & Favicon — Complete
+
+- **Deliverable:** Warp Business SVG icon designed and deployed across all three web properties.
+- **favicon.svg:** Master SVG icon — cyan W-mark with glow effect on dark circle (#0a0e1a background, #00d4ff accent). Placed in MarketingSite/wwwroot/ and copied to Web/wwwroot/ and CustomerPortal/wwwroot/.
+- **site.webmanifest:** PWA manifest created for all three properties with correct name/theme.
+- **MarketingSite index.html:** Favicon link tags added (<link rel="icon" type="image/svg+xml">), theme-color meta added, nav logo updated with inline SVG icon + "WARP BUSINESS" text.
+- **CSS (style.css):** .nav-logo and .nav-logo-icon classes added for flex layout and drop-shadow glow.
+- **WarpBusiness.Web App.razor:** Title set to "Warp Business", favicon updated from PNG to SVG, manifest link added.
+- **WarpBusiness.CustomerPortal App.razor:** Title set to "Warp Business — Customer Portal", favicon updated from PNG to SVG, manifest link added.
+- **scripts/generate-icons.py:** Python script to generate PNG icons (16,32,48,192,512px) + ICO + apple-touch-icon from favicon.svg using cairosvg + pillow.
+- **DEVELOP.md:** Icon regeneration instructions added.
+- **Build:** ✅ Clean build, 0 errors.
+- **Status:** ✅ Committed and pushed to main.
+
+**Key pattern:** Use id="nav-glow" (not id="glow") for inline SVG filter in nav to avoid ID collision with other SVG elements on the page.

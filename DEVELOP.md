@@ -612,3 +612,16 @@ var dbName = $"TestDb_{Guid.NewGuid()}";
 - Explore `.vscode/` for recommended VS Code settings and launch configurations
 
 Happy developing! 🚀
+
+---
+
+### Regenerating App Icons
+
+If you update the brand icon, regenerate all sizes:
+
+```bash
+pip install cairosvg pillow
+python scripts/generate-icons.py
+```
+
+This generates PNG icons at all standard sizes from `src/WarpBusiness.MarketingSite/wwwroot/favicon.svg` and distributes them to all web projects.

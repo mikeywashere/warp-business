@@ -172,6 +172,22 @@ a:hover { opacity: 0.8; }
 }
 .nav__logo span { color: var(--clr-accent); }
 
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--clr-text);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.1em;
+}
+.nav-logo-icon {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.6));
+}
+
 .nav__links {
   display: flex;
   align-items: center;
