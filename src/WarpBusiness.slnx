@@ -2,6 +2,7 @@
   <Project Path="WarpBusiness.Api/WarpBusiness.Api.csproj" />
   <Project Path="WarpBusiness.AppHost/WarpBusiness.AppHost.csproj" />
   <Project Path="WarpBusiness.CustomerPortal/WarpBusiness.CustomerPortal.csproj" />
+  <Project Path="WarpBusiness.MarketingSite/WarpBusiness.MarketingSite.csproj" />
   <Project Path="WarpBusiness.Plugin.Abstractions/WarpBusiness.Plugin.Abstractions.csproj" />
   <Project Path="WarpBusiness.Plugin.Crm/WarpBusiness.Plugin.Crm.csproj" />
   <Project Path="WarpBusiness.Plugin.EmployeeManagement/WarpBusiness.Plugin.EmployeeManagement.csproj" />
