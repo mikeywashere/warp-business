@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using WarpBusiness.Plugin.Abstractions;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.Crm.Domain;
 using WarpBusiness.Shared.Crm;
@@ -8,10 +9,12 @@ namespace WarpBusiness.Plugin.Crm.Services;
 public class ActivityService : IActivityService
 {
     private readonly CrmDbContext _db;
+    private readonly ITenantContext _tenantContext;
 
-    public ActivityService(CrmDbContext db)
+    public ActivityService(CrmDbContext db, ITenantContext tenantContext)
     {
         _db = db;
+        _tenantContext = tenantContext;
     }
 
     public async Task<PagedResult<ActivityDto>> GetActivitiesAsync(int page, int pageSize,
@@ -64,6 +67,7 @@ public class ActivityService : IActivityService
         var activity = new Activity
         {
             Id = Guid.NewGuid(),
+            TenantId = _tenantContext.TenantId,
             Type = Enum.Parse<ActivityType>(request.Type, ignoreCase: true),
             Title = request.Subject,
             Notes = request.Description,

@@ -24,7 +24,7 @@
   <line x1="85" y1="58" x2="95" y2="58" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
 
   <!-- The W shape: two chevrons forming a W -->
-  <polyline points="15,28 32,72 45,45 58,72 75,28"
+  <polyline points="17,28 34,72 46,45 58,72 75,28"
     fill="none"
     stroke="#00d4ff"
     stroke-width="8"
@@ -32,7 +32,7 @@
     stroke-linejoin="round"/>
 
   <!-- W with glow applied -->
-  <polyline points="15,28 32,72 45,45 58,72 75,28"
+  <polyline points="17,28 34,72 46,45 58,72 75,28"
     fill="none"
     stroke="#00d4ff"
     stroke-width="8"
