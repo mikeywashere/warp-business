@@ -7,7 +7,7 @@ namespace WarpBusiness.Plugin.EmployeeManagement.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "RequireActiveTenant")]
 public class EmployeesController(IEmployeeService employees) : ControllerBase
 {
     [HttpGet]

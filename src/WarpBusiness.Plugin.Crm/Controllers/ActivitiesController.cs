@@ -5,7 +5,7 @@ using WarpBusiness.Shared.Crm;
 
 namespace WarpBusiness.Plugin.Crm.Controllers;
 
-[Authorize]
+[Authorize(Policy = "RequireActiveTenant")]
 [ApiController]
 [Route("api/[controller]")]
 public class ActivitiesController : ControllerBase

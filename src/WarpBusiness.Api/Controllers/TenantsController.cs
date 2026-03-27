@@ -5,8 +5,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WarpBusiness.Api.Data;
+using WarpBusiness.Api.Filters;
 using WarpBusiness.Api.Identity;
 using WarpBusiness.Api.Identity.Tenancy;
+using WarpBusiness.Api.Services;
+using WarpBusiness.Shared.Auth;
 
 namespace WarpBusiness.Api.Controllers;
 
@@ -18,15 +21,18 @@ public class TenantsController : ControllerBase
     private readonly ApplicationDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ITokenService _tokenService;
+    private readonly ITenantSamlService _saml;
 
     public TenantsController(
         ApplicationDbContext db,
         UserManager<ApplicationUser> userManager,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        ITenantSamlService saml)
     {
         _db = db;
         _userManager = userManager;
         _tokenService = tokenService;
+        _saml = saml;
     }
 
     /// <summary>POST /api/tenants/signup — self-service tenant creation</summary>
@@ -71,7 +77,8 @@ public class TenantsController : ControllerBase
         var user = await _userManager.FindByIdAsync(userId);
         if (user is null) return Unauthorized();
         var roles = await _userManager.GetRolesAsync(user);
-        var token = _tokenService.GenerateAccessToken(user, roles, tenant.Id, tenant.Slug);
+        var token = _tokenService.GenerateAccessToken(user, roles,
+            tenant.Id, tenant.Slug, "TenantAdmin", [tenant.Id]);
 
         return Ok(new TenantSignupResponse(
             tenant.Id,
@@ -215,6 +222,70 @@ public class TenantsController : ControllerBase
         return NoContent();
     }
 
+    // ── SAML Configuration Endpoints (TenantAdmin only) ─────────────────────
+
+    /// <summary>GET /api/tenants/{tenantId}/saml — retrieve SAML config</summary>
+    [HttpGet("{tenantId:guid}/saml")]
+    [Authorize(Policy = "RequireTenantAdmin")]
+    [RequireTenantRouteMatch]
+    public async Task<ActionResult<SamlConfigDto>> GetSamlConfig(Guid tenantId, CancellationToken ct)
+    {
+        var config = await _saml.GetConfigAsync(tenantId, ct);
+        if (config is null)
+            return Ok(new SamlConfigDto(tenantId, null, null, null, null, false));
+
+        return Ok(new SamlConfigDto(
+            config.TenantId,
+            config.EntityId,
+            config.MetadataUrl,
+            null, // SsoUrl not yet on stub entity
+            null, // Certificate not yet on stub entity
+            config.IsEnabled));
+    }
+
+    /// <summary>PUT /api/tenants/{tenantId}/saml — save SAML config</summary>
+    [HttpPut("{tenantId:guid}/saml")]
+    [Authorize(Policy = "RequireTenantAdmin")]
+    [RequireTenantRouteMatch]
+    public async Task<IActionResult> SaveSamlConfig(
+        Guid tenantId,
+        [FromBody] SaveSamlConfigRequest request,
+        CancellationToken ct)
+    {
+        var config = new TenantSamlConfig
+        {
+            TenantId = tenantId,
+            EntityId = request.EntityId,
+            MetadataUrl = request.MetadataUrl,
+        };
+
+        await _saml.SaveConfigAsync(tenantId, config, ct);
+        return NoContent();
+    }
+
+    /// <summary>POST /api/tenants/{tenantId}/saml/enable — enable SAML (validates config first)</summary>
+    [HttpPost("{tenantId:guid}/saml/enable")]
+    [Authorize(Policy = "RequireTenantAdmin")]
+    [RequireTenantRouteMatch]
+    public async Task<IActionResult> EnableSaml(Guid tenantId, CancellationToken ct)
+    {
+        var enabled = await _saml.EnableAsync(tenantId, ct);
+        if (!enabled)
+            return BadRequest(new { error = "SAML cannot be enabled: EntityId and MetadataUrl are required." });
+
+        return NoContent();
+    }
+
+    /// <summary>POST /api/tenants/{tenantId}/saml/test — test SAML connection</summary>
+    [HttpPost("{tenantId:guid}/saml/test")]
+    [Authorize(Policy = "RequireTenantAdmin")]
+    [RequireTenantRouteMatch]
+    public async Task<IActionResult> TestSaml(Guid tenantId, CancellationToken ct)
+    {
+        var (success, error) = await _saml.TestConnectionAsync(tenantId, ct);
+        return Ok(new { success, error });
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private string? GetUserId() =>
@@ -279,3 +350,17 @@ public record AddMemberRequest(
     string? Role);
 
 public record ChangeMemberRoleRequest([Required] string Role);
+
+/// <summary>SAML configuration details returned by GET /api/tenants/{id}/saml.</summary>
+public record SamlConfigDto(
+    Guid TenantId,
+    string? EntityId,
+    string? MetadataUrl,
+    string? SsoUrl,
+    string? Certificate,
+    bool IsEnabled);
+
+/// <summary>Request body for PUT /api/tenants/{id}/saml.</summary>
+public record SaveSamlConfigRequest(
+    [Required, MaxLength(500)] string EntityId,
+    [Required, MaxLength(2000)] string MetadataUrl);

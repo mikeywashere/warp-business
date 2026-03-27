@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Identity;
 using WarpBusiness.Api.Identity.Tenancy;
+using WarpBusiness.Api.Middleware;
 using WarpBusiness.Api.Plugins;
 using WarpBusiness.Plugin.Crm;
 using WarpBusiness.Plugin.Abstractions;
@@ -36,13 +37,26 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 // Multi-provider authentication (Local, Keycloak, Microsoft)
 builder.Services.AddWarpAuthentication(builder.Configuration);
 builder.Services.AddScoped<IExternalIdentityMapper, ExternalIdentityMapper>();
-builder.Services.AddAuthorization();
 builder.Services.AddScoped<ITokenService, TokenService>();
 
 // Tenant context — resolved from JWT tenant_id claim
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, JwtTenantContext>();
+builder.Services.AddScoped<WarpBusiness.Api.Services.ITenantSamlService, WarpBusiness.Api.Services.TenantSamlService>();
 builder.Services.AddScoped<IClaimsTransformation, TenantClaimsTransformation>();
+
+// Authorization with tenant-aware policies
+builder.Services.AddAuthorization(options =>
+{
+    // Require an active tenant for all data (CRM, EmployeeManagement)
+    options.AddPolicy("RequireActiveTenant", policy =>
+        policy.RequireClaim("tenant_id"));
+
+    // Require TenantAdmin role within the active tenant
+    options.AddPolicy("RequireTenantAdmin", policy =>
+        policy.RequireClaim("tenant_id")
+              .RequireClaim("tenant_role", "TenantAdmin"));
+});
 
 // Plugin/module discovery — must happen before AddControllers
 var pluginsDir = Path.Combine(builder.Environment.ContentRootPath, "plugins");
@@ -74,6 +88,7 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
 app.UseHttpsRedirection();
+app.UseTenantResolution();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCustomModules();
