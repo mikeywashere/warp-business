@@ -108,3 +108,20 @@ public record UpdateProductRequest(
     string? MetaTitle,
     string? MetaDescription,
     string? Tags);
+
+// --- Search / Autocomplete ---
+
+public record CatalogItemSearchResult(
+    Guid Id,
+    string Name,
+    string? Sku,
+    decimal BasePrice,
+    string Currency,
+    string ProductType,
+    string? PrimaryImageUrl,
+    IReadOnlyList<CatalogVariantSummary> Variants);
+
+public record CatalogVariantSummary(
+    Guid Id,
+    string? Sku,
+    decimal? Price);

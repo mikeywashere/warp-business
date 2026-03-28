@@ -41,6 +41,19 @@ public class ProductsController : ControllerBase
         return Ok(await _products.GetProductsAsync(page, pageSize, search, categoryId, status, ct));
     }
 
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchProducts(
+        [FromQuery] string? q = null,
+        [FromQuery] int limit = 10,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(q))
+            return Ok(Array.Empty<CatalogItemSearchResult>());
+
+        limit = Math.Clamp(limit, 1, 50);
+        return Ok(await _products.SearchProductsAsync(q, limit, ct));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetProduct(Guid id, CancellationToken ct = default)
     {
