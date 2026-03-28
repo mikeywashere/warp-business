@@ -74,7 +74,8 @@ public class InvoiceLineItemService : IInvoiceLineItemService
         };
 
         InvoiceService.CalculateLineTotal(lineItem);
-        invoice.LineItems.Add(lineItem);
+        _context.InvoiceLineItems.Add(lineItem);
+        // EF auto-fixup adds lineItem to invoice.LineItems via InvoiceId FK
         InvoiceService.RecalculateInvoiceTotals(invoice);
         invoice.UpdatedAt = DateTimeOffset.UtcNow;
 

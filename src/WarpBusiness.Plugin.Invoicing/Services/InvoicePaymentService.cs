@@ -62,7 +62,9 @@ public class InvoicePaymentService : IInvoicePaymentService
 
         _context.InvoicePayments.Add(payment);
 
-        invoice.AmountPaid = invoice.Payments.Sum(p => p.Amount) + request.Amount;
+        // Sum existing payments (before the new one was added to navigation via EF fixup)
+        // and add the new payment amount separately to avoid double-counting
+        invoice.AmountPaid = invoice.Payments.Where(p => p.Id != payment.Id).Sum(p => p.Amount) + request.Amount;
         invoice.BalanceDue = invoice.TotalAmount - invoice.AmountPaid;
         invoice.UpdatedAt = DateTimeOffset.UtcNow;
 

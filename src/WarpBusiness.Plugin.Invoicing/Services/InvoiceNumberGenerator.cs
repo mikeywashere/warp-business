@@ -5,12 +5,12 @@ using WarpBusiness.Plugin.Invoicing.Domain;
 
 namespace WarpBusiness.Plugin.Invoicing.Services;
 
-internal interface IInvoiceNumberGenerator
+public interface IInvoiceNumberGenerator
 {
     Task<string> GenerateNextAsync(CancellationToken ct = default);
 }
 
-internal class InvoiceNumberGenerator : IInvoiceNumberGenerator
+public class InvoiceNumberGenerator : IInvoiceNumberGenerator
 {
     private readonly InvoicingDbContext _context;
     private readonly ITenantContext _tenantContext;

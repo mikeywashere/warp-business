@@ -13,7 +13,7 @@ public class InvoiceService : IInvoiceService
     private readonly ITenantContext _tenantContext;
     private readonly IInvoiceNumberGenerator _numberGenerator;
 
-    internal InvoiceService(
+    public InvoiceService(
         InvoicingDbContext context,
         ITenantContext tenantContext,
         IInvoiceNumberGenerator numberGenerator)
