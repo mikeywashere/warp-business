@@ -1,0 +1,102 @@
+{
+  "realm": "warpbusiness",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "sslRequired": "external",
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Full administrative access"
+      },
+      {
+        "name": "manager",
+        "description": "Manager-level access"
+      },
+      {
+        "name": "user",
+        "description": "Standard user access"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "warpbusiness-api",
+      "name": "Warp Business API",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "https://localhost:*/*",
+        "http://localhost:*/*"
+      ],
+      "webOrigins": [
+        "https://localhost:*",
+        "http://localhost:*"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "access.token.lifespan": "900",
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "mikenging@hotmail.com",
+      "email": "mikenging@hotmail.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Michael",
+      "lastName": "Schmidt",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "WooHoo",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "admin",
+        "default-roles-warpbusiness"
+      ]
+    }
+  ]
+}

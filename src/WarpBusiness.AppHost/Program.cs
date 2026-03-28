@@ -7,7 +7,8 @@ var db = postgres.AddDatabase("warpbusiness");
 
 // Keycloak for local dev — only active when AuthProvider:ActiveProvider = Keycloak
 var keycloak = builder.AddKeycloak("keycloak", port: 8080)
-    .WithDataVolume();
+    .WithDataVolume()
+    .WithRealmImport("keycloak");
 
 var api = builder.AddProject<Projects.WarpBusiness_Api>("api")
     .WithReference(db)

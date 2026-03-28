@@ -104,7 +104,7 @@ app.UseAuthorization();
 app.UseCustomModules();
 app.MapControllers();
 
-// Seed roles on startup
+// Seed roles and admin user on startup
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
@@ -112,6 +112,44 @@ using (var scope = app.Services.CreateScope())
     {
         if (!await roleManager.RoleExistsAsync(role))
             await roleManager.CreateAsync(new IdentityRole(role));
+    }
+
+    // Seed default admin user (idempotent — skips if already exists).
+    // Skipped in Test environment to keep test isolation clean.
+    if (!app.Environment.IsEnvironment("Test"))
+    {
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        const string adminEmail = "mikenging@hotmail.com";
+        const string adminPassword = "WooHoo";
+
+        if (await userManager.FindByEmailAsync(adminEmail) is null)
+        {
+            var adminUser = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true,
+                FirstName = "Michael",
+                LastName = "Schmidt",
+                AuthProvider = "Local",
+            };
+
+            // Create without password first, then set hash directly.
+            // "WooHoo" is intentionally a weak seed password — it bypasses the
+            // configured password policy because the user MUST change it on
+            // first Keycloak login (required action: UPDATE_PASSWORD).
+            var result = await userManager.CreateAsync(adminUser);
+            if (result.Succeeded)
+            {
+                adminUser.PasswordHash = userManager.PasswordHasher.HashPassword(adminUser, adminPassword);
+                await userManager.UpdateAsync(adminUser);
+                await userManager.AddToRoleAsync(adminUser, "Admin");
+
+                var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("AdminSeed");
+                logger.LogInformation("Seeded admin user {Email} — password must be changed on first login", adminEmail);
+            }
+        }
     }
 }
 
