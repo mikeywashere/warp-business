@@ -9,6 +9,7 @@ using WarpBusiness.Api.Identity;
 using WarpBusiness.Api.Identity.Tenancy;
 using WarpBusiness.Api.Middleware;
 using WarpBusiness.Api.Plugins;
+using WarpBusiness.Plugin.Catalog;
 using WarpBusiness.Plugin.Crm;
 using WarpBusiness.Plugin.Abstractions;
 
@@ -62,14 +63,16 @@ builder.Services.AddAuthorization(options =>
 var pluginsDir = Path.Combine(builder.Environment.ContentRootPath, "plugins");
 var crmModule = new CrmModule();
 var employeeModule = new WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule();
+var catalogModule = new CatalogModule();
 builder.Services.AddCustomModules(
     builder.Configuration,
     pluginsDir,
-    firstPartyModules: new ICustomModule[] { crmModule, employeeModule });
+    firstPartyModules: new ICustomModule[] { crmModule, employeeModule, catalogModule });
 
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(CrmModule).Assembly)
-    .AddApplicationPart(typeof(WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule).Assembly);
+    .AddApplicationPart(typeof(WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule).Assembly)
+    .AddApplicationPart(typeof(CatalogModule).Assembly);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
