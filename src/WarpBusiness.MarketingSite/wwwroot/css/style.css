@@ -313,6 +313,56 @@ a:hover { opacity: 0.8; }
   opacity: 0.6;
 }
 
+/* ---- HERO RUBBER STAMP ---- */
+.hero__stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  z-index: 3;
+  pointer-events: none;
+  animation: stampSlam 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) 1.2s both;
+}
+
+.hero__stamp-text {
+  display: inline-block;
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 6vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ff2d2d;
+  border: 6px solid #ff2d2d;
+  border-radius: 12px;
+  padding: 0.3em 0.6em;
+  opacity: 0.82;
+  /* Distressed ink texture via mask */
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3Crect width='200' height='200' fill='white' opacity='0.6'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3Crect width='200' height='200' fill='white' opacity='0.6'/%3E%3C/svg%3E");
+  -webkit-mask-size: 200px 200px;
+  mask-size: 200px 200px;
+  text-shadow: 0 0 6px rgba(255, 45, 45, 0.4);
+  box-shadow: 0 0 20px rgba(255, 45, 45, 0.15);
+}
+
+@keyframes stampSlam {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(-30deg) scale(2.5);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-30deg) scale(0.95);
+  }
+  80% {
+    transform: translate(-50%, -50%) rotate(-30deg) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(-30deg) scale(1);
+  }
+}
+
 /* ---- FEATURES ---- */
 .features {
   padding: 6rem 0;
