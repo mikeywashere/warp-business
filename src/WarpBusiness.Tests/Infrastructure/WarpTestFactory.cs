@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using WarpBusiness.Api.Data;
+using WarpBusiness.Plugin.Catalog.Data;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.EmployeeManagement.Data;
 
@@ -22,6 +23,7 @@ public class WarpTestFactory : WebApplicationFactory<Program>
             ReplaceWithInMemory<ApplicationDbContext>(services, "WarpTestDb-" + Guid.NewGuid());
             ReplaceWithInMemory<CrmDbContext>(services, "WarpCrmTestDb-" + Guid.NewGuid());
             ReplaceWithInMemory<EmployeeDbContext>(services, "WarpEmpTestDb-" + Guid.NewGuid());
+            ReplaceWithInMemory<CatalogDbContext>(services, "WarpCatalogTestDb-" + Guid.NewGuid());
 
         });
 
