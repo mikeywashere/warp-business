@@ -201,3 +201,18 @@
 - **Search route placement:** `[HttpGet("search")]` placed before `[HttpGet("{id:guid}")]` in ProductsController to avoid routing conflicts.
 - **Projection pattern:** `SearchProductsAsync` uses a single EF Core Select projection with inline sub-Select for variants — no Include/navigation loading, no round-trips.
 - **Branch:** `feature/catalog-search-and-invoice-prep` — commit ready, no PR yet (waiting for Invoice plugin work).
+
+### 2026-07-02: Invoicing Plugin Implemented
+
+- **Plugin structure:** WarpBusiness.Plugin.Invoicing follows exact same pattern as TimeTracking — Domain/, Data/, Data/EfConfigs/, Data/Migrations/, Services/, Controllers/, InvoicingModule.cs
+- **4 domain entities:** Invoice (root aggregate), InvoiceLineItem, InvoicePayment, InvoiceSettings. All have TenantId with global query filters.
+- **3 enums:** InvoiceStatus (Draft/Sent/Paid/PartiallyPaid/Overdue/Cancelled/Void), LineItemType (Manual/CatalogProduct/TimeEntry), PaymentMethod (Cash/Check/CreditCard/etc.)
+- **Schema isolation:** `invoicing` schema. No cross-schema FKs — loose coupling via denormalized GUIDs and names for CRM, Catalog, and TimeTracking references.
+- **Invoice lifecycle state machine:** Draft→Sent→Paid with PartiallyPaid, Overdue, Cancelled, Void transitions. Only Draft invoices are editable/deletable. Sending requires at least one line item.
+- **Total recalculation:** Persisted subtotal/discount/tax/total/balance fields recalculated on every line item or payment change. Proportional discount applied to taxable vs non-taxable line items for tax calculation.
+- **Invoice number generator:** InvoiceNumberGenerator is internal + scoped. Uses optimistic concurrency retry on InvoiceSettings.NextNumber to prevent duplicates. Auto-creates InvoiceSettings with defaults if none exists.
+- **InvoiceService constructor accessibility:** Made `internal` (not public) because it depends on `internal interface IInvoiceNumberGenerator`. DI resolution works since both are in the same assembly — registered via module's ConfigureServices.
+- **4 controllers:** InvoicesController (`api/invoicing/invoices`), InvoiceLineItemsController (nested under invoices), InvoicePaymentsController (nested under invoices), InvoiceSettingsController (`api/invoicing/settings` with Admin-only auth).
+- **Migration:** Hand-written `20260702010000_AddInvoicingPlugin.cs` with 4 tables, all indexes including unique per-tenant invoice number and unique per-tenant settings row.
+- **DTOs:** 4 DTO files in WarpBusiness.Shared/Invoicing/ including InvoiceSummaryDto for dashboard stats.
+- **Wiring:** Program.cs updated with invoicingModule in firstPartyModules array + AddApplicationPart. Solution file and API csproj updated. WarpTestFactory updated with InvoicingDbContext in-memory replacement.

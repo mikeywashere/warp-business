@@ -114,3 +114,20 @@ All CRM DELETE endpoints now require Admin role. Non-Admin users receive 403 For
 **Code Review Findings (Ripley):**  
 7 critical issues identified: database credentials exposed, IDOR in contact updates, email case-sensitivity, missing AuthProvider on OIDC users, K8s resource limits/probes missing, race condition in refresh token rotation, missing input validation. Tracking in decisions.md for remediation.
 
+### 2026-07-25: Invoice Plugin Integration Tests
+
+**26 integration tests added for WarpBusiness.Plugin.Invoicing:**  
+Covers all 4 controllers (InvoicesController, InvoiceLineItemsController, InvoicePaymentsController, InvoiceSettingsController) plus Catalog product search endpoint. Tests at `src/WarpBusiness.Tests/Invoicing/InvoicingControllerTests.cs`.
+
+**InMemory provider + DbSet.Add vs navigation collection Add:**  
+When adding child entities (e.g., InvoiceLineItem to Invoice), use `_context.ChildDbSet.Add(entity)` instead of `parent.Navigation.Add(entity)`. The InMemory provider throws `DbUpdateConcurrencyException` ("entity does not exist in the store") when a new child is added via the navigation collection and the parent is also Modified. DbSet.Add triggers EF auto-fixup to add the entity to the navigation collection automatically, avoiding the concurrency issue while keeping totals recalculation correct.
+
+**EF auto-fixup causes double-counting in payment/line-item calculations:**  
+When calling `_context.Payments.Add(payment)` where `payment.InvoiceId` matches a tracked Invoice, EF auto-fixup immediately adds the payment to `invoice.Payments`. Code that does `invoice.Payments.Sum() + request.Amount` will double-count because the new payment is already in the collection. Use `invoice.Payments.Where(p => p.Id != newPayment.Id).Sum() + request.Amount` to exclude the just-added entity.
+
+**Internal constructors block DI resolution:**  
+`InvoiceService` had an `internal` constructor and `IInvoiceNumberGenerator` was an `internal` interface/class. The DI container uses reflection from outside the assembly and cannot resolve types with non-public constructors. Both were changed to `public` to enable DI.
+
+**WarpTestFactory must swap InvoicingDbContext:**  
+Added `ReplaceWithInMemory<InvoicingDbContext>(services, "WarpInvoicingTestDb-" + Guid.NewGuid())` and a `<ProjectReference>` to the Invoicing plugin in Tests.csproj. Same pattern as all other plugin DbContexts.
+
