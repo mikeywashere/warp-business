@@ -193,3 +193,11 @@
 - **Migration:** Added unique index on Companies.Name to enforce controlled-vocabulary (prevents duplicates).
 - **API Client:** GetCompanyAsync and SearchCompaniesAsync added to WarpApiClient for Blazor frontend integration.
 - **Status:** ✅ Committed and pushed to main.
+
+### 2026-03-28: Catalog Search Endpoint & Invoice Prep DTOs
+
+- **Search endpoint:** Added `GET /api/catalog/products/search?q={term}&limit={count}` for lightweight autocomplete. Queries only Active products across Name, Sku, Brand. Returns `CatalogItemSearchResult` with inline variant summaries. Default limit 10, max 50.
+- **CatalogItemReference DTO:** Created in `WarpBusiness.Shared/Catalog/` so Invoice (and future plugins) can reference catalog items without depending on the Catalog plugin assembly. Fields: ProductId, ProductName, ProductSku, VariantId?, VariantSku?, UnitPrice, Currency.
+- **Search route placement:** `[HttpGet("search")]` placed before `[HttpGet("{id:guid}")]` in ProductsController to avoid routing conflicts.
+- **Projection pattern:** `SearchProductsAsync` uses a single EF Core Select projection with inline sub-Select for variants — no Include/navigation loading, no round-trips.
+- **Branch:** `feature/catalog-search-and-invoice-prep` — commit ready, no PR yet (waiting for Invoice plugin work).
