@@ -23,4 +23,7 @@ var customerPortal = builder.AddProject<Projects.WarpBusiness_CustomerPortal>("c
     .WithReference(api)
     .WithExternalHttpEndpoints();
 
+builder.AddProject<Projects.WarpBusiness_MarketingSite>("marketing")
+    .WithExternalHttpEndpoints();
+
 builder.Build().Run();
