@@ -19,8 +19,8 @@ public class ActivitiesControllerTests : IClassFixture<WarpTestFactory>
     private async Task<HttpClient> AuthenticateAsync()
     {
         var client = _factory.CreateClient();
-        var token = await AuthHelper.RegisterAndGetTokenAsync(
-            client, $"acts-{Guid.NewGuid()}@example.com");
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(
+            _factory, client, $"acts-{Guid.NewGuid()}@example.com");
         client.SetBearerToken(token);
         return client;
     }
@@ -29,7 +29,8 @@ public class ActivitiesControllerTests : IClassFixture<WarpTestFactory>
     {
         var client = _factory.CreateClient();
         var email = $"acts-admin-{Guid.NewGuid()}@example.com";
-        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, email);
+        client.SetBearerToken(token);
         await AuthHelper.PromoteToAdminAsync(_factory, email);
         var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
         var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
@@ -104,16 +105,17 @@ public class ActivitiesControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
-    public async Task DeleteActivity_ReturnsNoContent_WhenAuthorized()
+    public async Task DeleteActivity_ReturnsForbidden_WhenNonAdmin()
     {
-        // Arrange
+        // Arrange — DELETE requires Admin role
         var client = await AuthenticateAsync();
         var created = await CreateTestActivityAsync(client, "Activity To Delete");
 
         // Act
         var response = await client.DeleteAsync($"api/activities/{created.Id}");
-                // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]

@@ -18,6 +18,7 @@ public class CustomFieldService : ICustomFieldService
         _tenantContext = tenantContext;
     }
 
+#pragma warning disable HAA0301 // Closure allocation is expected for EF Core queries
     public async Task<IReadOnlyList<CustomFieldDefinitionDto>> GetDefinitionsAsync(string entityType, CancellationToken ct = default)
     {
         return await _db.CustomFieldDefinitions
@@ -27,6 +28,7 @@ public class CustomFieldService : ICustomFieldService
             .Select(d => MapDefinitionToDto(d))
             .ToListAsync(ct);
     }
+#pragma warning restore HAA0301
 
     public async Task<CustomFieldDefinitionDto?> GetDefinitionAsync(Guid id, CancellationToken ct = default)
     {

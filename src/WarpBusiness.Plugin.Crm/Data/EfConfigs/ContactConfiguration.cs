@@ -20,5 +20,11 @@ public class ContactConfiguration : IEntityTypeConfiguration<Contact>
             .WithMany(co => co.Contacts)
             .HasForeignKey(c => c.CompanyId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasMany(c => c.EmployeeRelationships)
+            .WithOne(r => r.Contact)
+            .HasForeignKey(r => r.ContactId)
+            .OnDelete(DeleteBehavior.Cascade);
+
     }
 }

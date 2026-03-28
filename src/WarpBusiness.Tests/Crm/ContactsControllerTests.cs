@@ -20,8 +20,8 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
 
     private async Task AuthenticateAsync()
     {
-        var token = await AuthHelper.RegisterAndGetTokenAsync(
-            _client, $"contacts-{Guid.NewGuid()}@example.com");
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(
+            _factory, _client, $"contacts-{Guid.NewGuid()}@example.com");
         _client.SetBearerToken(token);
     }
 
@@ -29,7 +29,8 @@ public class ContactsControllerTests : IClassFixture<WarpTestFactory>
     {
         var client = _factory.CreateClient();
         var email = $"contacts-admin-{Guid.NewGuid()}@example.com";
-        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, email);
+        client.SetBearerToken(token);
         await AuthHelper.PromoteToAdminAsync(_factory, email);
         var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
         var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
