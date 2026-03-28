@@ -164,6 +164,32 @@ public class WarpApiClient(HttpClient httpClient, AuthStateService authState, Na
         return response;
     }
 
+    // Company Image
+    public async Task<(byte[]? Data, string? ContentType)> GetCompanyImageAsync(Guid tenantId)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.GetAsync($"api/tenants/{tenantId}/company-image"));
+        if (!response.IsSuccessStatusCode) return (null, null);
+        var data = await response.Content.ReadAsByteArrayAsync();
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/png";
+        return (data, contentType);
+    }
+
+    public async Task<bool> UploadCompanyImageAsync(Guid tenantId, Stream fileStream, string fileName, string contentType)
+    {
+        using var content = new MultipartFormDataContent();
+        using var streamContent = new StreamContent(fileStream);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+        var response = await SendWithRefreshAsync(() => _httpClient.PutAsync($"api/tenants/{tenantId}/company-image", content));
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> DeleteCompanyImageAsync(Guid tenantId)
+    {
+        var response = await SendWithRefreshAsync(() => _httpClient.DeleteAsync($"api/tenants/{tenantId}/company-image"));
+        return response.IsSuccessStatusCode;
+    }
+
     // Contacts
     public async Task<PagedResult<ContactDto>?> GetContactsAsync(int page = 1, int pageSize = 20, string? search = null)
     {

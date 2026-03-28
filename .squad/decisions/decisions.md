@@ -459,3 +459,84 @@ When an admin deletes a payment and the remaining AmountPaid drops to zero, the 
 - `src/WarpBusiness.Api/WarpBusiness.Api.csproj` — project reference
 - `src/WarpBusiness.slnx` — solution entry
 - `src/WarpBusiness.Tests/Infrastructure/WarpTestFactory.cs` — in-memory DB
+
+---
+
+## 2026-03-28: Tenant Company Image Storage
+
+**Date:** 2026-03-28  
+**Author:** Hicks  
+**Status:** Implemented
+
+### Decision
+
+Store tenant company logos/images as binary data (byte[]) directly in the Tenants table using PostgreSQL's bytea column type.
+
+### Context
+
+The Tenant model needed support for company logos/branding images. Two main approaches considered:
+1. Store binary data directly in the database
+2. Store images in blob storage (S3, Azure Storage) with URLs in the database
+
+### Rationale
+
+**Chose Option 1 (direct database storage) because:**
+- Simple implementation with no external dependencies
+- Images are small (2MB limit) and tenant count is manageable
+- PostgreSQL bytea handles binary data efficiently
+- Eliminates blob storage setup and maintenance complexity
+- Image access inherits database security model
+
+**Trade-offs accepted:**
+- Database size will grow with images (mitigated by 2MB limit)
+- Not suitable for very high-volume scenarios (but acceptable for business management SaaS)
+- Backup size increases (but backups already required for all tenant data)
+
+### Implementation Details
+
+#### Data Model
+- `Tenant.CompanyImage` (byte[], nullable) — raw image bytes
+- `Tenant.CompanyImageContentType` (string, max 100 chars, nullable) — MIME type
+
+#### API Endpoints
+- **PUT /api/tenants/{id}/company-image** — Upload (TenantAdmin only, 2MB limit)
+  - Validates content type: jpeg, png, gif, webp, svg+xml
+  - Returns 400 for invalid files, 204 on success
+- **GET /api/tenants/{id}/company-image** — Download (any tenant member)
+  - Returns image with proper Content-Type header
+  - Returns 404 if no image set
+- **DELETE /api/tenants/{id}/company-image** — Remove (TenantAdmin only)
+
+#### DTOs
+Added `HasCompanyImage` boolean flag to:
+- TenantDetailDto
+- TenantSummaryDto  
+- MyTenantDto
+
+Clients check this flag and fetch images separately via GET endpoint rather than embedding bytes in list/detail responses.
+
+### Future Considerations
+
+If/when we need to support:
+- Larger images (>2MB)
+- High tenant volume (>10,000 tenants)
+- CDN distribution
+- Multiple images per tenant
+
+Then migrate to blob storage with URL references. The DTO pattern (HasCompanyImage flag + separate GET endpoint) will remain compatible.
+
+### Migration
+
+Created `AddTenantCompanyImage` migration:
+```sql
+ALTER TABLE "Tenants" ADD COLUMN "CompanyImage" bytea NULL;
+ALTER TABLE "Tenants" ADD COLUMN "CompanyImageContentType" varchar(100) NULL;
+```
+
+### Related Files
+
+- `src/WarpBusiness.Api/Identity/Tenancy/Tenant.cs`
+- `src/WarpBusiness.Api/Data/Configurations/TenantConfiguration.cs`
+- `src/WarpBusiness.Api/Controllers/TenantsController.cs`
+- `src/WarpBusiness.Shared/Auth/TenantDtos.cs`
+- `src/WarpBusiness.Api/Data/Migrations/20260328083400_AddTenantCompanyImage.cs`
