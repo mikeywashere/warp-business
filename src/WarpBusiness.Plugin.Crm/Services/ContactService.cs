@@ -11,12 +11,18 @@ public class ContactService : IContactService
     private readonly CrmDbContext _db;
     private readonly ICustomFieldService _customFields;
     private readonly ITenantContext _tenantContext;
+    private readonly IContactEmployeeRelationshipService _relationships;
 
-    public ContactService(CrmDbContext db, ICustomFieldService customFields, ITenantContext tenantContext)
+    public ContactService(
+        CrmDbContext db,
+        ICustomFieldService customFields,
+        ITenantContext tenantContext,
+        IContactEmployeeRelationshipService relationships)
     {
         _db = db;
         _customFields = customFields;
         _tenantContext = tenantContext;
+        _relationships = relationships;
     }
 
     public async Task<PagedResult<ContactDto>> GetContactsAsync(int page, int pageSize, string? search, CancellationToken ct = default)
@@ -58,6 +64,8 @@ public class ContactService : IContactService
         var valuesByContact = allValues.GroupBy(v => v.ContactId)
             .ToDictionary(g => g.Key, g => g.ToDictionary(v => v.FieldDefinitionId));
 
+        var relationshipLookup = await _relationships.GetRelationshipsByContactIdsAsync(contactIds, ct);
+
         var items = contacts.Select(c =>
         {
             valuesByContact.TryGetValue(c.Id, out var contactValues);
@@ -68,10 +76,8 @@ public class ContactService : IContactService
                     DeserializeOptions(d.SelectOptions), d.IsRequired, val);
             }).ToList();
 
-            return new ContactDto(c.Id, c.FirstName, c.LastName, c.FullName,
-                c.Email, c.Phone, c.JobTitle,
-                c.CompanyId, c.Company?.Name,
-                c.Status.ToString(), c.CreatedAt, customFields);
+            relationshipLookup.TryGetValue(c.Id, out var relationships);
+            return MapToDto(c, customFields, relationships ?? Array.Empty<ContactEmployeeRelationshipDto>());
         }).ToList();
 
         return new PagedResult<ContactDto>(items, totalCount, page, pageSize);
@@ -87,7 +93,8 @@ public class ContactService : IContactService
         if (contact is null) return null;
 
         var customFields = await _customFields.GetValuesForContactAsync(id, ct);
-        return MapToDto(contact, customFields);
+        var relationships = await _relationships.GetRelationshipsForContactAsync(id, ct);
+        return MapToDto(contact, customFields, relationships);
     }
 
     public async Task<ContactDto?> GetContactByEmailAsync(string email, CancellationToken ct = default)
@@ -100,7 +107,8 @@ public class ContactService : IContactService
         if (contact is null) return null;
 
         var customFields = await _customFields.GetValuesForContactAsync(contact.Id, ct);
-        return MapToDto(contact, customFields);
+        var relationships = await _relationships.GetRelationshipsForContactAsync(contact.Id, ct);
+        return MapToDto(contact, customFields, relationships);
     }
 
     public async Task<ContactDto> CreateContactAsync(CreateContactRequest request, string userId, CancellationToken ct = default)
@@ -157,11 +165,14 @@ public class ContactService : IContactService
         return true;
     }
 
-    private static ContactDto MapToDto(Contact c, IReadOnlyList<CustomFieldValueDto> customFields) =>
+    private static ContactDto MapToDto(
+        Contact c,
+        IReadOnlyList<CustomFieldValueDto> customFields,
+        IReadOnlyList<ContactEmployeeRelationshipDto> relationships) =>
         new(c.Id, c.FirstName, c.LastName, c.FullName,
             c.Email, c.Phone, c.JobTitle,
             c.CompanyId, c.Company?.Name,
-            c.Status.ToString(), c.CreatedAt, customFields);
+            c.Status.ToString(), c.CreatedAt, customFields, relationships);
 
     private static string[]? DeserializeOptions(string? json)
     {

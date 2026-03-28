@@ -113,7 +113,7 @@ public class RefreshTokenTests : IClassFixture<WarpTestFactory>
         var client = _factory.CreateClient();
         var email = "contact-me@example.com";
         
-        var token = await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, email);
         client.SetBearerToken(token);
 
         // Create a contact with the same email
@@ -144,7 +144,7 @@ public class RefreshTokenTests : IClassFixture<WarpTestFactory>
     {
         // Arrange
         var client = _factory.CreateClient();
-        var token = await AuthHelper.RegisterAndGetTokenAsync(client, "no-contact@example.com");
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, "no-contact@example.com");
         client.SetBearerToken(token);
 
         // Act — no contact created for this email

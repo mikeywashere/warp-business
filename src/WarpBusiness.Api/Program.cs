@@ -87,7 +87,8 @@ app.MapDefaultEndpoints();
 if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsEnvironment("Test"))
+    app.UseHttpsRedirection();
 app.UseTenantResolution();
 app.UseAuthentication();
 app.UseAuthorization();

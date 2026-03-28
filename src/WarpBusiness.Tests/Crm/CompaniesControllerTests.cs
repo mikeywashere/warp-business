@@ -20,7 +20,7 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
     {
         var client = _factory.CreateClient();
         email ??= $"co-{Guid.NewGuid()}@example.com";
-        var token = await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, email);
         client.SetBearerToken(token);
         return (client, token);
     }
@@ -29,7 +29,8 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
     {
         var client = _factory.CreateClient();
         var email = $"co-admin-{Guid.NewGuid()}@example.com";
-        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, email);
+        client.SetBearerToken(token);
         await AuthHelper.PromoteToAdminAsync(_factory, email);
         var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
         var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
@@ -95,7 +96,6 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var company = await response.Content.ReadFromJsonAsync<CompanyDto>();
-        var companyDetail = await response.Content.ReadFromJsonAsync<CompanyDetailDto>();
 
         company!.Id.Should().Be(created.Id);
         company.Name.Should().Be("Globex Inc");
@@ -149,17 +149,17 @@ public class CompaniesControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
-    public async Task DeleteCompany_ReturnsNoContent_WhenAuthenticated()
+    public async Task DeleteCompany_ReturnsForbidden_WhenNonAdmin()
     {
-        // Arrange — any authenticated user can delete (no role restriction on this endpoint)
+        // Arrange — DELETE requires Admin role
         var (client, _) = await AuthenticateAsync();
         var created = await CreateTestCompanyAsync(client, "Delete Me Corp");
 
         // Act
         var response = await client.DeleteAsync($"api/companies/{created.Id}");
 
-                // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]

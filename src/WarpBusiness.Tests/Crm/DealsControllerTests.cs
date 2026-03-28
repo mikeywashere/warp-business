@@ -19,8 +19,8 @@ public class DealsControllerTests : IClassFixture<WarpTestFactory>
     private async Task<HttpClient> AuthenticateAsync()
     {
         var client = _factory.CreateClient();
-        var token = await AuthHelper.RegisterAndGetTokenAsync(
-            client, $"deals-{Guid.NewGuid()}@example.com");
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(
+            _factory, client, $"deals-{Guid.NewGuid()}@example.com");
         client.SetBearerToken(token);
         return client;
     }
@@ -29,7 +29,8 @@ public class DealsControllerTests : IClassFixture<WarpTestFactory>
     {
         var client = _factory.CreateClient();
         var email = $"deals-admin-{Guid.NewGuid()}@example.com";
-        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, email);
+        client.SetBearerToken(token);
         await AuthHelper.PromoteToAdminAsync(_factory, email);
         var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
         var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();
@@ -136,9 +137,9 @@ public class DealsControllerTests : IClassFixture<WarpTestFactory>
     }
 
     [Fact]
-    public async Task DeleteDeal_ReturnsNoContent_WhenAuthorized()
+    public async Task DeleteDeal_ReturnsForbidden_WhenNonAdmin()
     {
-        // Arrange
+        // Arrange — DELETE requires Admin role
         var client = await AuthenticateAsync();
         var created = await CreateTestDealAsync(client, "Deal To Delete");
 
@@ -146,7 +147,7 @@ public class DealsControllerTests : IClassFixture<WarpTestFactory>
         var response = await client.DeleteAsync($"api/deals/{created.Id}");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact]

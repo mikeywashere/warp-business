@@ -23,6 +23,8 @@ public class CrmDbContext : DbContext
     public DbSet<Activity> Activities => Set<Activity>();
     public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
     public DbSet<CustomFieldValue> CustomFieldValues => Set<CustomFieldValue>();
+    public DbSet<ContactEmployeeRelationship> ContactEmployeeRelationships => Set<ContactEmployeeRelationship>();
+    public DbSet<ContactEmployeeRelationshipType> ContactEmployeeRelationshipTypes => Set<ContactEmployeeRelationshipType>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,5 +42,9 @@ public class CrmDbContext : DbContext
             .HasQueryFilter(a => a.TenantId == _tenantContext.TenantId);
         modelBuilder.Entity<CustomFieldDefinition>()
             .HasQueryFilter(f => f.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<ContactEmployeeRelationship>()
+            .HasQueryFilter(r => r.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<ContactEmployeeRelationshipType>()
+            .HasQueryFilter(t => t.TenantId == _tenantContext.TenantId);
     }
 }

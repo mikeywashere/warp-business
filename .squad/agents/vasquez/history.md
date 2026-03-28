@@ -338,3 +338,22 @@ ew AuthResponse(result.AccessToken, ...).
 - POST /api/auth/select-tenant didn't exist at implementation time — Auth team will add it. Frontend handles failure gracefully (falls through to /).
 - Route /settings/workspace uses [Authorize(Roles = "TenantAdmin")]. Always check role names match backend exactly.
 - CSS: tenant-card hover + tenant-avatar classes added to global pp.css.
+
+
+### 2026-03-27 — Coming Soon Section
+
+**Task:** Added 'Coming Soon!' callout to marketing landing page between plugin carousel and stats section.
+
+**Implementation:**
+- Inserted new `.coming-soon` section in `index.html` with semantic markup: badge, headline, description, tagline
+- Used `aria-hidden='true'` on decorative badge element for accessibility
+- Styled in `style.css` with dark palette, Orbitron headings, accent gradient border, and pulsing glow animation
+- Applied responsive spacing matching existing sections (5rem padding, max-width 680px)
+- Animation: reveal-on-scroll (`revealUp`) + continuous pulse (`comingSoonPulse`) on badge
+- Text: 'More Plugins Launching Soon' with ecosystem growth messaging and 'Business at Warp Speed' tagline
+
+**Patterns:**
+- Single-responsibility section: one focused callout, no extra features
+- Accessibility: semantic HTML, aria attributes on decorative elements
+- Theme consistency: uses existing CSS custom properties, Orbitron + Inter fonts, accent gradients
+- Mobile-responsive by default with clamp() and proper container constraints

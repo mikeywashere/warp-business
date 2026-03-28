@@ -19,8 +19,8 @@ public class EmployeesControllerTests : IClassFixture<WarpTestFactory>
     private async Task<HttpClient> AuthenticateAsync()
     {
         var client = _factory.CreateClient();
-        var token = await AuthHelper.RegisterAndGetTokenAsync(
-            client, $"emp-user-{Guid.NewGuid()}@example.com");
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(
+            _factory, client, $"emp-user-{Guid.NewGuid()}@example.com");
         client.SetBearerToken(token);
         return client;
     }
@@ -29,7 +29,8 @@ public class EmployeesControllerTests : IClassFixture<WarpTestFactory>
     {
         var client = _factory.CreateClient();
         var email = $"emp-admin-{Guid.NewGuid()}@example.com";
-        await AuthHelper.RegisterAndGetTokenAsync(client, email);
+        var token = await AuthHelper.RegisterAndGetTenantTokenAsync(_factory, client, email);
+        client.SetBearerToken(token);
         await AuthHelper.PromoteToAdminAsync(_factory, email);
         var loginResponse = await client.PostAsJsonAsync("api/auth/login", new LoginRequest(email, "Test1234!"));
         var auth = await loginResponse.Content.ReadFromJsonAsync<AuthResponse>();

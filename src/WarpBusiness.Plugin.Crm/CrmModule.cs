@@ -26,6 +26,7 @@ public class CrmModule : ICustomModule
         services.AddDbContext<CrmDbContext>(options => options.UseNpgsql(connStr));
         services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IContactService, ContactService>();
+        services.AddScoped<IContactEmployeeRelationshipService, ContactEmployeeRelationshipService>();
         services.AddScoped<ICompanyService, CompanyService>();
         services.AddScoped<IDealService, DealService>();
         services.AddScoped<IActivityService, ActivityService>();

@@ -193,6 +193,118 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
                     b.ToTable("Contacts", "crm");
                 });
 
+            modelBuilder.Entity("WarpBusiness.Plugin.Crm.Domain.ContactEmployeeRelationshipType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Name")
+                        .IsUnique();
+
+                    b.HasMany("WarpBusiness.Plugin.Crm.Domain.ContactEmployeeRelationship", "Relationships")
+                        .WithOne("RelationshipType")
+                        .HasForeignKey("RelationshipTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.ToTable("ContactEmployeeRelationshipTypes", "crm");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Plugin.Crm.Domain.ContactEmployeeRelationship", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ContactId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("character varying(450)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EmployeeName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("EmployeeEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("RelationshipTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("RelationshipTypeId");
+
+                    b.HasIndex("ContactId", "EmployeeId", "RelationshipTypeId")
+                        .IsUnique();
+
+                    b.HasOne("WarpBusiness.Plugin.Crm.Domain.Contact", "Contact")
+                        .WithMany("EmployeeRelationships")
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("WarpBusiness.Plugin.Crm.Domain.ContactEmployeeRelationshipType", "RelationshipType")
+                        .WithMany("Relationships")
+                        .HasForeignKey("RelationshipTypeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.ToTable("ContactEmployeeRelationships", "crm");
+                });
+
             modelBuilder.Entity("WarpBusiness.Plugin.Crm.Domain.CustomFieldDefinition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -424,6 +536,8 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
                     b.Navigation("CustomFieldValues");
 
                     b.Navigation("Deals");
+
+                    b.Navigation("EmployeeRelationships");
                 });
 
             modelBuilder.Entity("WarpBusiness.Plugin.Crm.Domain.CustomFieldDefinition", b =>
@@ -434,6 +548,18 @@ namespace WarpBusiness.Plugin.Crm.Data.Migrations
             modelBuilder.Entity("WarpBusiness.Plugin.Crm.Domain.Deal", b =>
                 {
                     b.Navigation("Activities");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Plugin.Crm.Domain.ContactEmployeeRelationshipType", b =>
+                {
+                    b.Navigation("Relationships");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Plugin.Crm.Domain.ContactEmployeeRelationship", b =>
+                {
+                    b.Navigation("Contact");
+ 
+                    b.Navigation("RelationshipType");
                 });
 #pragma warning restore 612, 618
         }

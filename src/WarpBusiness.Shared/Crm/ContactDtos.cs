@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace WarpBusiness.Shared.Crm;
@@ -14,7 +15,8 @@ public record ContactDto(
     string? CompanyName,
     string Status,
     DateTimeOffset CreatedAt,
-    IReadOnlyList<CustomFieldValueDto> CustomFields);
+    IReadOnlyList<CustomFieldValueDto> CustomFields,
+    IReadOnlyList<ContactEmployeeRelationshipDto> Relationships);
 
 public record CreateContactRequest(
     [Required, MaxLength(100)] string FirstName,
