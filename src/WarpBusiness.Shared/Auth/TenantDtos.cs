@@ -10,7 +10,8 @@ public record MyTenantDto(
     Guid Id,
     string Name,
     string Slug,
-    string Role);
+    string Role,
+    bool HasCompanyImage = false);
 
 /// <summary>Returned by GET /api/tenants/mine (TenantsController).</summary>
 public record TenantSummaryDto(
@@ -19,7 +20,8 @@ public record TenantSummaryDto(
     string Slug,
     string Role,
     bool IsActive = true,
-    DateTimeOffset JoinedAt = default);
+    DateTimeOffset JoinedAt = default,
+    bool HasCompanyImage = false);
 
 /// <summary>Returned by GET /api/tenants/{id} — full detail with member list.</summary>
 public record TenantDetailDto(
@@ -30,7 +32,8 @@ public record TenantDetailDto(
     bool IsActive,
     DateTimeOffset CreatedAt,
     DateTimeOffset? UpdatedAt,
-    IReadOnlyList<TenantMemberDto> Members);
+    IReadOnlyList<TenantMemberDto> Members,
+    bool HasCompanyImage = false);
 
 /// <summary>Member entry within TenantDetailDto.</summary>
 public record TenantMemberDto(

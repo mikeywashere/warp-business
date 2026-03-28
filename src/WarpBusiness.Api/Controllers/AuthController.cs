@@ -302,7 +302,8 @@ public class AuthController : ControllerBase
                 ut.Tenant.Id,
                 ut.Tenant.Name,
                 ut.Tenant.Slug,
-                ut.Role))
+                ut.Role,
+                ut.Tenant.CompanyImage != null))
             .ToListAsync();
 
         return Ok(tenants);
@@ -325,9 +326,6 @@ public class AuthController : ControllerBase
 }
 
 // ── Request / Response DTOs ──────────────────────────────────────────────────
-
-/// <summary>Tenant entry returned by GET /api/auth/my-tenants.</summary>
-public record MyTenantDto(Guid TenantId, string Name, string Slug, string Role);
 
 /// <summary>Request body for POST /api/auth/select-tenant.</summary>
 public record SelectTenantRequest(Guid TenantId);
