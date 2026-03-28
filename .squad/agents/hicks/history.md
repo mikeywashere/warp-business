@@ -216,3 +216,13 @@
 - **Migration:** Hand-written `20260702010000_AddInvoicingPlugin.cs` with 4 tables, all indexes including unique per-tenant invoice number and unique per-tenant settings row.
 - **DTOs:** 4 DTO files in WarpBusiness.Shared/Invoicing/ including InvoiceSummaryDto for dashboard stats.
 - **Wiring:** Program.cs updated with invoicingModule in firstPartyModules array + AddApplicationPart. Solution file and API csproj updated. WarpTestFactory updated with InvoicingDbContext in-memory replacement.
+### 2026-03-28: Tenant Company Image Feature
+
+- **Binary storage pattern:** PostgreSQL bytea column for CompanyImage (byte[]). No max length constraint on bytea — PostgreSQL handles large binary data efficiently. CompanyImageContentType is varchar(100) for MIME type storage.
+- **DTO flag pattern:** Added HasCompanyImage boolean flag to DTOs (TenantDetailDto, TenantSummaryDto, MyTenantDto) rather than sending raw bytes. Clients fetch the image separately via GET endpoint.
+- **Image upload endpoint:** PUT /api/tenants/{id}/company-image accepts IFormFile (multipart/form-data). Validates content type (jpeg/png/gif/webp/svg+xml), enforces 2MB max size. Returns 400 for invalid file, 204 on success.
+- **Image download endpoint:** GET /api/tenants/{id}/company-image returns File(bytes, contentType). Accessible to any authenticated tenant member (not just TenantAdmin). Returns 404 if no image set.
+- **Authorization pattern:** Upload and delete require TenantAdmin role via IsUserInTenant helper. Download only requires tenant membership check (any member can view).
+- **DTO refactoring:** Moved duplicate DTOs from TenantsController to WarpBusiness.Shared/Auth/TenantDtos.cs. Tests updated to use Shared namespace. Only controller-internal request DTOs (AddMemberRequest, ChangeMemberRoleRequest) remain in controller file.
+- **Record parameter defaults:** When adding fields to record DTOs, use default parameter syntax to avoid breaking existing code: public record MyTenantDto(..., bool HasCompanyImage = false).
+- **EF migration naming:** dotnet ef migrations add <Name> from within the project directory generates timestamped migration files. Migration captured both Tenant changes AND pending RefreshToken.ActiveTenantId change from other work.

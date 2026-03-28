@@ -238,6 +238,23 @@
 
 **Convention captured:** New plugins must be added to the `plugins` array in `js/main.js`. Sample plugin excluded (developer scaffold only). Decision written to `.squad/decisions/inbox/vasquez-plugin-showcase-reminder.md`.
 
+### 2026-03-27: Tenant Self-Maintenance UI — DisplayName + Company Image
+
+**TenantAdmin.razor General Tab Enhancements:**
+- Added `DisplayName` field to GeneralEditModel with `MaxLength(200)` validation
+- `SaveGeneralAsync` now passes `DisplayName` through `UpdateTenantRequest(Name, DisplayName)` — empty string coerced to null
+- Company Image card below General Information: shows current image (data URI from API), upload with preview, replace, delete with confirmation
+- Image loaded via `GetCompanyImageAsync` → base64 data URI (required because API uses bearer token auth — can't use raw `<img src>` to an authenticated endpoint)
+- File validation: 2 MB max, JPEG/PNG/GIF/WebP; `InputFile` component with `accept` attribute for browser filtering
+- Preview before upload: file read to MemoryStream → base64 data URI shown in bordered preview area
+- Delete confirmation pattern matches member removal pattern (inline confirm/cancel buttons)
+
+**WarpApiClient Additions (company image):**
+- `GetCompanyImageAsync(Guid tenantId)` → `(byte[]?, string?)` tuple; uses `SendWithRefreshAsync`
+- `UploadCompanyImageAsync(Guid tenantId, Stream, string fileName, string contentType)` → bool; `MultipartFormDataContent` with `StreamContent`
+- `DeleteCompanyImageAsync(Guid tenantId)` → bool; DELETE via `SendWithRefreshAsync`
+
+**Key Pattern:** Authenticated image display uses data URIs (base64) because `<img src>` doesn't send bearer tokens. Image bytes fetched through the API client with auth handling, then converted to `data:{contentType};base64,{data}` for rendering.
 
 
 **NavMenu.razor cleanup:**
