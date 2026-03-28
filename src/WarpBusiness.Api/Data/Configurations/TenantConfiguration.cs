@@ -12,6 +12,7 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.Name).IsRequired().HasMaxLength(200);
         builder.Property(t => t.Slug).IsRequired().HasMaxLength(63);
         builder.Property(t => t.DisplayName).HasMaxLength(200);
+        builder.Property(t => t.CompanyImageContentType).HasMaxLength(100);
         // Slug must be globally unique (used as subdomain)
         builder.HasIndex(t => t.Slug).IsUnique();
 

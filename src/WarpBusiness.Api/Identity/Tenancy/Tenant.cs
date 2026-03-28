@@ -10,6 +10,9 @@ public class Tenant
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
 
+    public byte[]? CompanyImage { get; set; }
+    public string? CompanyImageContentType { get; set; }
+
     public TenantSamlConfig? SamlConfig { get; set; }
     public ICollection<UserTenant> UserTenants { get; set; } = [];
 }

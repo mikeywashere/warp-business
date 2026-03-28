@@ -105,7 +105,8 @@ public class TenantsController : ControllerBase
                 ut.Tenant.Slug,
                 ut.Role,
                 ut.Tenant.IsActive,
-                ut.JoinedAt))
+                ut.JoinedAt,
+                ut.Tenant.CompanyImage != null))
             .ToListAsync(ct);
 
         return Ok(tenants);
@@ -132,7 +133,8 @@ public class TenantsController : ControllerBase
             tenant.IsActive,
             tenant.CreatedAt,
             tenant.UpdatedAt,
-            tenant.UserTenants.Select(ut => new TenantMemberDto(ut.UserId, ut.Role, ut.JoinedAt)).ToList()));
+            tenant.UserTenants.Select(ut => new TenantMemberDto(ut.UserId, ut.Role, ut.JoinedAt)).ToList(),
+            tenant.CompanyImage != null));
     }
 
     /// <summary>PUT /api/tenants/{id} — update tenant (TenantAdmin only)</summary>
@@ -218,6 +220,87 @@ public class TenantsController : ControllerBase
         if (userTenant is null) return NotFound();
 
         userTenant.Role = request.Role;
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    // ── Company Image Endpoints ─────────────────────────────────────────────
+
+    /// <summary>PUT /api/tenants/{id}/company-image — upload company image (TenantAdmin only)</summary>
+    [HttpPut("{id:guid}/company-image")]
+    public async Task<IActionResult> UploadCompanyImage(
+        Guid id,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        if (!await IsUserInTenant(id, "TenantAdmin")) return Forbid();
+
+        if (file == null || file.Length == 0)
+            return BadRequest(new { error = "No file uploaded." });
+
+        // Validate size (2MB max)
+        const int maxSizeBytes = 2 * 1024 * 1024;
+        if (file.Length > maxSizeBytes)
+            return BadRequest(new { error = "File size exceeds 2MB limit." });
+
+        // Validate content type
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml" };
+        if (!allowedTypes.Contains(file.ContentType))
+            return BadRequest(new { error = "Invalid image type. Allowed: jpeg, png, gif, webp, svg+xml." });
+
+        var tenant = await _db.Tenants.FindAsync([id], ct);
+        if (tenant is null) return NotFound();
+
+        // Read file bytes
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms, ct);
+        
+        tenant.CompanyImage = ms.ToArray();
+        tenant.CompanyImageContentType = file.ContentType;
+        tenant.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>GET /api/tenants/{id}/company-image — download company image</summary>
+    [HttpGet("{id:guid}/company-image")]
+    public async Task<IActionResult> GetCompanyImage(Guid id, CancellationToken ct)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
+        // Check if user is a member of this tenant
+        var isMember = await _db.UserTenants.AnyAsync(
+            ut => ut.UserId == userId && ut.TenantId == id, ct);
+        
+        if (!isMember) return Forbid();
+
+        var tenant = await _db.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == id, ct);
+
+        if (tenant is null) return NotFound();
+
+        if (tenant.CompanyImage is null || tenant.CompanyImageContentType is null)
+            return NotFound(new { error = "No company image set for this tenant." });
+
+        return File(tenant.CompanyImage, tenant.CompanyImageContentType);
+    }
+
+    /// <summary>DELETE /api/tenants/{id}/company-image — remove company image (TenantAdmin only)</summary>
+    [HttpDelete("{id:guid}/company-image")]
+    public async Task<IActionResult> DeleteCompanyImage(Guid id, CancellationToken ct)
+    {
+        if (!await IsUserInTenant(id, "TenantAdmin")) return Forbid();
+
+        var tenant = await _db.Tenants.FindAsync([id], ct);
+        if (tenant is null) return NotFound();
+
+        tenant.CompanyImage = null;
+        tenant.CompanyImageContentType = null;
+        tenant.UpdatedAt = DateTimeOffset.UtcNow;
+
         await _db.SaveChangesAsync(ct);
         return NoContent();
     }
@@ -310,57 +393,8 @@ public class TenantsController : ControllerBase
 
 // ── Request / Response DTOs ──────────────────────────────────────────────────
 
-public record TenantSignupRequest(
-    [Required, MaxLength(200)] string CompanyName,
-    [Required, MaxLength(63), MinLength(3)] string Slug);
-
-public record TenantSignupResponse(
-    Guid TenantId,
-    string Name,
-    string Slug,
-    string Role,
-    string AccessToken);
-
-public record TenantSummaryDto(
-    Guid TenantId,
-    string Name,
-    string Slug,
-    string Role,
-    bool IsActive,
-    DateTimeOffset JoinedAt);
-
-public record TenantDetailDto(
-    Guid TenantId,
-    string Name,
-    string Slug,
-    string? DisplayName,
-    bool IsActive,
-    DateTimeOffset CreatedAt,
-    DateTimeOffset? UpdatedAt,
-    IReadOnlyList<TenantMemberDto> Members);
-
-public record TenantMemberDto(string UserId, string Role, DateTimeOffset JoinedAt);
-
-public record UpdateTenantRequest(
-    [Required, MaxLength(200)] string Name,
-    [MaxLength(200)] string? DisplayName);
-
 public record AddMemberRequest(
     [Required, EmailAddress] string Email,
     string? Role);
 
 public record ChangeMemberRoleRequest([Required] string Role);
-
-/// <summary>SAML configuration details returned by GET /api/tenants/{id}/saml.</summary>
-public record SamlConfigDto(
-    Guid TenantId,
-    string? EntityId,
-    string? MetadataUrl,
-    string? SsoUrl,
-    string? Certificate,
-    bool IsEnabled);
-
-/// <summary>Request body for PUT /api/tenants/{id}/saml.</summary>
-public record SaveSamlConfigRequest(
-    [Required, MaxLength(500)] string EntityId,
-    [Required, MaxLength(2000)] string MetadataUrl);

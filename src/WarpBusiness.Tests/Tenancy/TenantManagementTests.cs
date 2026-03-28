@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
+using WarpBusiness.Shared.Auth;
 using WarpBusiness.Api.Controllers;
 
 namespace WarpBusiness.Tests.Tenancy;
