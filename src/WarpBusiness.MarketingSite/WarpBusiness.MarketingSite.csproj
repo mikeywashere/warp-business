@@ -7,4 +7,8 @@
     <RootNamespace>WarpBusiness.MarketingSite</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\WarpBusiness.ServiceDefaults\WarpBusiness.ServiceDefaults.csproj" />
+  </ItemGroup>
+
 </Project>
