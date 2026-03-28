@@ -21,7 +21,11 @@ builder.AddServiceDefaults();
 
 // Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("warpbusiness")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("warpbusiness"),
+        npgsql => npgsql.EnableRetryOnFailure(
+            maxRetryCount: 6,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorCodesToAdd: null)));
 
 // Identity
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -88,7 +92,24 @@ if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await db.Database.MigrateAsync();
+    var migrationLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("EFMigrations");
+    const int maxRetries = 10;
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
+    {
+        try
+        {
+            await db.Database.MigrateAsync();
+            migrationLogger.LogInformation("ApplicationDbContext migrations applied successfully.");
+            break;
+        }
+        catch (Exception ex) when (attempt < maxRetries)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Pow(2, Math.Min(attempt, 5)));
+            migrationLogger.LogWarning(ex, "Migration attempt {Attempt}/{Max} failed. Retrying in {Delay}s...",
+                attempt, maxRetries, delay.TotalSeconds);
+            await Task.Delay(delay);
+        }
+    }
 }
 
 app.MapDefaultEndpoints();

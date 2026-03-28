@@ -129,6 +129,30 @@ Performed comprehensive analysis of authentication and authorization implication
 
 **Tech Stack Fit:** Multi-provider OIDC architecture (already implemented) supports all three tenancy strategies without refactoring. `ExternalIdentityMapper.EnsureUserAsync` is natural injection point for tenant assignment from IdP claims. Refresh token rotation (already implemented) works with tenant-scoped sessions (no changes needed).
 
+### 2026-03-27: Admin User Seeding (ASP.NET Identity + Keycloak)
+
+Implemented idempotent admin user seeding across both identity stores.
+
+**ASP.NET Identity (Program.cs):**
+- Seeds `mikenging@hotmail.com` with Admin role on every startup (skips if user exists)
+- Password hash set directly via `PasswordHasher.HashPassword()` bypassing validators — "WooHoo" doesn't meet the configured policy (8 chars, digit required) but is intentionally weak as a temporary seed password
+- Skipped in `Test` environment (via `app.Environment.IsEnvironment("Test")`) to preserve test isolation — the `DeleteUser_LastAdmin_ReturnsConflict` test depends on exact admin count
+- User created with `EmailConfirmed = true` so login works immediately
+
+**Keycloak Realm Import:**
+- Created `src/WarpBusiness.AppHost/keycloak/warpbusiness-realm.json` with full realm config
+- Realm: `warpbusiness`, Client: `warpbusiness-api` (public, PKCE, direct-access grants)
+- Admin user with `temporary: true` credential — Keycloak forces UPDATE_PASSWORD on first login
+- Role mapper exposes realm roles in JWT `roles` claim for ExternalIdentityMapper compatibility
+- Wired into AppHost via `.WithRealmImport("keycloak")` on the Keycloak resource
+
+**Security Notes:**
+- Password "WooHoo" is weak by design — must be changed on first Keycloak login
+- ASP.NET Identity side has no built-in "force password change" mechanism; consider adding `MustChangePassword` flag to ApplicationUser if Local provider needs this
+- Seed runs in all environments except Test — production bootstrap needs this admin to exist
+
+**Key Files:** `src/WarpBusiness.Api/Program.cs` (lines 117-153), `src/WarpBusiness.AppHost/Program.cs` (line 11), `src/WarpBusiness.AppHost/keycloak/warpbusiness-realm.json`
+
 ### 2026-03-27: Multi-Tenancy Auth Layer Implementation
 
 Implemented the full auth layer for multi-tenancy. Key patterns and decisions:

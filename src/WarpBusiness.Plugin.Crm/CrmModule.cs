@@ -23,7 +23,11 @@ public class CrmModule : ICustomModule
             ?? configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("A connection string (warpbusiness or DefaultConnection) is required for the CRM plugin.");
 
-        services.AddDbContext<CrmDbContext>(options => options.UseNpgsql(connStr));
+        services.AddDbContext<CrmDbContext>(options => options.UseNpgsql(connStr,
+            npgsql => npgsql.EnableRetryOnFailure(
+                maxRetryCount: 6,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorCodesToAdd: null)));
         services.AddScoped<ICustomFieldService, CustomFieldService>();
         services.AddScoped<IContactService, ContactService>();
         services.AddScoped<IContactEmployeeRelationshipService, ContactEmployeeRelationshipService>();
@@ -37,14 +41,26 @@ public class CrmModule : ICustomModule
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CrmDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<CrmModule>>();
-        try
+        const int maxRetries = 10;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            db.Database.Migrate();
-            logger.LogInformation("CRM plugin: database migration applied.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "CRM plugin: migration failed.");
+            try
+            {
+                db.Database.Migrate();
+                logger.LogInformation("CRM plugin: database migration applied.");
+                break;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, Math.Min(attempt, 5)));
+                logger.LogWarning(ex, "CRM plugin: migration attempt {Attempt}/{Max} failed. Retrying in {Delay}s...",
+                    attempt, maxRetries, delay.TotalSeconds);
+                Thread.Sleep(delay);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "CRM plugin: migration failed after {Max} attempts.", maxRetries);
+            }
         }
     }
 

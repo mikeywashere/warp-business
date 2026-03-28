@@ -23,7 +23,11 @@ public class CatalogModule : ICustomModule
             ?? configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("A connection string (warpbusiness or DefaultConnection) is required for the Catalog plugin.");
 
-        services.AddDbContext<CatalogDbContext>(options => options.UseNpgsql(connStr));
+        services.AddDbContext<CatalogDbContext>(options => options.UseNpgsql(connStr,
+            npgsql => npgsql.EnableRetryOnFailure(
+                maxRetryCount: 6,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorCodesToAdd: null)));
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IProductImageService, ProductImageService>();
@@ -36,14 +40,26 @@ public class CatalogModule : ICustomModule
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<CatalogModule>>();
-        try
+        const int maxRetries = 10;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            db.Database.Migrate();
-            logger.LogInformation("Catalog plugin: database migration applied.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Catalog plugin: migration failed.");
+            try
+            {
+                db.Database.Migrate();
+                logger.LogInformation("Catalog plugin: database migration applied.");
+                break;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, Math.Min(attempt, 5)));
+                logger.LogWarning(ex, "Catalog plugin: migration attempt {Attempt}/{Max} failed. Retrying in {Delay}s...",
+                    attempt, maxRetries, delay.TotalSeconds);
+                Thread.Sleep(delay);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Catalog plugin: migration failed after {Max} attempts.", maxRetries);
+            }
         }
     }
 

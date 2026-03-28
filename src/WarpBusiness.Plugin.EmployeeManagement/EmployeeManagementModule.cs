@@ -23,7 +23,11 @@ public class EmployeeManagementModule : ICustomModule
             ?? throw new InvalidOperationException("warpbusiness connection string is required for the Employee Management plugin.");
 
         services.AddDbContext<EmployeeDbContext>(options =>
-            options.UseNpgsql(connStr));
+            options.UseNpgsql(connStr,
+                npgsql => npgsql.EnableRetryOnFailure(
+                    maxRetryCount: 6,
+                    maxRetryDelay: TimeSpan.FromSeconds(30),
+                    errorCodesToAdd: null)));
 
         services.AddScoped<IEmployeeService, EmployeeService>();
     }
@@ -33,14 +37,26 @@ public class EmployeeManagementModule : ICustomModule
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<EmployeeDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<EmployeeManagementModule>>();
-        try
+        const int maxRetries = 10;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            db.Database.Migrate();
-            logger.LogInformation("Employee Management plugin: database migration applied.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Employee Management plugin: migration failed.");
+            try
+            {
+                db.Database.Migrate();
+                logger.LogInformation("Employee Management plugin: database migration applied.");
+                break;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, Math.Min(attempt, 5)));
+                logger.LogWarning(ex, "Employee Management plugin: migration attempt {Attempt}/{Max} failed. Retrying in {Delay}s...",
+                    attempt, maxRetries, delay.TotalSeconds);
+                Thread.Sleep(delay);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Employee Management plugin: migration failed after {Max} attempts.", maxRetries);
+            }
         }
     }
 

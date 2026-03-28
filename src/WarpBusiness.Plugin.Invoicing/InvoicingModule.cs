@@ -24,7 +24,11 @@ public class InvoicingModule : ICustomModule
             ?? throw new InvalidOperationException(
                 "A connection string (warpbusiness or DefaultConnection) is required for the Invoicing plugin.");
 
-        services.AddDbContext<InvoicingDbContext>(options => options.UseNpgsql(connStr));
+        services.AddDbContext<InvoicingDbContext>(options => options.UseNpgsql(connStr,
+            npgsql => npgsql.EnableRetryOnFailure(
+                maxRetryCount: 6,
+                maxRetryDelay: TimeSpan.FromSeconds(30),
+                errorCodesToAdd: null)));
         services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<IInvoiceLineItemService, InvoiceLineItemService>();
         services.AddScoped<IInvoicePaymentService, InvoicePaymentService>();
@@ -37,14 +41,26 @@ public class InvoicingModule : ICustomModule
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<InvoicingModule>>();
-        try
+        const int maxRetries = 10;
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            db.Database.Migrate();
-            logger.LogInformation("Invoicing plugin: database migration applied.");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Invoicing plugin: migration failed.");
+            try
+            {
+                db.Database.Migrate();
+                logger.LogInformation("Invoicing plugin: database migration applied.");
+                break;
+            }
+            catch (Exception ex) when (attempt < maxRetries)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Pow(2, Math.Min(attempt, 5)));
+                logger.LogWarning(ex, "Invoicing plugin: migration attempt {Attempt}/{Max} failed. Retrying in {Delay}s...",
+                    attempt, maxRetries, delay.TotalSeconds);
+                Thread.Sleep(delay);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Invoicing plugin: migration failed after {Max} attempts.", maxRetries);
+            }
         }
     }
 
