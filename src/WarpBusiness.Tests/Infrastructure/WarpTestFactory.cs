@@ -6,6 +6,7 @@ using WarpBusiness.Api.Data;
 using WarpBusiness.Plugin.Catalog.Data;
 using WarpBusiness.Plugin.Crm.Data;
 using WarpBusiness.Plugin.EmployeeManagement.Data;
+using WarpBusiness.Plugin.TimeTracking.Data;
 
 namespace WarpBusiness.Tests.Infrastructure;
 
@@ -24,6 +25,7 @@ public class WarpTestFactory : WebApplicationFactory<Program>
             ReplaceWithInMemory<CrmDbContext>(services, "WarpCrmTestDb-" + Guid.NewGuid());
             ReplaceWithInMemory<EmployeeDbContext>(services, "WarpEmpTestDb-" + Guid.NewGuid());
             ReplaceWithInMemory<CatalogDbContext>(services, "WarpCatalogTestDb-" + Guid.NewGuid());
+            ReplaceWithInMemory<TimeTrackingDbContext>(services, "WarpTimeTrackingTestDb-" + Guid.NewGuid());
 
         });
 
