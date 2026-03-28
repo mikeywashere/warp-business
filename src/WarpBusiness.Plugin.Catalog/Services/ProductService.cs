@@ -57,6 +57,38 @@ public class ProductService : IProductService
         return new PagedResult<ProductDto>(items, totalCount, page, pageSize);
     }
 
+    public async Task<IReadOnlyList<CatalogItemSearchResult>> SearchProductsAsync(
+        string query, int limit, CancellationToken ct = default)
+    {
+        var term = query.ToLower();
+
+        var results = await _db.Products
+            .AsNoTracking()
+            .Where(p => p.Status == ProductStatus.Active)
+            .Where(p =>
+                p.Name.ToLower().Contains(term) ||
+                (p.Sku != null && p.Sku.ToLower().Contains(term)) ||
+                (p.Brand != null && p.Brand.ToLower().Contains(term)))
+            .OrderBy(p => p.Name)
+            .Take(limit)
+            .Select(p => new CatalogItemSearchResult(
+                p.Id,
+                p.Name,
+                p.Sku,
+                p.BasePrice,
+                p.Currency,
+                p.ProductType.ToString(),
+                p.Images.Where(i => i.IsPrimary).Select(i => i.Url).FirstOrDefault(),
+                p.Variants
+                    .Where(v => v.IsActive)
+                    .OrderBy(v => v.DisplayOrder)
+                    .Select(v => new CatalogVariantSummary(v.Id, v.Sku, v.Price))
+                    .ToList()))
+            .ToListAsync(ct);
+
+        return results;
+    }
+
     public async Task<ProductDetailDto?> GetProductDetailAsync(Guid id, CancellationToken ct = default)
     {
         var product = await _db.Products

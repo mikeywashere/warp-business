@@ -84,3 +84,17 @@
   - Phase 3 (future): Per-tenant database option, per-tenant IdP, branding
 - **Current state:** No tenancy infrastructure exists today — clean-slate implementation.
 - **Decision:** `.squad/decisions/inbox/ripley-tenancy-architecture.md`
+
+### 2025-07-25: Invoice Plugin Architecture Design
+
+- **What was done:** Complete architecture design for `WarpBusiness.Plugin.Invoicing` — new plugin integrating with Catalog and TimeTracking via loose coupling (GUID + denormalized names, no cross-schema FKs).
+- **Schema:** `invoicing` — four entities: Invoice, InvoiceLineItem, InvoicePayment, InvoiceSettings.
+- **Line item types:** Three discriminated types via `LineItemType` enum — Manual (ad-hoc), CatalogProduct (product/variant reference), TimeEntry (billable hours reference). All use snapshot pricing.
+- **Invoice lifecycle:** Draft → Sent → Paid/PartiallyPaid/Overdue/Cancelled/Void. Only Draft invoices are editable or deletable.
+- **Payment tracking:** Partial payments supported. Recording a payment auto-transitions status (Sent→PartiallyPaid→Paid). Denormalized totals persisted on Invoice for query performance.
+- **Invoice numbering:** Tenant-configurable prefix + sequential number with optimistic concurrency on InvoiceSettings.NextNumber.
+- **Integration pattern:** Zero runtime dependency on Catalog/TimeTracking. Frontend calls both APIs to populate selection UI; Invoicing backend only stores denormalized snapshots.
+- **Services:** IInvoiceService, IInvoiceLineItemService, IInvoicePaymentService, IInvoiceSettingsService — follows existing async + CancellationToken pattern.
+- **Controllers:** Four controllers under `api/invoicing/` — Invoices (with /summary, /send, /cancel, /void), LineItems (nested under invoices), Payments (nested), Settings (Admin-only).
+- **EF config:** All financial decimals (18,4), enums stored as strings, tenant query filters, composite indexes on TenantId + key fields.
+- **Decision:** `.squad/decisions.md` → 2026-03-28: Invoice Plugin Architecture

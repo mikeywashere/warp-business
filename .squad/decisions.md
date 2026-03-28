@@ -329,6 +329,37 @@ All tests in `CustomFieldsControllerTests` share one `WarpTestFactory` instance 
 - `<ProjectReference>` for each plugin in Tests.csproj so DbContext types accessible at compile time
 - `AddApplicationPart` for plugin assemblies already in Program.cs, inherited by `WebApplicationFactory`
 
+### 2026-03-28: Catalog Product Search Endpoint & Cross-Plugin DTO
+
+**By:** Hicks (Backend Dev)  
+**Status:** Implemented (Branch: `feature/catalog-search-and-invoice-prep`)
+
+- **Endpoint:** `GET /api/catalog/products/search?q={term}&limit={count}` — lightweight search for autocomplete/typeahead
+- **Filters:** Active products only. Searches Name, Sku, Brand (case-insensitive)
+- **Response:** `CatalogItemSearchResult` — minimal fields (Id, Name, Sku, BasePrice, Currency, ProductType, PrimaryImageUrl) plus inline active variant summaries
+- **Limits:** Default 10, max 50, clamped server-side
+- **Auth:** Standard `[Authorize(Policy = "RequireActiveTenant")]`
+- **CatalogItemReference DTO:** Lives in `WarpBusiness.Shared/Catalog/`. Record type: ProductId, ProductName, ProductSku, VariantId?, VariantSku?, UnitPrice, Currency. Enables Invoice plugin to reference catalog items without assembly coupling.
+- **Rationale:** No schema changes, no migrations, no breaking changes to existing endpoints. Establishes cross-plugin reference pattern (GUID + denormalized names).
+
+### 2026-03-28: Invoice Plugin Architecture
+
+**By:** Ripley (Lead)  
+**Status:** Proposed (Design: `.squad/decisions/inbox/ripley-invoice-plugin-design.md`)
+
+- **Plugin:** `WarpBusiness.Plugin.Invoicing` with schema `invoicing`, Module ID `com.warpbusiness.invoicing`
+- **4 Core Entities:** 
+  - `Invoice` — root aggregate with customer ref, dates, financial summary, status lifecycle
+  - `InvoiceLineItem` — three types (Manual, CatalogProduct, TimeEntry) via discriminator enum. All use snapshot pricing (no live catalog lookups)
+  - `InvoicePayment` — tracks partial and full payments. Recording payment auto-transitions status
+  - `InvoiceSettings` — per-tenant config for numbering (prefix + sequence with optimistic concurrency), defaults, company info
+- **Lifecycle:** Draft → Sent → Paid/PartiallyPaid/Overdue/Cancelled/Void. Only Draft invoices are editable/deletable
+- **Integration Pattern:** Loose coupling with Catalog and TimeTracking (GUID + denormalized names only, no cross-schema FKs). Zero runtime dependency on other plugins. Frontend orchestrates product/employee selection; Invoice backend stores only snapshots at line-item creation time
+- **Financial Precision:** All monetary decimals use decimal(18,4)
+- **Services & Controllers:** IInvoiceService, IInvoiceLineItemService, IInvoicePaymentService, IInvoiceSettingsService (async + CancellationToken pattern). Four controllers under `api/invoicing/` — Invoices (with /summary, /send, /cancel, /void), LineItems (nested), Payments (nested), Settings (Admin-only)
+- **EF Config:** Tenant query filters, composite indexes on TenantId + key fields, enums stored as strings
+- **Rationale:** Invoicing is a critical revenue workflow. Plugin isolation allows independent deployment and versioning. Loose coupling with CRM/Catalog enables future multi-tenancy isolation without schema explosion
+
 ## Governance
 
 - All meaningful changes require team consensus
