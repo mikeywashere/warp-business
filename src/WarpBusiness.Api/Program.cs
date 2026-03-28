@@ -12,6 +12,7 @@ using WarpBusiness.Api.Plugins;
 using WarpBusiness.Plugin.Catalog;
 using WarpBusiness.Plugin.Crm;
 using WarpBusiness.Plugin.TimeTracking;
+using WarpBusiness.Plugin.Invoicing;
 using WarpBusiness.Plugin.Abstractions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -66,16 +67,18 @@ var crmModule = new CrmModule();
 var employeeModule = new WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule();
 var catalogModule = new CatalogModule();
 var timeTrackingModule = new TimeTrackingModule();
+var invoicingModule = new InvoicingModule();
 builder.Services.AddCustomModules(
     builder.Configuration,
     pluginsDir,
-    firstPartyModules: new ICustomModule[] { crmModule, employeeModule, catalogModule, timeTrackingModule });
+    firstPartyModules: new ICustomModule[] { crmModule, employeeModule, catalogModule, timeTrackingModule, invoicingModule });
 
 builder.Services.AddControllers()
     .AddApplicationPart(typeof(CrmModule).Assembly)
     .AddApplicationPart(typeof(WarpBusiness.Plugin.EmployeeManagement.EmployeeManagementModule).Assembly)
     .AddApplicationPart(typeof(CatalogModule).Assembly)
-    .AddApplicationPart(typeof(TimeTrackingModule).Assembly);
+    .AddApplicationPart(typeof(TimeTrackingModule).Assembly)
+    .AddApplicationPart(typeof(InvoicingModule).Assembly);
 builder.Services.AddOpenApi();
 
 var app = builder.Build();

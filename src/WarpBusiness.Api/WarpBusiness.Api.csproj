@@ -29,6 +29,7 @@
     <ProjectReference Include="..\WarpBusiness.Plugin.Crm\WarpBusiness.Plugin.Crm.csproj" />
     <ProjectReference Include="..\WarpBusiness.Plugin.Catalog\WarpBusiness.Plugin.Catalog.csproj" />
     <ProjectReference Include="..\WarpBusiness.Plugin.TimeTracking\WarpBusiness.Plugin.TimeTracking.csproj" />
+    <ProjectReference Include="..\WarpBusiness.Plugin.Invoicing\WarpBusiness.Plugin.Invoicing.csproj" />
   </ItemGroup>
 
 </Project>
