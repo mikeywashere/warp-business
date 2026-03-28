@@ -3,6 +3,7 @@
 @using WarpBusiness.Shared.Auth
 @using WarpBusiness.Web.Services
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @inject WarpApiClient Api
 @inject AuthStateService AuthState
 @inject NavigationManager Nav
@@ -82,6 +83,15 @@ else
                                 <ValidationMessage For="() => _editModel.Name" class="text-danger small" />
                             </div>
 
+                            <div class="mb-3">
+                                <label class="form-label text-white-50 small text-uppercase fw-semibold">Display Name</label>
+                                <InputText @bind-Value="_editModel.DisplayName"
+                                           class="form-control bg-transparent text-white border-secondary"
+                                           placeholder="Optional display name" />
+                                <ValidationMessage For="() => _editModel.DisplayName" class="text-danger small" />
+                                <div class="form-text text-white-50 small">Shown in the UI instead of workspace name, if set.</div>
+                            </div>
+
                             <div class="mb-4">
                                 <label class="form-label text-white-50 small text-uppercase fw-semibold">Workspace URL</label>
                                 <div class="input-group">
@@ -99,6 +109,107 @@ else
                                 Save Changes
                             </button>
                         </EditForm>
+                    </div>
+                </div>
+
+                @* ── Company Image ─────────────────────────────── *@
+                <div class="card border-secondary mb-4" style="background: rgba(255,255,255,0.03);">
+                    <div class="card-header border-secondary">
+                        <h6 class="mb-0 text-white">Company Image</h6>
+                    </div>
+                    <div class="card-body">
+                        @if (_loadingImage)
+                        {
+                            <div class="text-center py-3">
+                                <div class="spinner-border spinner-border-sm text-light" role="status"></div>
+                            </div>
+                        }
+                        else
+                        {
+                            @if (_currentImageDataUri is not null)
+                            {
+                                <div class="mb-3 text-center">
+                                    <img src="@_currentImageDataUri"
+                                         alt="Company image"
+                                         class="img-fluid rounded border border-secondary"
+                                         style="max-height: 160px; object-fit: contain;" />
+                                </div>
+                            }
+                            else if (_previewDataUri is null)
+                            {
+                                <div class="text-center py-3 mb-3 rounded border border-secondary border-dashed"
+                                     style="border-style: dashed !important;">
+                                    <span class="bi bi-image text-white-50" style="font-size: 2rem;"></span>
+                                    <p class="text-white-50 small mb-0 mt-1">No company image set</p>
+                                </div>
+                            }
+
+                            @if (_previewDataUri is not null)
+                            {
+                                <div class="mb-3 text-center">
+                                    <p class="text-white-50 small mb-1">Preview</p>
+                                    <img src="@_previewDataUri"
+                                         alt="Image preview"
+                                         class="img-fluid rounded border border-info"
+                                         style="max-height: 160px; object-fit: contain;" />
+                                </div>
+                            }
+
+                            <div class="mb-3">
+                                <label class="form-label text-white-50 small text-uppercase fw-semibold">
+                                    @(_currentImageDataUri is not null ? "Replace Image" : "Upload Image")
+                                </label>
+                                <InputFile OnChange="OnImageSelected"
+                                           accept="image/jpeg,image/png,image/gif,image/webp"
+                                           class="form-control bg-transparent text-white border-secondary" />
+                                <div class="form-text text-white-50 small">JPEG, PNG, GIF, or WebP. Max 2 MB.</div>
+                            </div>
+
+                            @if (_imageValidationError is not null)
+                            {
+                                <div class="text-danger small mb-2">@_imageValidationError</div>
+                            }
+
+                            <div class="d-flex gap-2">
+                                @if (_previewDataUri is not null)
+                                {
+                                    <button class="btn btn-primary btn-sm" @onclick="UploadImageAsync" disabled="@_uploadingImage">
+                                        @if (_uploadingImage)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                        }
+                                        @(_currentImageDataUri is not null ? "Replace" : "Upload")
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick="CancelImagePreview" disabled="@_uploadingImage">
+                                        Cancel
+                                    </button>
+                                }
+
+                                @if (_currentImageDataUri is not null && _previewDataUri is null)
+                                {
+                                    @if (!_confirmDeleteImage)
+                                    {
+                                        <button class="btn btn-outline-danger btn-sm" @onclick="() => _confirmDeleteImage = true">
+                                            <span class="bi bi-trash me-1"></span>Remove Image
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-danger small me-2 align-self-center">Remove company image?</span>
+                                        <button class="btn btn-danger btn-sm" @onclick="DeleteImageAsync" disabled="@_deletingImage">
+                                            @if (_deletingImage)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            }
+                                            Confirm
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" @onclick="() => _confirmDeleteImage = false">
+                                            Cancel
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -236,6 +347,18 @@ else
     private string _inviteEmail = string.Empty;
     private readonly GeneralEditModel _editModel = new();
 
+    // Company image state
+    private bool _loadingImage;
+    private bool _uploadingImage;
+    private bool _deletingImage;
+    private bool _confirmDeleteImage;
+    private string? _currentImageDataUri;
+    private string? _previewDataUri;
+    private string? _imageValidationError;
+    private IBrowserFile? _selectedFile;
+
+    private const long MaxImageBytes = 2 * 1024 * 1024;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadDataAsync();
@@ -258,6 +381,7 @@ else
             if (_tenant is not null)
             {
                 _editModel.Name = _tenant.Name;
+                _editModel.DisplayName = _tenant.DisplayName ?? string.Empty;
                 _members = [.. _tenant.Members];
             }
         }
@@ -267,6 +391,36 @@ else
         }
 
         _loading = false;
+
+        // Load company image in background after initial render
+        if (_tenant?.HasCompanyImage == true)
+        {
+            _ = LoadCompanyImageAsync();
+        }
+    }
+
+    private async Task LoadCompanyImageAsync()
+    {
+        if (AuthState.TenantId is null) return;
+
+        _loadingImage = true;
+        StateHasChanged();
+
+        try
+        {
+            var (data, contentType) = await Api.GetCompanyImageAsync(AuthState.TenantId.Value);
+            if (data is not null && contentType is not null)
+            {
+                _currentImageDataUri = $"data:{contentType};base64,{Convert.ToBase64String(data)}";
+            }
+        }
+        catch
+        {
+            // Silent — image just won't display
+        }
+
+        _loadingImage = false;
+        StateHasChanged();
     }
 
     private void SetTab(string tab)
@@ -284,7 +438,8 @@ else
         _savingGeneral = true;
         _errorMessage = null;
 
-        var success = await Api.UpdateTenantAsync(_tenant.TenantId, new UpdateTenantRequest(_editModel.Name));
+        var displayName = string.IsNullOrWhiteSpace(_editModel.DisplayName) ? null : _editModel.DisplayName;
+        var success = await Api.UpdateTenantAsync(_tenant.TenantId, new UpdateTenantRequest(_editModel.Name, displayName));
         if (success)
         {
             AuthState.SetTenant(_tenant.TenantId, _editModel.Name);
@@ -297,6 +452,112 @@ else
 
         _savingGeneral = false;
     }
+
+    // ── Company Image Handlers ──────────────────────────────────────────
+
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    {
+        _imageValidationError = null;
+        _previewDataUri = null;
+        _selectedFile = null;
+
+        var file = e.File;
+        if (file is null) return;
+
+        if (file.Size > MaxImageBytes)
+        {
+            _imageValidationError = "File exceeds the 2 MB size limit.";
+            return;
+        }
+
+        var allowedTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+        if (!allowedTypes.Contains(file.ContentType))
+        {
+            _imageValidationError = "Invalid file type. Use JPEG, PNG, GIF, or WebP.";
+            return;
+        }
+
+        _selectedFile = file;
+
+        // Generate preview from the browser file
+        try
+        {
+            using var stream = file.OpenReadStream(MaxImageBytes);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            _previewDataUri = $"data:{file.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
+        }
+        catch
+        {
+            _imageValidationError = "Failed to read the selected file.";
+            _selectedFile = null;
+        }
+    }
+
+    private void CancelImagePreview()
+    {
+        _previewDataUri = null;
+        _selectedFile = null;
+        _imageValidationError = null;
+    }
+
+    private async Task UploadImageAsync()
+    {
+        if (_selectedFile is null || AuthState.TenantId is null) return;
+
+        _uploadingImage = true;
+        _errorMessage = null;
+
+        try
+        {
+            using var stream = _selectedFile.OpenReadStream(MaxImageBytes);
+            var success = await Api.UploadCompanyImageAsync(
+                AuthState.TenantId.Value, stream, _selectedFile.Name, _selectedFile.ContentType);
+
+            if (success)
+            {
+                _currentImageDataUri = _previewDataUri;
+                _previewDataUri = null;
+                _selectedFile = null;
+                _successMessage = "Company image updated.";
+            }
+            else
+            {
+                _errorMessage = "Failed to upload image.";
+            }
+        }
+        catch
+        {
+            _errorMessage = "Failed to upload image.";
+        }
+
+        _uploadingImage = false;
+    }
+
+    private async Task DeleteImageAsync()
+    {
+        if (AuthState.TenantId is null) return;
+
+        _deletingImage = true;
+        _errorMessage = null;
+
+        var success = await Api.DeleteCompanyImageAsync(AuthState.TenantId.Value);
+        if (success)
+        {
+            _currentImageDataUri = null;
+            _confirmDeleteImage = false;
+            _successMessage = "Company image removed.";
+        }
+        else
+        {
+            _errorMessage = "Failed to remove image.";
+            _confirmDeleteImage = false;
+        }
+
+        _deletingImage = false;
+    }
+
+    // ── Member Handlers ─────────────────────────────────────────────────
 
     private async Task SendInviteAsync()
     {
@@ -370,5 +631,8 @@ else
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Workspace name is required")]
         [System.ComponentModel.DataAnnotations.MaxLength(200)]
         public string Name { get; set; } = string.Empty;
+
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string DisplayName { get; set; } = string.Empty;
     }
 }
