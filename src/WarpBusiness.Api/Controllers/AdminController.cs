@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using WarpBusiness.Api.Identity;
+using WarpBusiness.Api.Services;
 using WarpBusiness.Shared.Auth;
 
 namespace WarpBusiness.Api.Controllers;
@@ -11,7 +12,8 @@ namespace WarpBusiness.Api.Controllers;
 [Authorize(Roles = "Admin")]
 public class AdminController(
     UserManager<ApplicationUser> userManager,
-    RoleManager<IdentityRole> roleManager) : ControllerBase
+    RoleManager<IdentityRole> roleManager,
+    IEmployeeUserService employeeUserService) : ControllerBase
 {
     [HttpGet("users")]
     public async Task<IActionResult> GetUsers()
@@ -67,5 +69,39 @@ public class AdminController(
 
         await userManager.DeleteAsync(user);
         return NoContent();
+    }
+
+    /// <summary>
+    /// POST /api/admin/users/from-employee/{employeeId}
+    /// Creates an ASP.NET Identity user account from an existing Employee record.
+    /// Assigns the "User" role and links the account to the admin's active tenant.
+    /// Returns a temporary password for the admin to share with the employee.
+    /// </summary>
+    [HttpPost("users/from-employee/{employeeId:guid}")]
+    public async Task<ActionResult<CreateUserFromEmployeeResponse>> CreateUserFromEmployee(
+        Guid employeeId, CancellationToken ct)
+    {
+        var tenantIdClaim = User.FindFirst("tenant_id")?.Value;
+        if (string.IsNullOrEmpty(tenantIdClaim) || !Guid.TryParse(tenantIdClaim, out var tenantId))
+            return BadRequest(new { error = "Active tenant context is required. Select a tenant first." });
+
+        var result = await employeeUserService.CreateUserFromEmployeeAsync(employeeId, tenantId, ct);
+
+        if (!result.Success)
+        {
+            return result.ErrorCode switch
+            {
+                CreateUserFromEmployeeError.EmployeeNotFound =>
+                    NotFound(new { error = result.Error }),
+                CreateUserFromEmployeeError.UserAlreadyExists =>
+                    Conflict(new { error = result.Error }),
+                _ =>
+                    BadRequest(new { error = result.Error }),
+            };
+        }
+
+        return Ok(new CreateUserFromEmployeeResponse(
+            result.UserId!, result.Email!, result.FullName!,
+            result.TemporaryPassword!, result.Roles!));
     }
 }

@@ -50,6 +50,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantContext, JwtTenantContext>();
 builder.Services.AddScoped<WarpBusiness.Api.Services.ITenantSamlService, WarpBusiness.Api.Services.TenantSamlService>();
+builder.Services.AddScoped<WarpBusiness.Api.Services.IEmployeeUserService, WarpBusiness.Api.Services.EmployeeUserService>();
 builder.Services.AddScoped<IClaimsTransformation, TenantClaimsTransformation>();
 
 // Authorization with tenant-aware policies
