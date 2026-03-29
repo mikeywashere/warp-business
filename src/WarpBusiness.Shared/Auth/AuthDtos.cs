@@ -34,3 +34,11 @@ public record UserSummaryDto(
     DateTimeOffset? LastLoginAt);
 
 public record SetRoleRequest(string Role, bool Add);
+
+/// <summary>Returned by POST /api/admin/users/from-employee/{employeeId} after provisioning a user account.</summary>
+public record CreateUserFromEmployeeResponse(
+    string UserId,
+    string Email,
+    string FullName,
+    string TemporaryPassword,
+    IReadOnlyList<string> Roles);
