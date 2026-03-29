@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.CategoryEditPage"
+             x:DataType="vm:CategoryEditViewModel"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="16" Spacing="14">
+
+                <!-- Page Title -->
+                <Label FontSize="22" FontAttributes="Bold" TextColor="White">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="True">
+                            <Setter Property="Text" Value="New Category" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="False">
+                            <Setter Property="Text" Value="Edit Category" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+
+                <!-- Name -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Name *" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Name}" Placeholder="Category name"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Description -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Description" TextColor="#aaaaaa" FontSize="13" />
+                    <Editor Text="{Binding Description}" Placeholder="Category description"
+                            BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                            HeightRequest="100" AutoSize="TextChanges" />
+                </VerticalStackLayout>
+
+                <!-- Slug -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Slug" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Slug}" Placeholder="url-friendly-slug"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Parent Category -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Parent Category" TextColor="#aaaaaa" FontSize="13" />
+                    <Picker ItemsSource="{Binding ParentCategories}"
+                            SelectedItem="{Binding SelectedParentCategory}"
+                            ItemDisplayBinding="{Binding Name}"
+                            Title="None (Top Level)" TitleColor="#666666"
+                            TextColor="White" BackgroundColor="#0f1e35" />
+                </VerticalStackLayout>
+
+                <!-- Image URL -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Image URL" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding ImageUrl}" Placeholder="https://example.com/image.png"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                           Keyboard="Url" />
+                </VerticalStackLayout>
+
+                <!-- Display Order -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Display Order" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding DisplayOrder}" Placeholder="0"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                           Keyboard="Numeric" />
+                </VerticalStackLayout>
+
+                <!-- Is Active -->
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Active" TextColor="#aaaaaa" FontSize="13" VerticalOptions="Center" />
+                    <Switch IsToggled="{Binding IsActive}" OnColor="#00c8ff" ThumbColor="White" />
+                </HorizontalStackLayout>
+
+                <!-- Error -->
+                <Label Text="{Binding ErrorMessage}" TextColor="#f44336" FontSize="14"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+                <!-- Save Button -->
+                <Button Text="Save" Command="{Binding SaveCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                        BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                        CornerRadius="8" HeightRequest="48" Margin="0,8,0,0" />
+
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                                   Color="#00c8ff" HorizontalOptions="Center" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

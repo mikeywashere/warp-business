@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.CompanyEditPage"
+             x:DataType="vm:CompanyEditViewModel"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleView>
+        <Label VerticalOptions="Center" TextColor="White" FontSize="18" FontAttributes="Bold">
+            <Label.Triggers>
+                <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="True">
+                    <Setter Property="Text" Value="New Company" />
+                </DataTrigger>
+                <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="False">
+                    <Setter Property="Text" Value="Edit Company" />
+                </DataTrigger>
+            </Label.Triggers>
+        </Label>
+    </Shell.TitleView>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <Label Text="Name *" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Name}" Placeholder="Company name"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+
+            <Label Text="Website" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Website}" Placeholder="https://example.com"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   Keyboard="Url" />
+
+            <Label Text="Industry" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Industry}" Placeholder="Industry"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+
+            <Label Text="Employee Count" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding EmployeeCount}" Placeholder="0"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   Keyboard="Numeric" />
+
+            <Label Text="Phone" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Phone}" Placeholder="Phone number"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   Keyboard="Telephone" />
+
+            <Label Text="Email" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Email}" Placeholder="company@example.com"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   Keyboard="Email" />
+
+            <Button Text="Save" Command="{Binding SaveCommand}"
+                    BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                    Margin="0,12,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

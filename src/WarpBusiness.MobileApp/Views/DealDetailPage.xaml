@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.DealDetailPage"
+             x:DataType="vm:DealDetailViewModel"
+             Title="Deal Details"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="8">
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <Label Text="Title" TextColor="#aaaaaa" FontSize="13" />
+            <Label Text="{Binding Deal.Title}" TextColor="White" FontSize="22" FontAttributes="Bold" />
+
+            <Label Text="Value" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Deal.Value, Converter={StaticResource CurrencyConverter}}"
+                   TextColor="#00c8ff" FontSize="20" FontAttributes="Bold" />
+
+            <Label Text="Currency" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Deal.Currency}" TextColor="White" FontSize="16" />
+
+            <Label Text="Stage" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Frame BackgroundColor="#1a3a5c" CornerRadius="4" Padding="8,4" HasShadow="False"
+                   BorderColor="Transparent" HorizontalOptions="Start">
+                <Label Text="{Binding Deal.Stage}" TextColor="#00c8ff" FontSize="15" />
+            </Frame>
+
+            <Label Text="Probability" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Deal.Probability, StringFormat='{0}%'}" TextColor="White" FontSize="16" />
+
+            <Label Text="Expected Close Date" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Deal.ExpectedCloseDate, StringFormat='{0:MMM dd, yyyy}'}"
+                   TextColor="White" FontSize="16" />
+
+            <Label Text="Company" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Deal.CompanyName}" TextColor="White" FontSize="16" />
+
+            <Label Text="Contact" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Deal.ContactName}" TextColor="White" FontSize="16" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

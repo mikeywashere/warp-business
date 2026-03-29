@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.InvoiceEditPage"
+             Title="Invoice"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.Triggers>
+        <DataTrigger TargetType="ContentPage" Binding="{Binding IsNew}" Value="True">
+            <Setter Property="Title" Value="New Invoice" />
+        </DataTrigger>
+        <DataTrigger TargetType="ContentPage" Binding="{Binding IsNew}" Value="False">
+            <Setter Property="Title" Value="Edit Invoice" />
+        </DataTrigger>
+    </ContentPage.Triggers>
+
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <ScrollView>
+            <VerticalStackLayout Spacing="12" Padding="16">
+
+                <!-- Error Message -->
+                <Label Text="{Binding ErrorMessage}"
+                       TextColor="#f44336"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}"
+                       Margin="0,0,0,8" />
+
+                <!-- Company -->
+                <Label Text="Company" TextColor="#aaaaaa" FontSize="12" />
+                <Picker ItemsSource="{Binding Companies}"
+                        SelectedItem="{Binding SelectedCompany}"
+                        ItemDisplayBinding="{Binding CompanyName}"
+                        TextColor="White"
+                        TitleColor="#666666"
+                        Title="Select Company"
+                        BackgroundColor="#0f1e35" />
+
+                <!-- Contact -->
+                <Label Text="Contact" TextColor="#aaaaaa" FontSize="12" />
+                <Picker ItemsSource="{Binding Contacts}"
+                        SelectedItem="{Binding SelectedContact}"
+                        ItemDisplayBinding="{Binding ContactName}"
+                        TextColor="White"
+                        TitleColor="#666666"
+                        Title="Select Contact"
+                        BackgroundColor="#0f1e35" />
+
+                <!-- Billing Address -->
+                <Label Text="Billing Address" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding BillingAddress}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Billing address"
+                        HeightRequest="80"
+                        AutoSize="TextChanges" />
+
+                <!-- Shipping Address -->
+                <Label Text="Shipping Address" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding ShippingAddress}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Shipping address"
+                        HeightRequest="80"
+                        AutoSize="TextChanges" />
+
+                <!-- Dates -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0">
+                        <Label Text="Issue Date" TextColor="#aaaaaa" FontSize="12" />
+                        <DatePicker Date="{Binding IssueDate}"
+                                    TextColor="White"
+                                    BackgroundColor="#0f1e35" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1">
+                        <Label Text="Due Date" TextColor="#aaaaaa" FontSize="12" />
+                        <DatePicker Date="{Binding DueDate}"
+                                    TextColor="White"
+                                    BackgroundColor="#0f1e35" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Payment Terms -->
+                <Label Text="Payment Terms" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding PaymentTerms}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="e.g. Net 30" />
+
+                <!-- Currency -->
+                <Label Text="Currency" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding Currency}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="e.g. USD" />
+
+                <!-- Discount & Tax -->
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                    <VerticalStackLayout Grid.Column="0">
+                        <Label Text="Discount %" TextColor="#aaaaaa" FontSize="12" />
+                        <Entry Text="{Binding DiscountPercent}"
+                               Keyboard="Numeric"
+                               TextColor="White"
+                               BackgroundColor="#0f1e35"
+                               PlaceholderColor="#666666"
+                               Placeholder="0" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1">
+                        <Label Text="Discount Fixed" TextColor="#aaaaaa" FontSize="12" />
+                        <Entry Text="{Binding DiscountFixed}"
+                               Keyboard="Numeric"
+                               TextColor="White"
+                               BackgroundColor="#0f1e35"
+                               PlaceholderColor="#666666"
+                               Placeholder="0" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="2">
+                        <Label Text="Tax Rate" TextColor="#aaaaaa" FontSize="12" />
+                        <Entry Text="{Binding TaxRate}"
+                               Keyboard="Numeric"
+                               TextColor="White"
+                               BackgroundColor="#0f1e35"
+                               PlaceholderColor="#666666"
+                               Placeholder="0" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Notes -->
+                <Label Text="Notes" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding Notes}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Internal notes"
+                        HeightRequest="80"
+                        AutoSize="TextChanges" />
+
+                <!-- Customer Notes -->
+                <Label Text="Customer Notes" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding CustomerNotes}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Notes visible to customer"
+                        HeightRequest="80"
+                        AutoSize="TextChanges" />
+
+                <!-- Footer Text -->
+                <Label Text="Footer Text" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding FooterText}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="Invoice footer" />
+
+                <!-- Line Items (only when editing existing invoice) -->
+                <VerticalStackLayout IsVisible="{Binding IsNew, Converter={StaticResource InverseBoolConverter}}"
+                                     Spacing="8"
+                                     Margin="0,12,0,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label Text="Line Items"
+                               TextColor="White"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               VerticalOptions="Center" />
+                        <Button Grid.Column="1"
+                                Text="+ Add"
+                                Command="{Binding AddLineItemCommand}"
+                                BackgroundColor="#1a3a5c"
+                                TextColor="White"
+                                CornerRadius="8"
+                                HeightRequest="36"
+                                Padding="12,0" />
+                    </Grid>
+
+                    <CollectionView ItemsSource="{Binding LineItems}">
+                        <CollectionView.EmptyView>
+                            <Label Text="No line items" TextColor="#666666" />
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame BackgroundColor="#0f1e35"
+                                       BorderColor="#1a3a5c"
+                                       CornerRadius="8"
+                                       Margin="0,4"
+                                       Padding="12">
+                                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                        <Label Grid.Row="0" Grid.Column="0"
+                                               Text="{Binding Description}"
+                                               TextColor="White" FontSize="14" />
+                                        <Button Grid.Row="0" Grid.Column="1"
+                                                Text="✕"
+                                                Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteLineItemCommand}"
+                                                CommandParameter="{Binding}"
+                                                BackgroundColor="Transparent"
+                                                TextColor="#f44336"
+                                                FontSize="16"
+                                                WidthRequest="36"
+                                                HeightRequest="36"
+                                                Padding="0" />
+                                        <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Spacing="12">
+                                            <Label Text="{Binding Quantity, StringFormat='Qty: {0}'}"
+                                                   TextColor="#aaaaaa" FontSize="12" />
+                                            <Label Text="{Binding UnitPrice, StringFormat='@ {0:C2}'}"
+                                                   TextColor="#aaaaaa" FontSize="12" />
+                                        </HorizontalStackLayout>
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Save Button -->
+                <Button Text="Save"
+                        Command="{Binding SaveCommand}"
+                        BackgroundColor="#00c8ff"
+                        TextColor="#050b18"
+                        FontAttributes="Bold"
+                        CornerRadius="8"
+                        Margin="0,16,0,24"
+                        HeightRequest="48" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.TimeEntryTypesPage"
+             Title="Time Entry Types"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="+" Command="{Binding StartCreateCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <ScrollView>
+            <VerticalStackLayout Spacing="8" Padding="16">
+
+                <!-- Error Message -->
+                <Label Text="{Binding ErrorMessage}"
+                       TextColor="#f44336"
+                       IsVisible="{Binding ErrorMessage, FallbackValue=False, TargetNullValue=False}"
+                       Margin="0,0,0,4" />
+
+                <!-- Edit Form (visible when editing) -->
+                <Frame BackgroundColor="#0f1e35"
+                       BorderColor="#00c8ff"
+                       CornerRadius="8"
+                       Padding="16"
+                       IsVisible="{Binding IsEditing}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Entry Type Details"
+                               TextColor="#00c8ff"
+                               FontSize="16"
+                               FontAttributes="Bold" />
+
+                        <Label Text="Name *" TextColor="#aaaaaa" FontSize="12" />
+                        <Entry Text="{Binding Name}"
+                               TextColor="White"
+                               BackgroundColor="#050b18"
+                               PlaceholderColor="#666666"
+                               Placeholder="Type name" />
+
+                        <Label Text="Description" TextColor="#aaaaaa" FontSize="12" />
+                        <Entry Text="{Binding Description}"
+                               TextColor="White"
+                               BackgroundColor="#050b18"
+                               PlaceholderColor="#666666"
+                               Placeholder="Description" />
+
+                        <Label Text="Display Order" TextColor="#aaaaaa" FontSize="12" />
+                        <Entry Text="{Binding DisplayOrder}"
+                               Keyboard="Numeric"
+                               TextColor="White"
+                               BackgroundColor="#050b18"
+                               PlaceholderColor="#666666"
+                               Placeholder="0" />
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                            <Label Text="Active"
+                                   TextColor="White"
+                                   FontSize="16"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding IsActive}"
+                                    OnColor="#00c8ff"
+                                    ThumbColor="White" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                            <Label Text="Billable"
+                                   TextColor="White"
+                                   FontSize="16"
+                                   VerticalOptions="Center" />
+                            <Switch Grid.Column="1"
+                                    IsToggled="{Binding IsBillable}"
+                                    OnColor="#00c8ff"
+                                    ThumbColor="White" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,8,0,0">
+                            <Button Grid.Column="0"
+                                    Text="Save"
+                                    Command="{Binding SaveCommand}"
+                                    BackgroundColor="#00c8ff"
+                                    TextColor="#050b18"
+                                    FontAttributes="Bold"
+                                    CornerRadius="8" />
+                            <Button Grid.Column="1"
+                                    Text="Cancel"
+                                    Command="{Binding CancelEditCommand}"
+                                    BackgroundColor="#1a3a5c"
+                                    TextColor="White"
+                                    CornerRadius="8" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Entry Types List -->
+                <Label Text="Entry Types"
+                       TextColor="White"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       Margin="0,8,0,4"
+                       IsVisible="{Binding IsEditing, Converter={StaticResource InverseBoolConverter}}" />
+
+                <CollectionView ItemsSource="{Binding EntryTypes}">
+                    <CollectionView.EmptyView>
+                        <Label Text="No entry types defined"
+                               TextColor="#666666"
+                               HorizontalOptions="Center"
+                               Margin="0,24" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame BackgroundColor="#0f1e35"
+                                   BorderColor="#1a3a5c"
+                                   CornerRadius="8"
+                                   Margin="0,4"
+                                   Padding="12">
+                                <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                                    <Label Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding Name}"
+                                           TextColor="White"
+                                           FontAttributes="Bold"
+                                           FontSize="16" />
+                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="1"
+                                            Text="Edit"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.StartEditCommand}"
+                                            CommandParameter="{Binding}"
+                                            BackgroundColor="#1a3a5c"
+                                            TextColor="White"
+                                            CornerRadius="8"
+                                            HeightRequest="36"
+                                            Padding="12,0"
+                                            FontSize="12" />
+                                    <Button Grid.Row="0" Grid.RowSpan="2" Grid.Column="2"
+                                            Text="Delete"
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteCommand}"
+                                            CommandParameter="{Binding}"
+                                            BackgroundColor="#f44336"
+                                            TextColor="White"
+                                            CornerRadius="8"
+                                            HeightRequest="36"
+                                            Padding="12,0"
+                                            FontSize="12" />
+                                    <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Spacing="12">
+                                        <Label Text="{Binding Description}"
+                                               TextColor="#aaaaaa"
+                                               FontSize="12"
+                                               LineBreakMode="TailTruncation" />
+                                        <Label Text="Billable"
+                                               TextColor="{Binding IsBillable, Converter={StaticResource BoolToColorConverter}}"
+                                               FontSize="12" />
+                                        <Label Text="{Binding IsActive, StringFormat='Active: {0}'}"
+                                               TextColor="#aaaaaa"
+                                               FontSize="12" />
+                                    </HorizontalStackLayout>
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

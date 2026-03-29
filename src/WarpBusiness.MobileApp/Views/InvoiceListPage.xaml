@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.InvoiceListPage"
+             Title="Invoices"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+        <converters:StatusToColorConverter x:Key="StatusColorConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="+" Command="{Binding GoToCreateCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- Activity Indicator -->
+        <ActivityIndicator Grid.RowSpan="4"
+                           IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <!-- Summary Card -->
+        <Frame Grid.Row="0"
+               BackgroundColor="#0f1e35"
+               BorderColor="#1a3a5c"
+               CornerRadius="8"
+               Margin="16,16,16,8"
+               Padding="16">
+            <Grid ColumnDefinitions="*,*">
+                <VerticalStackLayout Grid.Column="0">
+                    <Label Text="Total Invoices" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Summary.TotalInvoices}"
+                           TextColor="White"
+                           FontSize="20"
+                           FontAttributes="Bold" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Grid.Column="1">
+                    <Label Text="Outstanding" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Summary.TotalOutstanding, Converter={StaticResource CurrencyConverter}}"
+                           TextColor="#00c8ff"
+                           FontSize="20"
+                           FontAttributes="Bold" />
+                </VerticalStackLayout>
+            </Grid>
+        </Frame>
+
+        <!-- Filters -->
+        <Frame Grid.Row="1"
+               BackgroundColor="#0f1e35"
+               BorderColor="#1a3a5c"
+               CornerRadius="8"
+               Margin="16,0,16,8"
+               Padding="12">
+            <VerticalStackLayout Spacing="8">
+                <Picker Title="Status"
+                        ItemsSource="{Binding StatusOptions}"
+                        SelectedItem="{Binding SelectedStatus}"
+                        TextColor="White"
+                        TitleColor="#666666"
+                        BackgroundColor="#0f1e35" />
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <DatePicker Grid.Column="0"
+                                Date="{Binding FromDate}"
+                                TextColor="White"
+                                BackgroundColor="#0f1e35" />
+                    <DatePicker Grid.Column="1"
+                                Date="{Binding ToDate}"
+                                TextColor="White"
+                                BackgroundColor="#0f1e35" />
+                </Grid>
+                <Button Text="Filter"
+                        Command="{Binding FilterCommand}"
+                        BackgroundColor="#00c8ff"
+                        TextColor="#050b18"
+                        FontAttributes="Bold"
+                        CornerRadius="8" />
+            </VerticalStackLayout>
+        </Frame>
+
+        <!-- Invoice List -->
+        <CollectionView Grid.Row="2"
+                        ItemsSource="{Binding Invoices}"
+                        Margin="16,0">
+            <CollectionView.EmptyView>
+                <Label Text="No invoices found"
+                       TextColor="#666666"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame BackgroundColor="#0f1e35"
+                           BorderColor="#1a3a5c"
+                           CornerRadius="8"
+                           Margin="0,4"
+                           Padding="12">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.GoToDetailCommand}"
+                                CommandParameter="{Binding}" />
+                        </Frame.GestureRecognizers>
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                            <Label Grid.Row="0" Grid.Column="0"
+                                   Text="{Binding InvoiceNumber}"
+                                   TextColor="White"
+                                   FontAttributes="Bold"
+                                   FontSize="16" />
+                            <Label Grid.Row="0" Grid.Column="1"
+                                   Text="{Binding Total, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="#00c8ff"
+                                   FontAttributes="Bold"
+                                   FontSize="16" />
+                            <Label Grid.Row="1" Grid.Column="0"
+                                   Text="{Binding CompanyName}"
+                                   TextColor="#aaaaaa"
+                                   FontSize="13" />
+                            <HorizontalStackLayout Grid.Row="1" Grid.Column="1" Spacing="8">
+                                <Label Text="{Binding Status}"
+                                       TextColor="{Binding Status, Converter={StaticResource StatusColorConverter}}"
+                                       FontSize="13" />
+                                <Label Text="{Binding DueDate, StringFormat='{0:MMM dd, yyyy}'}"
+                                       TextColor="#aaaaaa"
+                                       FontSize="13" />
+                            </HorizontalStackLayout>
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Pagination -->
+        <HorizontalStackLayout Grid.Row="3"
+                               HorizontalOptions="Center"
+                               Spacing="16"
+                               Margin="0,8,0,16">
+            <Button Text="Previous"
+                    Command="{Binding PreviousPageCommand}"
+                    BackgroundColor="#1a3a5c"
+                    TextColor="White"
+                    CornerRadius="8"
+                    IsVisible="{Binding HasPreviousPage}" />
+            <Label Text="{Binding CurrentPage, StringFormat='Page {0}'}"
+                   TextColor="White"
+                   VerticalOptions="Center" />
+            <Label Text="{Binding TotalPages, StringFormat='of {0}'}"
+                   TextColor="#aaaaaa"
+                   VerticalOptions="Center" />
+            <Button Text="Next"
+                    Command="{Binding NextPageCommand}"
+                    BackgroundColor="#1a3a5c"
+                    TextColor="White"
+                    CornerRadius="8"
+                    IsVisible="{Binding HasNextPage}" />
+        </HorizontalStackLayout>
+
+    </Grid>
+</ContentPage>

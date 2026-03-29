@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.CompanyDetailPage"
+             x:DataType="vm:CompanyDetailViewModel"
+             Title="Company Details"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="8">
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <Label Text="Name" TextColor="#aaaaaa" FontSize="13" />
+            <Label Text="{Binding Company.Name}" TextColor="White" FontSize="22" FontAttributes="Bold" />
+
+            <Label Text="Industry" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Company.Industry}" TextColor="White" FontSize="16" />
+
+            <Label Text="Website" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Company.Website}" TextColor="#00c8ff" FontSize="16" />
+
+            <Label Text="Phone" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Company.Phone}" TextColor="White" FontSize="16" />
+
+            <Label Text="Email" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Company.Email}" TextColor="White" FontSize="16" />
+
+            <Label Text="Employee Count" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Company.EmployeeCount}" TextColor="White" FontSize="16" />
+
+            <!-- Contacts Section -->
+            <Label Text="Contacts" FontSize="18" FontAttributes="Bold" TextColor="White" Margin="0,16,0,4" />
+
+            <CollectionView ItemsSource="{Binding Contacts}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" Margin="0,4" Padding="12"
+                               CornerRadius="8">
+                            <VerticalStackLayout Spacing="2">
+                                <Label Text="{Binding Name}" FontSize="15" FontAttributes="Bold" TextColor="White" />
+                                <Label Text="{Binding Email}" FontSize="13" TextColor="#aaaaaa" />
+                            </VerticalStackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <Label Text="No contacts" TextColor="#666666" HorizontalOptions="Center" Margin="0,12" />
+                </CollectionView.EmptyView>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

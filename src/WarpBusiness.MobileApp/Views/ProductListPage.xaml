@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.ProductListPage"
+             x:DataType="vm:ProductListViewModel"
+             Title="Products"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+        <converters:StatusToColorConverter x:Key="StatusColorConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="+" Command="{Binding GoToCreateCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16">
+
+        <!-- Search & Filters -->
+        <VerticalStackLayout Grid.Row="0" Spacing="8" Margin="0,0,0,12">
+            <SearchBar Placeholder="Search products..."
+                       Text="{Binding SearchText}" SearchCommand="{Binding SearchCommand}"
+                       BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                       CancelButtonColor="#00c8ff" />
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Picker Grid.Column="0" ItemsSource="{Binding StatusOptions}"
+                        SelectedItem="{Binding SelectedStatus}"
+                        Title="All Statuses" TitleColor="#666666"
+                        TextColor="White" BackgroundColor="#0f1e35" />
+                <Picker Grid.Column="1" ItemsSource="{Binding Categories}"
+                        ItemDisplayBinding="{Binding Name}"
+                        Title="All Categories" TitleColor="#666666"
+                        TextColor="White" BackgroundColor="#0f1e35" />
+            </Grid>
+        </VerticalStackLayout>
+
+        <!-- Product List -->
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Products}">
+            <CollectionView.EmptyView>
+                <Label Text="No products found." TextColor="#666666"
+                       HorizontalOptions="Center" VerticalOptions="Center" />
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                           CornerRadius="8" Padding="14" Margin="0,0,0,8"
+                           HasShadow="False">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.GoToDetailCommand}"
+                                CommandParameter="{Binding}" />
+                        </Frame.GestureRecognizers>
+                        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="8" RowSpacing="4">
+                            <Label Grid.Row="0" Grid.Column="0"
+                                   Text="{Binding Name}" TextColor="White"
+                                   FontAttributes="Bold" FontSize="16"
+                                   LineBreakMode="TailTruncation" />
+                            <Label Grid.Row="0" Grid.Column="1"
+                                   Text="{Binding BasePrice, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="#00c8ff" FontSize="15" FontAttributes="Bold"
+                                   VerticalOptions="Center" />
+                            <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="12">
+                                <Label Text="{Binding Sku, StringFormat='SKU: {0}'}"
+                                       TextColor="#aaaaaa" FontSize="12" />
+                                <Label Text="{Binding CategoryName}" TextColor="#888888" FontSize="12" />
+                            </HorizontalStackLayout>
+                            <Label Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                                   Text="{Binding Status}"
+                                   TextColor="{Binding Status, Converter={StaticResource StatusColorConverter}}"
+                                   FontSize="12" FontAttributes="Bold" />
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Pagination -->
+        <HorizontalStackLayout Grid.Row="2" HorizontalOptions="Center" Spacing="16" Margin="0,12,0,0">
+            <Button Text="◀ Previous" Command="{Binding PreviousPageCommand}"
+                    BackgroundColor="#1a3a5c" TextColor="White" CornerRadius="8"
+                    IsVisible="{Binding HasPreviousPage}" />
+            <Label TextColor="White" VerticalOptions="Center" FontSize="14">
+                <Label.Text>
+                    <MultiBinding StringFormat="Page {0} of {1}">
+                        <Binding Path="CurrentPage" />
+                        <Binding Path="TotalPages" />
+                    </MultiBinding>
+                </Label.Text>
+            </Label>
+            <Button Text="Next ▶" Command="{Binding NextPageCommand}"
+                    BackgroundColor="#1a3a5c" TextColor="White" CornerRadius="8"
+                    IsVisible="{Binding HasNextPage}" />
+        </HorizontalStackLayout>
+
+        <ActivityIndicator Grid.Row="1" IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff" HorizontalOptions="Center" VerticalOptions="Center" />
+    </Grid>
+</ContentPage>

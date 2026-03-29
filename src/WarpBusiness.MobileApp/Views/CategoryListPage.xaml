@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.CategoryListPage"
+             x:DataType="vm:CategoryListViewModel"
+             Title="Categories"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="+" Command="{Binding GoToCreateCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="*,Auto" Padding="16">
+
+        <!-- Category List -->
+        <CollectionView Grid.Row="0" ItemsSource="{Binding Categories}">
+            <CollectionView.EmptyView>
+                <Label Text="No categories found." TextColor="#666666"
+                       HorizontalOptions="Center" VerticalOptions="Center" />
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <SwipeView>
+                        <SwipeView.RightItems>
+                            <SwipeItems>
+                                <SwipeItem Text="Delete" BackgroundColor="#f44336"
+                                           Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteCommand}"
+                                           CommandParameter="{Binding}" />
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+                        <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                               CornerRadius="8" Padding="14" Margin="0,0,0,8"
+                               HasShadow="False">
+                            <Frame.GestureRecognizers>
+                                <TapGestureRecognizer
+                                    Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.GoToEditCommand}"
+                                    CommandParameter="{Binding}" />
+                            </Frame.GestureRecognizers>
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="8" RowSpacing="4">
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Text="{Binding Name}" TextColor="White"
+                                       FontAttributes="Bold" FontSize="16"
+                                       LineBreakMode="TailTruncation" />
+                                <HorizontalStackLayout Grid.Row="0" Grid.Column="1" Spacing="4" VerticalOptions="Center">
+                                    <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                             Color="{Binding IsActive, Converter={StaticResource BoolToColorConverter}}" />
+                                    <Label FontSize="12" TextColor="#aaaaaa">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsActive}" Value="True">
+                                                <Setter Property="Text" Value="Active" />
+                                            </DataTrigger>
+                                            <DataTrigger TargetType="Label" Binding="{Binding IsActive}" Value="False">
+                                                <Setter Property="Text" Value="Inactive" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
+                                </HorizontalStackLayout>
+                                <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Text="{Binding Description}" TextColor="#aaaaaa" FontSize="13"
+                                       LineBreakMode="TailTruncation" MaxLines="2" />
+                                <HorizontalStackLayout Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2" Spacing="16">
+                                    <Label Text="{Binding ParentCategoryName, StringFormat='Parent: {0}'}"
+                                           TextColor="#888888" FontSize="12"
+                                           IsVisible="{Binding ParentCategoryName, Converter={StaticResource NullToBoolConverter}}" />
+                                    <Label Text="{Binding ProductCount, StringFormat='{0} products'}"
+                                           TextColor="#888888" FontSize="12" />
+                                    <Label Text="{Binding SubCategoryCount, StringFormat='{0} subcategories'}"
+                                           TextColor="#888888" FontSize="12" />
+                                </HorizontalStackLayout>
+                            </Grid>
+                        </Frame>
+                    </SwipeView>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <!-- Pagination -->
+        <HorizontalStackLayout Grid.Row="1" HorizontalOptions="Center" Spacing="16" Margin="0,12,0,0">
+            <Button Text="◀ Previous" Command="{Binding PreviousPageCommand}"
+                    BackgroundColor="#1a3a5c" TextColor="White" CornerRadius="8"
+                    IsVisible="{Binding HasPreviousPage}" />
+            <Label TextColor="White" VerticalOptions="Center" FontSize="14">
+                <Label.Text>
+                    <MultiBinding StringFormat="Page {0} of {1}">
+                        <Binding Path="CurrentPage" />
+                        <Binding Path="TotalPages" />
+                    </MultiBinding>
+                </Label.Text>
+            </Label>
+            <Button Text="Next ▶" Command="{Binding NextPageCommand}"
+                    BackgroundColor="#1a3a5c" TextColor="White" CornerRadius="8"
+                    IsVisible="{Binding HasNextPage}" />
+        </HorizontalStackLayout>
+
+        <ActivityIndicator Grid.Row="0" IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff" HorizontalOptions="Center" VerticalOptions="Center" />
+    </Grid>
+</ContentPage>

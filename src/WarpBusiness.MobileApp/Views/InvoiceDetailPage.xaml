@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.InvoiceDetailPage"
+             Title="Invoice Detail"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+        <converters:StatusToColorConverter x:Key="StatusColorConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Send" Command="{Binding SendCommand}" />
+        <ToolbarItem Text="Cancel" Command="{Binding CancelCommand}" />
+        <ToolbarItem Text="Void" Command="{Binding VoidCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <ScrollView>
+            <VerticalStackLayout Spacing="8" Padding="16">
+
+                <!-- Error Message -->
+                <Label Text="{Binding ErrorMessage}"
+                       TextColor="#f44336"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}"
+                       Margin="0,0,0,8" />
+
+                <!-- Header -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="{Binding Invoice.InvoiceNumber}"
+                               TextColor="White"
+                               FontSize="24"
+                               FontAttributes="Bold" />
+                        <Label Text="{Binding Invoice.Status}"
+                               TextColor="{Binding Invoice.Status, Converter={StaticResource StatusColorConverter}}"
+                               FontSize="16"
+                               FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Company & Contact -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Company" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Invoice.CompanyName}" TextColor="White" FontSize="16" />
+
+                        <Label Text="Contact" TextColor="#aaaaaa" FontSize="12" Margin="0,8,0,0" />
+                        <Label Text="{Binding Invoice.ContactName}" TextColor="White" FontSize="16" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Dates -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" RowSpacing="6">
+                        <Label Grid.Row="0" Grid.Column="0" Text="Issue Date" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Grid.Row="1" Grid.Column="0"
+                               Text="{Binding Invoice.IssueDate, StringFormat='{0:MMM dd, yyyy}'}"
+                               TextColor="White" FontSize="16" />
+
+                        <Label Grid.Row="0" Grid.Column="1" Text="Due Date" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Grid.Row="1" Grid.Column="1"
+                               Text="{Binding Invoice.DueDate, StringFormat='{0:MMM dd, yyyy}'}"
+                               TextColor="White" FontSize="16" />
+                    </Grid>
+                </Frame>
+
+                <!-- Amounts -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="SubTotal" TextColor="#aaaaaa" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding Invoice.SubTotal, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="White" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Discount" TextColor="#aaaaaa" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding Invoice.DiscountAmount, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="White" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Tax" TextColor="#aaaaaa" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding Invoice.TaxAmount, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="White" />
+                        </Grid>
+                        <BoxView HeightRequest="1" Color="#1a3a5c" Margin="0,4" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Total" TextColor="White" FontAttributes="Bold" FontSize="18" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding Invoice.Total, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="#00c8ff" FontAttributes="Bold" FontSize="18" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Amount Paid" TextColor="#aaaaaa" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding Invoice.AmountPaid, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="#4caf50" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Text="Balance Due" TextColor="#aaaaaa" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding Invoice.BalanceDue, Converter={StaticResource CurrencyConverter}}"
+                                   TextColor="#f44336" FontAttributes="Bold" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Addresses -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Billing Address" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Invoice.BillingAddress}" TextColor="White" FontSize="14" />
+
+                        <Label Text="Shipping Address" TextColor="#aaaaaa" FontSize="12" Margin="0,8,0,0" />
+                        <Label Text="{Binding Invoice.ShippingAddress}" TextColor="White" FontSize="14" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Notes -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Notes" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Invoice.Notes}" TextColor="White" FontSize="14" />
+
+                        <Label Text="Customer Notes" TextColor="#aaaaaa" FontSize="12" Margin="0,8,0,0" />
+                        <Label Text="{Binding Invoice.CustomerNotes}" TextColor="White" FontSize="14" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Line Items -->
+                <Label Text="Line Items"
+                       TextColor="White"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       Margin="0,12,0,4" />
+
+                <CollectionView ItemsSource="{Binding LineItems}">
+                    <CollectionView.EmptyView>
+                        <Label Text="No line items" TextColor="#666666" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame BackgroundColor="#0f1e35"
+                                   BorderColor="#1a3a5c"
+                                   CornerRadius="8"
+                                   Margin="0,4"
+                                   Padding="12">
+                                <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                                    <Label Grid.Row="0" Grid.Column="0"
+                                           Text="{Binding Description}"
+                                           TextColor="White"
+                                           FontSize="14" />
+                                    <Label Grid.Row="0" Grid.Column="1"
+                                           Text="{Binding Total, Converter={StaticResource CurrencyConverter}}"
+                                           TextColor="#00c8ff"
+                                           FontAttributes="Bold" />
+                                    <HorizontalStackLayout Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Spacing="16">
+                                        <Label TextColor="#aaaaaa" FontSize="12">
+                                            <Label.Text>
+                                                <MultiBinding StringFormat="Qty: {0} × {1:C2}">
+                                                    <Binding Path="Quantity" />
+                                                    <Binding Path="UnitPrice" />
+                                                </MultiBinding>
+                                            </Label.Text>
+                                        </Label>
+                                    </HorizontalStackLayout>
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Payments -->
+                <Label Text="Payments"
+                       TextColor="White"
+                       FontSize="18"
+                       FontAttributes="Bold"
+                       Margin="0,12,0,4" />
+
+                <CollectionView ItemsSource="{Binding Payments}">
+                    <CollectionView.EmptyView>
+                        <Label Text="No payments recorded" TextColor="#666666" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <SwipeView>
+                                <SwipeView.RightItems>
+                                    <SwipeItems>
+                                        <SwipeItem Text="Delete"
+                                                   BackgroundColor="#f44336"
+                                                   Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeletePaymentCommand}"
+                                                   CommandParameter="{Binding}" />
+                                    </SwipeItems>
+                                </SwipeView.RightItems>
+                                <Frame BackgroundColor="#0f1e35"
+                                       BorderColor="#1a3a5c"
+                                       CornerRadius="8"
+                                       Margin="0,4"
+                                       Padding="12">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <VerticalStackLayout>
+                                            <Label Text="{Binding Amount, Converter={StaticResource CurrencyConverter}}"
+                                                   TextColor="#4caf50"
+                                                   FontAttributes="Bold"
+                                                   FontSize="16" />
+                                            <HorizontalStackLayout Spacing="12">
+                                                <Label Text="{Binding PaymentDate, StringFormat='{0:MMM dd, yyyy}'}"
+                                                       TextColor="#aaaaaa" FontSize="12" />
+                                                <Label Text="{Binding Method}"
+                                                       TextColor="#aaaaaa" FontSize="12" />
+                                            </HorizontalStackLayout>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                </Frame>
+                            </SwipeView>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- Add Payment Button -->
+                <Button Text="Add Payment"
+                        Command="{Binding AddPaymentCommand}"
+                        BackgroundColor="#00c8ff"
+                        TextColor="#050b18"
+                        FontAttributes="Bold"
+                        CornerRadius="8"
+                        Margin="0,12,0,24" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

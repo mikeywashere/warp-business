@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.DashboardPage"
+             x:DataType="vm:DashboardViewModel"
+             Title="Dashboard"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <Label Text="{Binding WelcomeMessage}" FontSize="24" FontAttributes="Bold" TextColor="White" />
+
+            <!-- Stats Grid -->
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+
+                <Frame Grid.Row="0" Grid.Column="0" BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                       CornerRadius="8" Padding="12">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Employees" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding EmployeeCount}" TextColor="White" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Frame Grid.Row="0" Grid.Column="1" BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                       CornerRadius="8" Padding="12">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Companies" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding CompanyCount}" TextColor="White" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Frame Grid.Row="1" Grid.Column="0" BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                       CornerRadius="8" Padding="12">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Contacts" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding ContactCount}" TextColor="White" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Frame Grid.Row="1" Grid.Column="1" BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                       CornerRadius="8" Padding="12">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Deals" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding DealCount}" TextColor="White" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Frame Grid.Row="2" Grid.Column="0" BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                       CornerRadius="8" Padding="12">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Pipeline Value" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding TotalPipelineValue, Converter={StaticResource CurrencyConverter}}"
+                               TextColor="#00c8ff" FontSize="20" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Frame Grid.Row="2" Grid.Column="1" BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                       CornerRadius="8" Padding="12">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Invoices" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding InvoiceCount}" TextColor="White" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <Frame Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" BackgroundColor="#0f1e35"
+                       BorderColor="#1a3a5c" CornerRadius="8" Padding="12">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Total Outstanding" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding TotalOutstanding, Converter={StaticResource CurrencyConverter}}"
+                               TextColor="#00c8ff" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+            </Grid>
+
+            <!-- Recent Activities -->
+            <Label Text="Recent Activities" FontSize="18" FontAttributes="Bold" TextColor="White"
+                   Margin="0,8,0,0" />
+
+            <CollectionView ItemsSource="{Binding RecentActivities}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" Margin="0,4" Padding="12"
+                               CornerRadius="8">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                <Label Grid.Row="0" Grid.Column="0" Text="{Binding Subject}"
+                                       FontSize="15" FontAttributes="Bold" TextColor="White" />
+                                <Label Grid.Row="0" Grid.Column="1" Text="{Binding Type}"
+                                       FontSize="12" TextColor="#00c8ff" VerticalOptions="Center" />
+                                <Label Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                       Text="{Binding DueDate, StringFormat='{0:MMM dd, yyyy}'}"
+                                       FontSize="12" TextColor="#aaaaaa" />
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <Label Text="No recent activities" TextColor="#666666" HorizontalOptions="Center"
+                           Margin="0,20" />
+                </CollectionView.EmptyView>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

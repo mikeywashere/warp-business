@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.DealListPage"
+             x:DataType="vm:DealListViewModel"
+             Title="Deals"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="+" Command="{Binding GoToCreateCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto">
+
+        <!-- Pipeline Summary -->
+        <Frame Grid.Row="0" BackgroundColor="#0f1e35" BorderColor="#1a3a5c" Margin="8" Padding="16"
+               CornerRadius="8">
+            <HorizontalStackLayout Spacing="24" HorizontalOptions="Center">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Total Deals" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding PipelineSummary.TotalDealCount}" TextColor="White" FontSize="20"
+                           FontAttributes="Bold" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Pipeline Value" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding PipelineSummary.TotalPipelineValue, Converter={StaticResource CurrencyConverter}}"
+                           TextColor="#00c8ff" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </HorizontalStackLayout>
+        </Frame>
+
+        <!-- Stage Filter -->
+        <Picker Grid.Row="1" Title="Filter by stage" SelectedItem="{Binding SelectedStage}"
+                BackgroundColor="#0f1e35" TextColor="White" TitleColor="#666666" Margin="8,0">
+            <Picker.ItemsSource>
+                <x:Array Type="{x:Type x:String}">
+                    <x:String></x:String>
+                    <x:String>Lead</x:String>
+                    <x:String>Qualified</x:String>
+                    <x:String>Proposal</x:String>
+                    <x:String>Negotiation</x:String>
+                    <x:String>Won</x:String>
+                    <x:String>Lost</x:String>
+                </x:Array>
+            </Picker.ItemsSource>
+        </Picker>
+
+        <ActivityIndicator Grid.Row="2" IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff" />
+
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Deals}"
+                        IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" Margin="8,4" Padding="12"
+                           CornerRadius="8">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.GoToDetailCommand}"
+                                CommandParameter="{Binding}" />
+                        </Frame.GestureRecognizers>
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                            <Label Grid.Row="0" Grid.Column="0" Text="{Binding Title}"
+                                   FontSize="16" FontAttributes="Bold" TextColor="White" />
+                            <Label Grid.Row="0" Grid.Column="1" Text="{Binding Value, StringFormat='{0:C}'}"
+                                   FontSize="15" TextColor="#00c8ff" VerticalOptions="Center" />
+                            <Label Grid.Row="1" Grid.Column="0" Text="{Binding CompanyName}"
+                                   FontSize="13" TextColor="#aaaaaa" />
+                            <Frame Grid.Row="1" Grid.Column="1" BackgroundColor="#1a3a5c"
+                                   CornerRadius="4" Padding="6,2" HasShadow="False" BorderColor="Transparent">
+                                <Label Text="{Binding Stage}" FontSize="11" TextColor="#00c8ff" />
+                            </Frame>
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <Label Text="No deals found" TextColor="#666666" HorizontalOptions="Center"
+                       Margin="0,40" />
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+        <HorizontalStackLayout Grid.Row="3" HorizontalOptions="Center" Spacing="20" Padding="8">
+            <Button Text="← Prev" Command="{Binding PreviousPageCommand}"
+                    IsVisible="{Binding HasPreviousPage}" BackgroundColor="#1a3a5c" TextColor="White" />
+            <Label Text="{Binding CurrentPage, StringFormat='Page {0}'}" VerticalOptions="Center"
+                   TextColor="#aaaaaa" />
+            <Button Text="Next →" Command="{Binding NextPageCommand}"
+                    IsVisible="{Binding HasNextPage}" BackgroundColor="#1a3a5c" TextColor="White" />
+        </HorizontalStackLayout>
+
+    </Grid>
+
+</ContentPage>

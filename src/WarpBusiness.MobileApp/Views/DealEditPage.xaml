@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.DealEditPage"
+             x:DataType="vm:DealEditViewModel"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleView>
+        <Label VerticalOptions="Center" TextColor="White" FontSize="18" FontAttributes="Bold">
+            <Label.Triggers>
+                <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="True">
+                    <Setter Property="Text" Value="New Deal" />
+                </DataTrigger>
+                <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="False">
+                    <Setter Property="Text" Value="Edit Deal" />
+                </DataTrigger>
+            </Label.Triggers>
+        </Label>
+    </Shell.TitleView>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <Label Text="Title *" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Title}" Placeholder="Deal title"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+
+            <Label Text="Value" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Value}" Placeholder="0.00"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   Keyboard="Numeric" />
+
+            <Label Text="Currency" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Currency}" Placeholder="USD"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+
+            <Label Text="Stage" TextColor="#aaaaaa" FontSize="13" />
+            <Picker SelectedItem="{Binding Stage}" Title="Select stage"
+                    BackgroundColor="#0f1e35" TextColor="White" TitleColor="#666666">
+                <Picker.ItemsSource>
+                    <x:Array Type="{x:Type x:String}">
+                        <x:String>Lead</x:String>
+                        <x:String>Qualified</x:String>
+                        <x:String>Proposal</x:String>
+                        <x:String>Negotiation</x:String>
+                        <x:String>Won</x:String>
+                        <x:String>Lost</x:String>
+                    </x:Array>
+                </Picker.ItemsSource>
+            </Picker>
+
+            <Label Text="{Binding Probability, StringFormat='Probability: {0}%'}" TextColor="#aaaaaa" FontSize="13" />
+            <Slider Minimum="0" Maximum="100" Value="{Binding Probability}"
+                    MinimumTrackColor="#00c8ff" MaximumTrackColor="#1a3a5c" ThumbColor="#00c8ff" />
+
+            <Label Text="Expected Close Date" TextColor="#aaaaaa" FontSize="13" />
+            <DatePicker Date="{Binding ExpectedCloseDate}" BackgroundColor="#0f1e35" TextColor="White" />
+
+            <Label Text="Company" TextColor="#aaaaaa" FontSize="13" />
+            <Picker ItemsSource="{Binding Companies}" SelectedItem="{Binding SelectedCompany}"
+                    ItemDisplayBinding="{Binding Name}" Title="Select company"
+                    BackgroundColor="#0f1e35" TextColor="White" TitleColor="#666666" />
+
+            <Label Text="Contact" TextColor="#aaaaaa" FontSize="13" />
+            <Picker ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}"
+                    ItemDisplayBinding="{Binding FullName}" Title="Select contact"
+                    BackgroundColor="#0f1e35" TextColor="White" TitleColor="#666666" />
+
+            <Button Text="Save" Command="{Binding SaveCommand}"
+                    BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                    Margin="0,12,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

@@ -1,0 +1,306 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.ProductDetailPage"
+             x:DataType="vm:ProductDetailViewModel"
+             Title="Product Details"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+        <converters:StatusToColorConverter x:Key="StatusColorConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid>
+        <ScrollView IsVisible="{Binding Product, Converter={StaticResource NullToBoolConverter}}">
+            <VerticalStackLayout Padding="16" Spacing="16">
+
+                <!-- Name -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Name" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Product.Name}" TextColor="White" FontSize="22" FontAttributes="Bold" />
+                </VerticalStackLayout>
+
+                <!-- Status -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Status" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Product.Status}"
+                           TextColor="{Binding Product.Status, Converter={StaticResource StatusColorConverter}}"
+                           FontSize="16" FontAttributes="Bold" />
+                </VerticalStackLayout>
+
+                <!-- Description -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Product.Description, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Description" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Product.Description}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- SKU / Barcode -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2">
+                        <Label Text="SKU" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Product.Sku}" TextColor="White" FontSize="15" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2"
+                        IsVisible="{Binding Product.Barcode, Converter={StaticResource NullToBoolConverter}}">
+                        <Label Text="Barcode" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Product.Barcode}" TextColor="White" FontSize="15" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Brand / Manufacturer -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2"
+                        IsVisible="{Binding Product.Brand, Converter={StaticResource NullToBoolConverter}}">
+                        <Label Text="Brand" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Product.Brand}" TextColor="White" FontSize="15" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2"
+                        IsVisible="{Binding Product.Manufacturer, Converter={StaticResource NullToBoolConverter}}">
+                        <Label Text="Manufacturer" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Product.Manufacturer}" TextColor="White" FontSize="15" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Category / Type -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                    <VerticalStackLayout Grid.Column="0" Spacing="2"
+                        IsVisible="{Binding Product.CategoryName, Converter={StaticResource NullToBoolConverter}}">
+                        <Label Text="Category" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Product.CategoryName}" TextColor="White" FontSize="15" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="Product Type" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding Product.ProductType}" TextColor="White" FontSize="15" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Pricing -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8"
+                       Padding="14" HasShadow="False">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Pricing" TextColor="#00c8ff" FontSize="14" FontAttributes="Bold" />
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                <Label Text="Base Price" TextColor="#aaaaaa" FontSize="11" />
+                                <Label Text="{Binding Product.BasePrice, Converter={StaticResource CurrencyConverter}}"
+                                       TextColor="White" FontSize="16" FontAttributes="Bold" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="2"
+                                IsVisible="{Binding Product.CompareAtPrice, Converter={StaticResource NullToBoolConverter}}">
+                                <Label Text="Compare At" TextColor="#aaaaaa" FontSize="11" />
+                                <Label Text="{Binding Product.CompareAtPrice, Converter={StaticResource CurrencyConverter}}"
+                                       TextColor="#888888" FontSize="14" TextDecorations="Strikethrough" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="2" Spacing="2"
+                                IsVisible="{Binding Product.CostPrice, Converter={StaticResource NullToBoolConverter}}">
+                                <Label Text="Cost" TextColor="#aaaaaa" FontSize="11" />
+                                <Label Text="{Binding Product.CostPrice, Converter={StaticResource CurrencyConverter}}"
+                                       TextColor="White" FontSize="14" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Weight & Dimensions -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8"
+                       Padding="14" HasShadow="False">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Weight &amp; Dimensions" TextColor="#00c8ff" FontSize="14" FontAttributes="Bold" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="8">
+                            <VerticalStackLayout Grid.Row="0" Grid.Column="0" Spacing="2"
+                                IsVisible="{Binding Product.Weight, Converter={StaticResource NullToBoolConverter}}">
+                                <Label Text="Weight" TextColor="#aaaaaa" FontSize="11" />
+                                <Label TextColor="White" FontSize="14">
+                                    <Label.Text>
+                                        <MultiBinding StringFormat="{}{0} {1}">
+                                            <Binding Path="Product.Weight" />
+                                            <Binding Path="Product.WeightUnit" />
+                                        </MultiBinding>
+                                    </Label.Text>
+                                </Label>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Row="0" Grid.Column="1" Spacing="2"
+                                IsVisible="{Binding Product.Length, Converter={StaticResource NullToBoolConverter}}">
+                                <Label Text="Dimensions (L × W × H)" TextColor="#aaaaaa" FontSize="11" />
+                                <Label TextColor="White" FontSize="14">
+                                    <Label.Text>
+                                        <MultiBinding StringFormat="{}{0} × {1} × {2} {3}">
+                                            <Binding Path="Product.Length" />
+                                            <Binding Path="Product.Width" />
+                                            <Binding Path="Product.Height" />
+                                            <Binding Path="Product.DimensionUnit" />
+                                        </MultiBinding>
+                                    </Label.Text>
+                                </Label>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Images -->
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Images" TextColor="#00c8ff" FontSize="16" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding Images}">
+                        <CollectionView.EmptyView>
+                            <Label Text="No images." TextColor="#666666" FontSize="13" />
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <SwipeView>
+                                    <SwipeView.RightItems>
+                                        <SwipeItems>
+                                            <SwipeItem Text="Delete" BackgroundColor="#f44336"
+                                                       Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteImageCommand}"
+                                                       CommandParameter="{Binding}" />
+                                        </SwipeItems>
+                                    </SwipeView.RightItems>
+                                    <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                                           CornerRadius="6" Padding="10" Margin="0,0,0,6" HasShadow="False">
+                                        <HorizontalStackLayout Spacing="10">
+                                            <Image Source="{Binding Url}" HeightRequest="60" WidthRequest="60"
+                                                   Aspect="AspectFill" />
+                                            <VerticalStackLayout VerticalOptions="Center" Spacing="2">
+                                                <Label Text="{Binding AltText}" TextColor="White" FontSize="14"
+                                                       LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding FileName}" TextColor="#aaaaaa" FontSize="11" />
+                                            </VerticalStackLayout>
+                                        </HorizontalStackLayout>
+                                    </Frame>
+                                </SwipeView>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Variants -->
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Variants" TextColor="#00c8ff" FontSize="16" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding Variants}">
+                        <CollectionView.EmptyView>
+                            <Label Text="No variants." TextColor="#666666" FontSize="13" />
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <SwipeView>
+                                    <SwipeView.RightItems>
+                                        <SwipeItems>
+                                            <SwipeItem Text="Delete" BackgroundColor="#f44336"
+                                                       Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteVariantCommand}"
+                                                       CommandParameter="{Binding}" />
+                                        </SwipeItems>
+                                    </SwipeView.RightItems>
+                                    <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                                           CornerRadius="6" Padding="10" Margin="0,0,0,6" HasShadow="False">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <VerticalStackLayout Grid.Column="0" Spacing="2">
+                                                <Label Text="{Binding Sku, StringFormat='SKU: {0}'}"
+                                                       TextColor="White" FontSize="14" />
+                                                <Label Text="{Binding StockQuantity, StringFormat='Stock: {0}'}"
+                                                       TextColor="#aaaaaa" FontSize="12" />
+                                            </VerticalStackLayout>
+                                            <Label Grid.Column="1"
+                                                   Text="{Binding Price, Converter={StaticResource CurrencyConverter}}"
+                                                   TextColor="#00c8ff" FontSize="15" FontAttributes="Bold"
+                                                   VerticalOptions="Center" />
+                                        </Grid>
+                                    </Frame>
+                                </SwipeView>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Ingredients -->
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Ingredients" TextColor="#00c8ff" FontSize="16" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding Ingredients}">
+                        <CollectionView.EmptyView>
+                            <Label Text="No ingredients." TextColor="#666666" FontSize="13" />
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <SwipeView>
+                                    <SwipeView.RightItems>
+                                        <SwipeItems>
+                                            <SwipeItem Text="Delete" BackgroundColor="#f44336"
+                                                       Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteIngredientCommand}"
+                                                       CommandParameter="{Binding}" />
+                                        </SwipeItems>
+                                    </SwipeView.RightItems>
+                                    <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                                           CornerRadius="6" Padding="10" Margin="0,0,0,6" HasShadow="False">
+                                        <HorizontalStackLayout Spacing="8">
+                                            <Label Text="{Binding Name}" TextColor="White" FontSize="14" />
+                                            <Label Text="⚠ Allergen" TextColor="#f44336" FontSize="12"
+                                                   VerticalOptions="Center" FontAttributes="Bold">
+                                                <Label.Triggers>
+                                                    <DataTrigger TargetType="Label" Binding="{Binding IsAllergen}" Value="False">
+                                                        <Setter Property="IsVisible" Value="False" />
+                                                    </DataTrigger>
+                                                </Label.Triggers>
+                                            </Label>
+                                        </HorizontalStackLayout>
+                                    </Frame>
+                                </SwipeView>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Options -->
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Options" TextColor="#00c8ff" FontSize="16" FontAttributes="Bold" />
+                    <CollectionView ItemsSource="{Binding Options}">
+                        <CollectionView.EmptyView>
+                            <Label Text="No options." TextColor="#666666" FontSize="13" />
+                        </CollectionView.EmptyView>
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c"
+                                       CornerRadius="6" Padding="10" Margin="0,0,0,6" HasShadow="False">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="{Binding Name}" TextColor="White"
+                                               FontSize="14" FontAttributes="Bold" />
+                                        <CollectionView ItemsSource="{Binding Values}">
+                                            <CollectionView.ItemsLayout>
+                                                <LinearItemsLayout Orientation="Horizontal" ItemSpacing="8" />
+                                            </CollectionView.ItemsLayout>
+                                            <CollectionView.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Frame BackgroundColor="#1a3a5c" CornerRadius="12"
+                                                           Padding="8,4" HasShadow="False" BorderColor="Transparent">
+                                                        <Label Text="{Binding Value}" TextColor="White" FontSize="12" />
+                                                    </Frame>
+                                                </DataTemplate>
+                                            </CollectionView.ItemTemplate>
+                                        </CollectionView>
+                                    </VerticalStackLayout>
+                                </Frame>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
+                </VerticalStackLayout>
+
+                <!-- Error -->
+                <Label Text="{Binding ErrorMessage}" TextColor="#f44336" FontSize="14"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff" HorizontalOptions="Center" VerticalOptions="Center" />
+    </Grid>
+</ContentPage>

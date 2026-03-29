@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.ActivityEditPage"
+             x:DataType="vm:ActivityEditViewModel"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <ContentPage.Title>
+        <Binding Path="IsNew">
+            <Binding.Converter>
+                <converters:InverseBoolConverter />
+            </Binding.Converter>
+        </Binding>
+    </ContentPage.Title>
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="16" Spacing="14">
+
+                <!-- Page Title -->
+                <Label FontSize="22" FontAttributes="Bold" TextColor="White">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="True">
+                            <Setter Property="Text" Value="New Activity" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="False">
+                            <Setter Property="Text" Value="Edit Activity" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+
+                <!-- Type -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Type" TextColor="#aaaaaa" FontSize="13" />
+                    <Picker ItemsSource="{Binding ActivityTypes}" SelectedItem="{Binding Type}"
+                            TextColor="White" BackgroundColor="#0f1e35"
+                            Title="Select Type" TitleColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Subject -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Subject *" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Subject}" Placeholder="Enter subject"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Description -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Description" TextColor="#aaaaaa" FontSize="13" />
+                    <Editor Text="{Binding Description}" Placeholder="Enter description"
+                            BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                            HeightRequest="100" AutoSize="TextChanges" />
+                </VerticalStackLayout>
+
+                <!-- Due Date -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Due Date" TextColor="#aaaaaa" FontSize="13" />
+                    <DatePicker Date="{Binding DueDate}" BackgroundColor="#0f1e35"
+                                TextColor="White" />
+                </VerticalStackLayout>
+
+                <!-- Due Time -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Due Time" TextColor="#aaaaaa" FontSize="13" />
+                    <TimePicker Time="{Binding DueTime}" BackgroundColor="#0f1e35"
+                                TextColor="White" />
+                </VerticalStackLayout>
+
+                <!-- IsCompleted (only for edit) -->
+                <HorizontalStackLayout Spacing="10" IsVisible="{Binding IsNew, Converter={StaticResource InverseBoolConverter}}">
+                    <Label Text="Completed" TextColor="#aaaaaa" FontSize="13" VerticalOptions="Center" />
+                    <Switch IsToggled="{Binding IsCompleted}" OnColor="#00c8ff" ThumbColor="White" />
+                </HorizontalStackLayout>
+
+                <!-- Contact -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Contact" TextColor="#aaaaaa" FontSize="13" />
+                    <Picker ItemsSource="{Binding Contacts}" SelectedItem="{Binding SelectedContact}"
+                            ItemDisplayBinding="{Binding FullName}"
+                            TextColor="White" BackgroundColor="#0f1e35"
+                            Title="Select Contact" TitleColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Deal -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Deal" TextColor="#aaaaaa" FontSize="13" />
+                    <Picker ItemsSource="{Binding Deals}" SelectedItem="{Binding SelectedDeal}"
+                            ItemDisplayBinding="{Binding Title}"
+                            TextColor="White" BackgroundColor="#0f1e35"
+                            Title="Select Deal" TitleColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Error -->
+                <Label Text="{Binding ErrorMessage}" TextColor="#f44336" FontSize="14"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+                <!-- Save Button -->
+                <Button Text="Save" Command="{Binding SaveCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                        BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                        CornerRadius="8" HeightRequest="48" Margin="0,8,0,0" />
+
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                                   Color="#00c8ff" HorizontalOptions="Center" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

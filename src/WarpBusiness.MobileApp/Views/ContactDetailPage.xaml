@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.ContactDetailPage"
+             x:DataType="vm:ContactDetailViewModel"
+             Title="Contact Details"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+        <converters:StatusToColorConverter x:Key="StatusColorConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="8">
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <Label Text="Name" TextColor="#aaaaaa" FontSize="13" />
+            <HorizontalStackLayout Spacing="6">
+                <Label Text="{Binding Contact.FirstName}" TextColor="White" FontSize="22" FontAttributes="Bold" />
+                <Label Text="{Binding Contact.LastName}" TextColor="White" FontSize="22" FontAttributes="Bold" />
+            </HorizontalStackLayout>
+
+            <Label Text="Email" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Contact.Email}" TextColor="#00c8ff" FontSize="16" />
+
+            <Label Text="Phone" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Contact.Phone}" TextColor="White" FontSize="16" />
+
+            <Label Text="Job Title" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Contact.JobTitle}" TextColor="White" FontSize="16" />
+
+            <Label Text="Company" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Contact.CompanyName}" TextColor="White" FontSize="16" />
+
+            <Label Text="Status" TextColor="#aaaaaa" FontSize="13" Margin="0,8,0,0" />
+            <Label Text="{Binding Contact.Status}" FontSize="16"
+                   TextColor="{Binding Contact.Status, Converter={StaticResource StatusColorConverter}}" />
+
+            <!-- Custom Fields -->
+            <Label Text="Custom Fields" FontSize="18" FontAttributes="Bold" TextColor="White"
+                   Margin="0,16,0,4" />
+
+            <CollectionView ItemsSource="{Binding CustomFields}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" Margin="0,4" Padding="12"
+                               CornerRadius="8">
+                            <Grid ColumnDefinitions="*,*">
+                                <Label Grid.Column="0" Text="{Binding FieldName}" FontSize="14"
+                                       TextColor="#aaaaaa" />
+                                <Label Grid.Column="1" Text="{Binding Value}" FontSize="14"
+                                       TextColor="White" />
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <Label Text="No custom fields" TextColor="#666666" HorizontalOptions="Center"
+                           Margin="0,8" />
+                </CollectionView.EmptyView>
+            </CollectionView>
+
+            <!-- Relationships -->
+            <Label Text="Relationships" FontSize="18" FontAttributes="Bold" TextColor="White"
+                   Margin="0,16,0,4" />
+
+            <CollectionView ItemsSource="{Binding Relationships}">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" Margin="0,4" Padding="12"
+                               CornerRadius="8">
+                            <Grid ColumnDefinitions="*,*">
+                                <Label Grid.Column="0" Text="{Binding EmployeeName}" FontSize="14"
+                                       FontAttributes="Bold" TextColor="White" />
+                                <Label Grid.Column="1" Text="{Binding RelationshipType}" FontSize="14"
+                                       TextColor="#aaaaaa" />
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+                <CollectionView.EmptyView>
+                    <Label Text="No relationships" TextColor="#666666" HorizontalOptions="Center"
+                           Margin="0,8" />
+                </CollectionView.EmptyView>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

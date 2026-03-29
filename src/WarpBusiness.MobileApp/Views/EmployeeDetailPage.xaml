@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.EmployeeDetailPage"
+             x:DataType="vm:EmployeeDetailViewModel"
+             Title="Employee Details"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid>
+        <ScrollView IsVisible="{Binding Employee, Converter={StaticResource NullToBoolConverter}}">
+            <VerticalStackLayout Padding="16" Spacing="16">
+
+                <!-- Name -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Name" TextColor="#aaaaaa" FontSize="12" />
+                    <Label TextColor="White" FontSize="22" FontAttributes="Bold">
+                        <Label.Text>
+                            <MultiBinding StringFormat="{}{0} {1}">
+                                <Binding Path="Employee.FirstName" />
+                                <Binding Path="Employee.LastName" />
+                            </MultiBinding>
+                        </Label.Text>
+                    </Label>
+                </VerticalStackLayout>
+
+                <!-- Email -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Email" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.Email}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Phone -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Employee.Phone, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Phone" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.Phone}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Department -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Employee.Department, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Department" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.Department}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Job Title -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Employee.JobTitle, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Job Title" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.JobTitle}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Hire Date -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Hire Date" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.HireDate, StringFormat='{0:MMM dd, yyyy}'}"
+                           TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Termination Date -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Employee.TerminationDate, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Termination Date" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.TerminationDate, StringFormat='{0:MMM dd, yyyy}'}"
+                           TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Active Status -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Status" TextColor="#aaaaaa" FontSize="12" />
+                    <HorizontalStackLayout Spacing="8">
+                        <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6"
+                                 Color="{Binding Employee.IsActive, Converter={StaticResource BoolToColorConverter}}" />
+                        <Label TextColor="White" FontSize="15">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label" Binding="{Binding Employee.IsActive}" Value="True">
+                                    <Setter Property="Text" Value="Active" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label" Binding="{Binding Employee.IsActive}" Value="False">
+                                    <Setter Property="Text" Value="Inactive" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Manager -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Employee.ManagerName, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Manager" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.ManagerName}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Notes -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Employee.Notes, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Notes" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Employee.Notes}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Deactivate Button -->
+                <Button Text="Deactivate Employee" Command="{Binding DeactivateCommand}"
+                        BackgroundColor="#f44336" TextColor="White" FontAttributes="Bold"
+                        CornerRadius="8" HeightRequest="48" Margin="0,8,0,0" />
+
+                <!-- Error -->
+                <Label Text="{Binding ErrorMessage}" TextColor="#f44336" FontSize="14"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff" HorizontalOptions="Center" VerticalOptions="Center" />
+    </Grid>
+</ContentPage>
