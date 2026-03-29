@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.ActivityDetailPage"
+             x:DataType="vm:ActivityDetailViewModel"
+             Title="Activity Details"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid>
+        <ScrollView IsVisible="{Binding Activity, Converter={StaticResource NullToBoolConverter}}">
+            <VerticalStackLayout Padding="16" Spacing="16">
+
+                <!-- Subject -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Subject" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.Subject}" TextColor="White" FontSize="20" FontAttributes="Bold" />
+                </VerticalStackLayout>
+
+                <!-- Type -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Type" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.Type}" TextColor="White" FontSize="16" />
+                </VerticalStackLayout>
+
+                <!-- Description -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Description" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.Description}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Due Date -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Due Date" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.DueDate, StringFormat='{0:MMM dd, yyyy h:mm tt}'}"
+                           TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Status -->
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Status" TextColor="#aaaaaa" FontSize="12" />
+                    <HorizontalStackLayout Spacing="8">
+                        <BoxView WidthRequest="12" HeightRequest="12" CornerRadius="6"
+                                 Color="{Binding Activity.IsCompleted, Converter={StaticResource BoolToColorConverter}}" />
+                        <Label TextColor="White" FontSize="15">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label" Binding="{Binding Activity.IsCompleted}" Value="True">
+                                    <Setter Property="Text" Value="Completed" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label" Binding="{Binding Activity.IsCompleted}" Value="False">
+                                    <Setter Property="Text" Value="Pending" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Completed At -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Activity.CompletedAt, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Completed At" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.CompletedAt, StringFormat='{0:MMM dd, yyyy h:mm tt}'}"
+                           TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Contact -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Activity.ContactName, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Contact" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.ContactName}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Company -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Activity.CompanyName, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Company" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.CompanyName}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Deal -->
+                <VerticalStackLayout Spacing="2"
+                    IsVisible="{Binding Activity.DealTitle, Converter={StaticResource NullToBoolConverter}}">
+                    <Label Text="Deal" TextColor="#aaaaaa" FontSize="12" />
+                    <Label Text="{Binding Activity.DealTitle}" TextColor="White" FontSize="15" />
+                </VerticalStackLayout>
+
+                <!-- Complete Button -->
+                <Button Text="✓ Mark as Complete" Command="{Binding CompleteCommand}"
+                        BackgroundColor="#4caf50" TextColor="White" FontAttributes="Bold"
+                        CornerRadius="8" HeightRequest="48" Margin="0,8,0,0"
+                        IsVisible="{Binding Activity.IsCompleted, Converter={StaticResource InverseBoolConverter}}" />
+
+                <!-- Error -->
+                <Label Text="{Binding ErrorMessage}" TextColor="#f44336" FontSize="14"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff" HorizontalOptions="Center" VerticalOptions="Center" />
+    </Grid>
+</ContentPage>

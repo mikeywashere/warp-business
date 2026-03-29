@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.RegisterPage"
+             x:DataType="vm:RegisterViewModel"
+             Title="Register"
+             BackgroundColor="#050b18"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <ScrollView>
+        <VerticalStackLayout Padding="32,60,32,32" Spacing="16" VerticalOptions="Center">
+
+            <Label Text="Create Account" FontSize="28" FontAttributes="Bold" TextColor="#00c8ff"
+                   HorizontalOptions="Center" Margin="0,0,0,16" />
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}"
+                   HorizontalOptions="Center" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <Label Text="First Name" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding FirstName}" Placeholder="First Name"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+
+            <Label Text="Last Name" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding LastName}" Placeholder="Last Name"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+
+            <Label Text="Email" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Email}" Placeholder="you@example.com"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   Keyboard="Email" />
+
+            <Label Text="Password" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding Password}" Placeholder="Password"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   IsPassword="True" />
+
+            <Label Text="Confirm Password" TextColor="#aaaaaa" FontSize="13" />
+            <Entry Text="{Binding ConfirmPassword}" Placeholder="Confirm Password"
+                   BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                   IsPassword="True" />
+
+            <Button Text="Register" Command="{Binding RegisterCommand}"
+                    BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                    Margin="0,8,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

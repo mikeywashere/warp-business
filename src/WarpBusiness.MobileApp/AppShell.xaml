@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="WarpBusiness.MobileApp.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:WarpBusiness.MobileApp.Views"
+    Title="Warp Business"
+    FlyoutBehavior="Flyout"
+    Shell.FlyoutBackgroundColor="#050b18">
+
+    <Shell.FlyoutHeaderTemplate>
+        <DataTemplate>
+            <VerticalStackLayout Padding="20" BackgroundColor="#050b18">
+                <Label Text="Warp Business" FontSize="24" FontAttributes="Bold" TextColor="#00c8ff" />
+                <Label Text="Business Management" FontSize="14" TextColor="#aaaaaa" />
+            </VerticalStackLayout>
+        </DataTemplate>
+    </Shell.FlyoutHeaderTemplate>
+
+    <!-- Login (no flyout) -->
+    <ShellContent Route="login" ContentTemplate="{DataTemplate views:LoginPage}" FlyoutItemIsVisible="False" />
+
+    <!-- Dashboard -->
+    <FlyoutItem Title="Dashboard" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="dashboard" ContentTemplate="{DataTemplate views:DashboardPage}" />
+    </FlyoutItem>
+
+    <!-- CRM -->
+    <FlyoutItem Title="Companies" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="companies" ContentTemplate="{DataTemplate views:CompanyListPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Contacts" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="contacts" ContentTemplate="{DataTemplate views:ContactListPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Deals" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="deals" ContentTemplate="{DataTemplate views:DealListPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Activities" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="activities" ContentTemplate="{DataTemplate views:ActivityListPage}" />
+    </FlyoutItem>
+
+    <!-- HR -->
+    <FlyoutItem Title="Employees" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="employees" ContentTemplate="{DataTemplate views:EmployeeListPage}" />
+    </FlyoutItem>
+
+    <!-- Catalog -->
+    <FlyoutItem Title="Products" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="products" ContentTemplate="{DataTemplate views:ProductListPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Categories" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="categories" ContentTemplate="{DataTemplate views:CategoryListPage}" />
+    </FlyoutItem>
+
+    <!-- Invoicing -->
+    <FlyoutItem Title="Invoices" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="invoices" ContentTemplate="{DataTemplate views:InvoiceListPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Invoice Settings" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="invoiceSettings" ContentTemplate="{DataTemplate views:InvoiceSettingsPage}" />
+    </FlyoutItem>
+
+    <!-- Time Tracking -->
+    <FlyoutItem Title="Time Entries" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="timeEntries" ContentTemplate="{DataTemplate views:TimeEntryListPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Entry Types" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="timeEntryTypes" ContentTemplate="{DataTemplate views:TimeEntryTypesPage}" />
+    </FlyoutItem>
+
+    <!-- Admin -->
+    <FlyoutItem Title="Users" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="adminUsers" ContentTemplate="{DataTemplate views:AdminUsersPage}" />
+    </FlyoutItem>
+
+    <FlyoutItem Title="Tenant Settings" Icon="{OnPlatform Default=''}">
+        <ShellContent Route="tenantSettings" ContentTemplate="{DataTemplate views:TenantSettingsPage}" />
+    </FlyoutItem>
+
+</Shell>

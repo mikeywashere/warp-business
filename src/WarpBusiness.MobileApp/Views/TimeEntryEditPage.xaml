@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="WarpBusiness.MobileApp.Views.TimeEntryEditPage"
+             Title="Time Entry"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Triggers>
+        <DataTrigger TargetType="ContentPage" Binding="{Binding IsNew}" Value="True">
+            <Setter Property="Title" Value="New Time Entry" />
+        </DataTrigger>
+        <DataTrigger TargetType="ContentPage" Binding="{Binding IsNew}" Value="False">
+            <Setter Property="Title" Value="Edit Time Entry" />
+        </DataTrigger>
+    </ContentPage.Triggers>
+
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <ScrollView>
+            <VerticalStackLayout Spacing="12" Padding="16">
+
+                <!-- Error Message -->
+                <Label Text="{Binding ErrorMessage}"
+                       TextColor="#f44336"
+                       IsVisible="{Binding ErrorMessage, FallbackValue=False, TargetNullValue=False}"
+                       Margin="0,0,0,8" />
+
+                <!-- Employee -->
+                <Label Text="Employee" TextColor="#aaaaaa" FontSize="12" />
+                <Picker ItemsSource="{Binding Employees}"
+                        SelectedItem="{Binding SelectedEmployee}"
+                        ItemDisplayBinding="{Binding EmployeeName}"
+                        TextColor="White"
+                        TitleColor="#666666"
+                        Title="Select Employee"
+                        BackgroundColor="#0f1e35" />
+
+                <!-- Date -->
+                <Label Text="Date" TextColor="#aaaaaa" FontSize="12" />
+                <DatePicker Date="{Binding Date}"
+                            TextColor="White"
+                            BackgroundColor="#0f1e35" />
+
+                <!-- Start / End Time -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0">
+                        <Label Text="Start Time" TextColor="#aaaaaa" FontSize="12" />
+                        <TimePicker Time="{Binding StartTime}"
+                                    TextColor="White"
+                                    BackgroundColor="#0f1e35" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1">
+                        <Label Text="End Time" TextColor="#aaaaaa" FontSize="12" />
+                        <TimePicker Time="{Binding EndTime}"
+                                    TextColor="White"
+                                    BackgroundColor="#0f1e35" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Hours -->
+                <Label Text="Hours" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding Hours}"
+                       Keyboard="Numeric"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="0.00" />
+
+                <!-- Entry Type -->
+                <Label Text="Entry Type" TextColor="#aaaaaa" FontSize="12" />
+                <Picker ItemsSource="{Binding EntryTypes}"
+                        SelectedItem="{Binding SelectedEntryType}"
+                        ItemDisplayBinding="{Binding Name}"
+                        TextColor="White"
+                        TitleColor="#666666"
+                        Title="Select Type"
+                        BackgroundColor="#0f1e35" />
+
+                <!-- Billable -->
+                <Grid ColumnDefinitions="*,Auto" Margin="0,4">
+                    <Label Text="Billable"
+                           TextColor="White"
+                           FontSize="16"
+                           VerticalOptions="Center" />
+                    <Switch Grid.Column="1"
+                            IsToggled="{Binding IsBillable}"
+                            OnColor="#00c8ff"
+                            ThumbColor="White" />
+                </Grid>
+
+                <!-- Company -->
+                <Label Text="Company" TextColor="#aaaaaa" FontSize="12" />
+                <Picker ItemsSource="{Binding Companies}"
+                        SelectedItem="{Binding SelectedCompany}"
+                        ItemDisplayBinding="{Binding CompanyName}"
+                        TextColor="White"
+                        TitleColor="#666666"
+                        Title="Select Company"
+                        BackgroundColor="#0f1e35" />
+
+                <!-- Billing Rate -->
+                <Label Text="Billing Rate" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding BillingRate}"
+                       Keyboard="Numeric"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="0.00" />
+
+                <!-- Description -->
+                <Label Text="Description" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding Description}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Describe the work performed"
+                        HeightRequest="120"
+                        AutoSize="TextChanges" />
+
+                <!-- Save Button -->
+                <Button Text="Save"
+                        Command="{Binding SaveCommand}"
+                        BackgroundColor="#00c8ff"
+                        TextColor="#050b18"
+                        FontAttributes="Bold"
+                        CornerRadius="8"
+                        Margin="0,16,0,24"
+                        HeightRequest="48" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

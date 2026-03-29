@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.CompanyListPage"
+             x:DataType="vm:CompanyListViewModel"
+             Title="Companies"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="+" Command="{Binding GoToCreateCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <SearchBar Grid.Row="0" Text="{Binding SearchText}" SearchCommand="{Binding SearchCommand}"
+                   Placeholder="Search companies..." BackgroundColor="#0f1e35" TextColor="White"
+                   PlaceholderColor="#666666" />
+
+        <ActivityIndicator Grid.Row="1" IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff" />
+
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Companies}"
+                        IsVisible="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" Margin="8,4" Padding="12"
+                           CornerRadius="8">
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.GoToDetailCommand}"
+                                CommandParameter="{Binding}" />
+                        </Frame.GestureRecognizers>
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" TextColor="White" />
+                            <Label Text="{Binding Industry}" FontSize="13" TextColor="#aaaaaa" />
+                            <Label Text="{Binding Phone}" FontSize="12" TextColor="#666666" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <Label Text="No companies found" TextColor="#666666" HorizontalOptions="Center"
+                       Margin="0,40" />
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+        <HorizontalStackLayout Grid.Row="2" HorizontalOptions="Center" Spacing="20" Padding="8">
+            <Button Text="← Prev" Command="{Binding PreviousPageCommand}"
+                    IsVisible="{Binding HasPreviousPage}" BackgroundColor="#1a3a5c" TextColor="White" />
+            <Label Text="{Binding CurrentPage, StringFormat='Page {0}'}" VerticalOptions="Center"
+                   TextColor="#aaaaaa" />
+            <Button Text="Next →" Command="{Binding NextPageCommand}"
+                    IsVisible="{Binding HasNextPage}" BackgroundColor="#1a3a5c" TextColor="White" />
+        </HorizontalStackLayout>
+
+    </Grid>
+
+</ContentPage>

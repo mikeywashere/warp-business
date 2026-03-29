@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.TimeEntryDetailPage"
+             Title="Time Entry Detail"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:DecimalToCurrencyConverter x:Key="CurrencyConverter" />
+        <converters:StatusToColorConverter x:Key="StatusColorConverter" />
+    </ContentPage.Resources>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Edit" Command="{Binding EditCommand}" />
+        <ToolbarItem Text="Delete" Command="{Binding DeleteCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <ScrollView>
+            <VerticalStackLayout Spacing="8" Padding="16">
+
+                <!-- Error Message -->
+                <Label Text="{Binding ErrorMessage}"
+                       TextColor="#f44336"
+                       IsVisible="{Binding ErrorMessage, FallbackValue=False, TargetNullValue=False}"
+                       Margin="0,0,0,8" />
+
+                <!-- Employee & Status -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Employee" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding TimeEntry.EmployeeName}"
+                               TextColor="White" FontSize="20" FontAttributes="Bold" />
+
+                        <Label Text="Status" TextColor="#aaaaaa" FontSize="12" Margin="0,8,0,0" />
+                        <Label Text="{Binding TimeEntry.Status}"
+                               TextColor="{Binding TimeEntry.Status, Converter={StaticResource StatusColorConverter}}"
+                               FontSize="16" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Time Details -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Date" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding TimeEntry.Date, StringFormat='{0:MMM dd, yyyy}'}"
+                               TextColor="White" FontSize="16" />
+
+                        <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                            <VerticalStackLayout Grid.Column="0">
+                                <Label Text="Start Time" TextColor="#aaaaaa" FontSize="12" />
+                                <Label Text="{Binding TimeEntry.StartTime, StringFormat='{0:hh\\:mm}'}"
+                                       TextColor="White" FontSize="16" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1">
+                                <Label Text="End Time" TextColor="#aaaaaa" FontSize="12" />
+                                <Label Text="{Binding TimeEntry.EndTime, StringFormat='{0:hh\\:mm}'}"
+                                       TextColor="White" FontSize="16" />
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Label Text="Hours" TextColor="#aaaaaa" FontSize="12" Margin="0,8,0,0" />
+                        <Label Text="{Binding TimeEntry.Hours, StringFormat='{0:F2}'}"
+                               TextColor="#00c8ff" FontSize="24" FontAttributes="Bold" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Type & Billing -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Entry Type" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding TimeEntry.TimeEntryTypeName}"
+                               TextColor="White" FontSize="16" />
+
+                        <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                            <VerticalStackLayout Grid.Column="0">
+                                <Label Text="Billable" TextColor="#aaaaaa" FontSize="12" />
+                                <Label Text="{Binding TimeEntry.IsBillable, StringFormat='{0:Yes;;No}'}"
+                                       TextColor="White" FontSize="16" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1">
+                                <Label Text="Billing Rate" TextColor="#aaaaaa" FontSize="12" />
+                                <Label Text="{Binding TimeEntry.BillingRate, Converter={StaticResource CurrencyConverter}}"
+                                       TextColor="White" FontSize="16" />
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Label Text="Company" TextColor="#aaaaaa" FontSize="12" Margin="0,8,0,0" />
+                        <Label Text="{Binding TimeEntry.CompanyName}"
+                               TextColor="White" FontSize="16" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Description -->
+                <Frame BackgroundColor="#0f1e35" BorderColor="#1a3a5c" CornerRadius="8" Padding="16">
+                    <VerticalStackLayout Spacing="6">
+                        <Label Text="Description" TextColor="#aaaaaa" FontSize="12" />
+                        <Label Text="{Binding TimeEntry.Description}"
+                               TextColor="White" FontSize="14" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Action Buttons (status-dependent) -->
+                <VerticalStackLayout Spacing="8" Margin="0,12,0,24">
+                    <!-- Submit: only for Draft -->
+                    <Button Text="Submit"
+                            Command="{Binding SubmitCommand}"
+                            BackgroundColor="#00c8ff"
+                            TextColor="#050b18"
+                            FontAttributes="Bold"
+                            CornerRadius="8"
+                            HeightRequest="48"
+                            IsVisible="False">
+                        <Button.Triggers>
+                            <DataTrigger TargetType="Button"
+                                         Binding="{Binding TimeEntry.Status}"
+                                         Value="Draft">
+                                <Setter Property="IsVisible" Value="True" />
+                            </DataTrigger>
+                        </Button.Triggers>
+                    </Button>
+
+                    <!-- Approve/Reject: only for Submitted -->
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8" IsVisible="False">
+                        <Grid.Triggers>
+                            <DataTrigger TargetType="Grid"
+                                         Binding="{Binding TimeEntry.Status}"
+                                         Value="Submitted">
+                                <Setter Property="IsVisible" Value="True" />
+                            </DataTrigger>
+                        </Grid.Triggers>
+                        <Button Grid.Column="0"
+                                Text="Approve"
+                                Command="{Binding ApproveCommand}"
+                                BackgroundColor="#4caf50"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                CornerRadius="8"
+                                HeightRequest="48" />
+                        <Button Grid.Column="1"
+                                Text="Reject"
+                                Command="{Binding RejectCommand}"
+                                BackgroundColor="#f44336"
+                                TextColor="White"
+                                FontAttributes="Bold"
+                                CornerRadius="8"
+                                HeightRequest="48" />
+                    </Grid>
+                </VerticalStackLayout>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

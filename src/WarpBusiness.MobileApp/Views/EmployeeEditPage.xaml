@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.EmployeeEditPage"
+             x:DataType="vm:EmployeeEditViewModel"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="16" Spacing="14">
+
+                <!-- Page Title -->
+                <Label FontSize="22" FontAttributes="Bold" TextColor="White">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="True">
+                            <Setter Property="Text" Value="New Employee" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="False">
+                            <Setter Property="Text" Value="Edit Employee" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+
+                <!-- First Name -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="First Name *" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding FirstName}" Placeholder="Enter first name"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Last Name -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Last Name *" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding LastName}" Placeholder="Enter last name"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Email -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Email *" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Email}" Placeholder="Enter email"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                           Keyboard="Email" />
+                </VerticalStackLayout>
+
+                <!-- Phone -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Phone" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Phone}" Placeholder="Enter phone number"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                           Keyboard="Telephone" />
+                </VerticalStackLayout>
+
+                <!-- Department -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Department" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Department}" Placeholder="Enter department"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Job Title -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Job Title" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding JobTitle}" Placeholder="Enter job title"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Hire Date -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Hire Date" TextColor="#aaaaaa" FontSize="13" />
+                    <DatePicker Date="{Binding HireDate}" BackgroundColor="#0f1e35"
+                                TextColor="White" />
+                </VerticalStackLayout>
+
+                <!-- Termination Date -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Termination Date" TextColor="#aaaaaa" FontSize="13" />
+                    <DatePicker Date="{Binding TerminationDate}" BackgroundColor="#0f1e35"
+                                TextColor="White" />
+                </VerticalStackLayout>
+
+                <!-- Is Active -->
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Active" TextColor="#aaaaaa" FontSize="13" VerticalOptions="Center" />
+                    <Switch IsToggled="{Binding IsActive}" OnColor="#00c8ff" ThumbColor="White" />
+                </HorizontalStackLayout>
+
+                <!-- Manager -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Manager" TextColor="#aaaaaa" FontSize="13" />
+                    <Picker ItemsSource="{Binding Managers}"
+                            ItemDisplayBinding="{Binding FullName}"
+                            TextColor="White" BackgroundColor="#0f1e35"
+                            Title="Select Manager" TitleColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Notes -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Notes" TextColor="#aaaaaa" FontSize="13" />
+                    <Editor Text="{Binding Notes}" Placeholder="Enter notes"
+                            BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                            HeightRequest="100" AutoSize="TextChanges" />
+                </VerticalStackLayout>
+
+                <!-- Error -->
+                <Label Text="{Binding ErrorMessage}" TextColor="#f44336" FontSize="14"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+                <!-- Save Button -->
+                <Button Text="Save" Command="{Binding SaveCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                        BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                        CornerRadius="8" HeightRequest="48" Margin="0,8,0,0" />
+
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                                   Color="#00c8ff" HorizontalOptions="Center" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

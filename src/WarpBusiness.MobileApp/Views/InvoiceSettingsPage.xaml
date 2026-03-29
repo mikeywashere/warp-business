@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="WarpBusiness.MobileApp.Views.InvoiceSettingsPage"
+             Title="Invoice Settings"
+             BackgroundColor="#050b18">
+
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <ScrollView>
+            <VerticalStackLayout Spacing="12" Padding="16">
+
+                <!-- Messages -->
+                <Label Text="{Binding ErrorMessage}"
+                       TextColor="#f44336"
+                       IsVisible="{Binding ErrorMessage, FallbackValue=False, TargetNullValue=False}"
+                       Margin="0,0,0,4" />
+                <Label Text="{Binding SuccessMessage}"
+                       TextColor="#4caf50"
+                       IsVisible="{Binding SuccessMessage, FallbackValue=False, TargetNullValue=False}"
+                       Margin="0,0,0,4" />
+
+                <!-- Numbering Section -->
+                <Label Text="NUMBERING" TextColor="#00c8ff" FontSize="14" FontAttributes="Bold" Margin="0,8,0,4" />
+
+                <Label Text="Prefix" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding Prefix}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="INV-" />
+
+                <Label Text="Number Padding" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding NumberPadding}"
+                       Keyboard="Numeric"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="4" />
+
+                <!-- Defaults Section -->
+                <Label Text="DEFAULTS" TextColor="#00c8ff" FontSize="14" FontAttributes="Bold" Margin="0,16,0,4" />
+
+                <Label Text="Default Payment Terms" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding DefaultPaymentTerms}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="Net 30" />
+
+                <Label Text="Default Due Days" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding DefaultDueDays}"
+                       Keyboard="Numeric"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="30" />
+
+                <Label Text="Default Tax Rate" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding DefaultTaxRate}"
+                       Keyboard="Numeric"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="0.00" />
+
+                <Label Text="Default Currency" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding DefaultCurrency}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="USD" />
+
+                <Label Text="Default Footer Text" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding DefaultFooterText}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Footer text for invoices"
+                        HeightRequest="80"
+                        AutoSize="TextChanges" />
+
+                <Label Text="Default Customer Notes" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding DefaultCustomerNotes}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Default notes for customers"
+                        HeightRequest="80"
+                        AutoSize="TextChanges" />
+
+                <!-- Company Section -->
+                <Label Text="COMPANY DETAILS" TextColor="#00c8ff" FontSize="14" FontAttributes="Bold" Margin="0,16,0,4" />
+
+                <Label Text="Company Name" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding CompanyName}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="Your company name" />
+
+                <Label Text="Company Address" TextColor="#aaaaaa" FontSize="12" />
+                <Editor Text="{Binding CompanyAddress}"
+                        TextColor="White"
+                        BackgroundColor="#0f1e35"
+                        PlaceholderColor="#666666"
+                        Placeholder="Company address"
+                        HeightRequest="80"
+                        AutoSize="TextChanges" />
+
+                <Label Text="Company Phone" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding CompanyPhone}"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="Phone number" />
+
+                <Label Text="Company Email" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding CompanyEmail}"
+                       Keyboard="Email"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="email@company.com" />
+
+                <Label Text="Company Logo URL" TextColor="#aaaaaa" FontSize="12" />
+                <Entry Text="{Binding CompanyLogoUrl}"
+                       Keyboard="Url"
+                       TextColor="White"
+                       BackgroundColor="#0f1e35"
+                       PlaceholderColor="#666666"
+                       Placeholder="https://..." />
+
+                <!-- Save Button -->
+                <Button Text="Save Settings"
+                        Command="{Binding SaveCommand}"
+                        BackgroundColor="#00c8ff"
+                        TextColor="#050b18"
+                        FontAttributes="Bold"
+                        CornerRadius="8"
+                        Margin="0,16,0,24"
+                        HeightRequest="48" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

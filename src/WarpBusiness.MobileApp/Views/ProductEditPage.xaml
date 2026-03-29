@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             xmlns:converters="clr-namespace:WarpBusiness.MobileApp.Converters"
+             x:Class="WarpBusiness.MobileApp.Views.ProductEditPage"
+             x:DataType="vm:ProductEditViewModel"
+             BackgroundColor="#050b18">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:NullToBoolConverter x:Key="NullToBoolConverter" />
+    </ContentPage.Resources>
+
+    <Shell.TitleColor>White</Shell.TitleColor>
+
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="16" Spacing="14">
+
+                <!-- Page Title -->
+                <Label FontSize="22" FontAttributes="Bold" TextColor="White">
+                    <Label.Triggers>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="True">
+                            <Setter Property="Text" Value="New Product" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Label" Binding="{Binding IsNew}" Value="False">
+                            <Setter Property="Text" Value="Edit Product" />
+                        </DataTrigger>
+                    </Label.Triggers>
+                </Label>
+
+                <!-- Basic Info Section -->
+                <Label Text="Basic Information" TextColor="#00c8ff" FontSize="15" FontAttributes="Bold" Margin="0,4,0,0" />
+
+                <!-- Name -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Name *" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Name}" Placeholder="Product name"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Description -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Description" TextColor="#aaaaaa" FontSize="13" />
+                    <Editor Text="{Binding Description}" Placeholder="Full description"
+                            BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                            HeightRequest="120" AutoSize="TextChanges" />
+                </VerticalStackLayout>
+
+                <!-- Short Description -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Short Description" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding ShortDescription}" Placeholder="Brief description"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Slug -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Slug" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Slug}" Placeholder="url-friendly-slug"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- SKU / Barcode -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                        <Label Text="SKU" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Sku}" Placeholder="SKU"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <Label Text="Barcode" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Barcode}" Placeholder="Barcode"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Brand / Manufacturer -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                        <Label Text="Brand" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Brand}" Placeholder="Brand"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <Label Text="Manufacturer" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Manufacturer}" Placeholder="Manufacturer"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Category / Type / Status -->
+                <Label Text="Classification" TextColor="#00c8ff" FontSize="15" FontAttributes="Bold" Margin="0,8,0,0" />
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Category" TextColor="#aaaaaa" FontSize="13" />
+                    <Picker ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory}"
+                            ItemDisplayBinding="{Binding Name}"
+                            Title="Select Category" TitleColor="#666666"
+                            TextColor="White" BackgroundColor="#0f1e35" />
+                </VerticalStackLayout>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                        <Label Text="Product Type" TextColor="#aaaaaa" FontSize="13" />
+                        <Picker ItemsSource="{Binding ProductTypes}" SelectedItem="{Binding ProductType}"
+                                TextColor="White" BackgroundColor="#0f1e35"
+                                Title="Select Type" TitleColor="#666666" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <Label Text="Status" TextColor="#aaaaaa" FontSize="13" />
+                        <Picker ItemsSource="{Binding StatusOptions}" SelectedItem="{Binding Status}"
+                                TextColor="White" BackgroundColor="#0f1e35"
+                                Title="Select Status" TitleColor="#666666" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- Pricing Section -->
+                <Label Text="Pricing" TextColor="#00c8ff" FontSize="15" FontAttributes="Bold" Margin="0,8,0,0" />
+
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                        <Label Text="Base Price" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding BasePrice}" Placeholder="0.00"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                               Keyboard="Numeric" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <Label Text="Compare At" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding CompareAtPrice}" Placeholder="0.00"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                               Keyboard="Numeric" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="2" Spacing="4">
+                        <Label Text="Cost Price" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding CostPrice}" Placeholder="0.00"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                               Keyboard="Numeric" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Currency" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Currency}" Placeholder="USD"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Weight & Dimensions -->
+                <Label Text="Weight &amp; Dimensions" TextColor="#00c8ff" FontSize="15" FontAttributes="Bold" Margin="0,8,0,0" />
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                        <Label Text="Weight" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Weight}" Placeholder="0.00"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                               Keyboard="Numeric" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <Label Text="Weight Unit" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding WeightUnit}" Placeholder="kg"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                        <Label Text="Length" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Length}" Placeholder="0"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                               Keyboard="Numeric" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <Label Text="Width" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Width}" Placeholder="0"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                               Keyboard="Numeric" />
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Grid.Column="2" Spacing="4">
+                        <Label Text="Height" TextColor="#aaaaaa" FontSize="13" />
+                        <Entry Text="{Binding Height}" Placeholder="0"
+                               BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                               Keyboard="Numeric" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Dimension Unit" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding DimensionUnit}" Placeholder="cm"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Tax -->
+                <Label Text="Tax" TextColor="#00c8ff" FontSize="15" FontAttributes="Bold" Margin="0,8,0,0" />
+
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="Taxable" TextColor="#aaaaaa" FontSize="13" VerticalOptions="Center" />
+                    <Switch IsToggled="{Binding IsTaxable}" OnColor="#00c8ff" ThumbColor="White" />
+                </HorizontalStackLayout>
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Tax Code" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding TaxCode}" Placeholder="Tax code"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- SEO -->
+                <Label Text="SEO" TextColor="#00c8ff" FontSize="15" FontAttributes="Bold" Margin="0,8,0,0" />
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Meta Title" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding MetaTitle}" Placeholder="SEO title"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Meta Description" TextColor="#aaaaaa" FontSize="13" />
+                    <Editor Text="{Binding MetaDescription}" Placeholder="SEO description"
+                            BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                            HeightRequest="80" AutoSize="TextChanges" />
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Tags" TextColor="#aaaaaa" FontSize="13" />
+                    <Entry Text="{Binding Tags}" Placeholder="Comma-separated tags"
+                           BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666" />
+                </VerticalStackLayout>
+
+                <!-- Error -->
+                <Label Text="{Binding ErrorMessage}" TextColor="#f44336" FontSize="14"
+                       IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}" />
+
+                <!-- Save Button -->
+                <Button Text="Save" Command="{Binding SaveCommand}"
+                        IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolConverter}}"
+                        BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                        CornerRadius="8" HeightRequest="48" Margin="0,8,0,16" />
+
+                <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}"
+                                   Color="#00c8ff" HorizontalOptions="Center" />
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

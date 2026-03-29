@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WarpBusiness.MobileApp.ViewModels"
+             x:Class="WarpBusiness.MobileApp.Views.LoginPage"
+             x:DataType="vm:LoginViewModel"
+             Title="Login"
+             BackgroundColor="#050b18"
+             Shell.NavBarIsVisible="False">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="32,80,32,32" Spacing="16" VerticalOptions="Center">
+
+            <Label Text="Warp Business" FontSize="32" FontAttributes="Bold" TextColor="#00c8ff"
+                   HorizontalOptions="Center" Margin="0,0,0,24" />
+
+            <Label Text="{Binding ErrorMessage}" TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, Converter={StaticResource NullToBoolConverter}}"
+                   HorizontalOptions="Center" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Color="#00c8ff" />
+
+            <!-- Login Form -->
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding ShowTenantPicker, Converter={StaticResource InverseBoolConverter}}">
+                <Label Text="Email" TextColor="#aaaaaa" FontSize="13" />
+                <Entry Text="{Binding Email}" Placeholder="you@example.com"
+                       BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                       Keyboard="Email" />
+
+                <Label Text="Password" TextColor="#aaaaaa" FontSize="13" />
+                <Entry Text="{Binding Password}" Placeholder="Password"
+                       BackgroundColor="#0f1e35" TextColor="White" PlaceholderColor="#666666"
+                       IsPassword="True" />
+
+                <Button Text="Login" Command="{Binding LoginCommand}"
+                        BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold"
+                        Margin="0,8,0,0" />
+
+                <Label Text="Don't have an account? Register" TextColor="#00c8ff"
+                       HorizontalOptions="Center" Margin="0,8,0,0">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding GoToRegisterCommand}" />
+                    </Label.GestureRecognizers>
+                </Label>
+            </VerticalStackLayout>
+
+            <!-- Tenant Picker -->
+            <VerticalStackLayout Spacing="12" IsVisible="{Binding ShowTenantPicker}">
+                <Label Text="Select Tenant" TextColor="White" FontSize="20" FontAttributes="Bold"
+                       HorizontalOptions="Center" />
+
+                <Picker Title="Choose a tenant" ItemsSource="{Binding Tenants}"
+                        SelectedItem="{Binding SelectedTenant}"
+                        ItemDisplayBinding="{Binding Name}"
+                        BackgroundColor="#0f1e35" TextColor="White" TitleColor="#666666" />
+
+                <Button Text="Select Tenant" Command="{Binding SelectTenantCommand}"
+                        BackgroundColor="#00c8ff" TextColor="#050b18" FontAttributes="Bold" />
+            </VerticalStackLayout>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <toolkit:InverseBoolConverter x:Key="InverseBoolConverter"
+                xmlns:toolkit="clr-namespace:WarpBusiness.MobileApp.Converters" />
+            <toolkit:NullToBoolConverter x:Key="NullToBoolConverter"
+                xmlns:toolkit="clr-namespace:WarpBusiness.MobileApp.Converters" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+</ContentPage>

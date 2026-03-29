@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="WarpBusiness.MobileApp.Views.AdminUsersPage"
+             Title="Manage Users"
+             BackgroundColor="#050b18">
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="From Employee" Command="{Binding CreateUserFromEmployeeCommand}" />
+    </ContentPage.ToolbarItems>
+
+    <Grid>
+        <ActivityIndicator IsRunning="{Binding IsBusy}"
+                           IsVisible="{Binding IsBusy}"
+                           Color="#00c8ff"
+                           VerticalOptions="Center"
+                           HorizontalOptions="Center"
+                           ZIndex="1" />
+
+        <VerticalStackLayout Spacing="8" Padding="16">
+
+            <!-- Error Message -->
+            <Label Text="{Binding ErrorMessage}"
+                   TextColor="#f44336"
+                   IsVisible="{Binding ErrorMessage, FallbackValue=False, TargetNullValue=False}"
+                   Margin="0,0,0,4" />
+
+            <!-- Users List -->
+            <CollectionView ItemsSource="{Binding Users}">
+                <CollectionView.EmptyView>
+                    <Label Text="No users found"
+                           TextColor="#666666"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center"
+                           Margin="0,48" />
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame BackgroundColor="#0f1e35"
+                               BorderColor="#1a3a5c"
+                               CornerRadius="8"
+                               Margin="0,4"
+                               Padding="12">
+                            <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" RowSpacing="4">
+                                <Label Grid.Row="0" Grid.Column="0"
+                                       Text="{Binding FullName}"
+                                       TextColor="White"
+                                       FontAttributes="Bold"
+                                       FontSize="16" />
+                                <Label Grid.Row="1" Grid.Column="0"
+                                       Text="{Binding Email}"
+                                       TextColor="#aaaaaa"
+                                       FontSize="13" />
+                                <Label Grid.Row="2" Grid.Column="0"
+                                       Text="{Binding Roles, StringFormat='Roles: {0}'}"
+                                       TextColor="#00c8ff"
+                                       FontSize="12" />
+                                <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1"
+                                        Text="Manage Roles"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.ToggleRoleCommand}"
+                                        CommandParameter="{Binding}"
+                                        BackgroundColor="#1a3a5c"
+                                        TextColor="White"
+                                        CornerRadius="8"
+                                        HeightRequest="36"
+                                        Padding="12,0"
+                                        FontSize="12"
+                                        VerticalOptions="Center" />
+                                <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="2"
+                                        Text="Delete"
+                                        Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.DeleteUserCommand}"
+                                        CommandParameter="{Binding}"
+                                        BackgroundColor="#f44336"
+                                        TextColor="White"
+                                        CornerRadius="8"
+                                        HeightRequest="36"
+                                        Padding="12,0"
+                                        FontSize="12"
+                                        VerticalOptions="Center" />
+                            </Grid>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
