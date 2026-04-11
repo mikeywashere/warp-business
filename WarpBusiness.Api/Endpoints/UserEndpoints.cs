@@ -1,0 +1,266 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using WarpBusiness.Api.Data;
+using WarpBusiness.Api.Models;
+using WarpBusiness.Api.Services;
+
+namespace WarpBusiness.Api.Endpoints;
+
+public static class UserEndpoints
+{
+    public static void MapUserEndpoints(this WebApplication app)
+    {
+        var users = app.MapGroup("/api/users")
+            .RequireAuthorization();
+
+        users.MapGet("/me", GetCurrentUser)
+            .WithName("GetCurrentUser");
+
+        users.MapPut("/me", UpdateMyProfile)
+            .WithName("UpdateMyProfile");
+
+        users.MapGet("/", GetAllUsers)
+            .WithName("GetAllUsers")
+            .RequireAuthorization("SystemAdministrator");
+
+        users.MapGet("/{id:guid}", GetUserById)
+            .WithName("GetUserById")
+            .RequireAuthorization("SystemAdministrator");
+
+        users.MapPost("/", CreateUser)
+            .WithName("CreateUser")
+            .RequireAuthorization("SystemAdministrator");
+
+        users.MapPut("/{id:guid}", UpdateUser)
+            .WithName("UpdateUser")
+            .RequireAuthorization("SystemAdministrator");
+
+        users.MapDelete("/{id:guid}", DeleteUser)
+            .WithName("DeleteUser")
+            .RequireAuthorization("SystemAdministrator");
+    }
+
+    private static async Task<IResult> GetCurrentUser(
+        ClaimsPrincipal principal,
+        WarpBusinessDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var subjectId = principal.FindFirstValue("sub") ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        var email = principal.FindFirstValue("email") ?? principal.FindFirstValue(ClaimTypes.Email);
+
+        ApplicationUser? user = null;
+
+        if (!string.IsNullOrEmpty(subjectId))
+        {
+            user = await db.Users.FirstOrDefaultAsync(u => u.KeycloakSubjectId == subjectId, cancellationToken);
+        }
+
+        if (user is null && !string.IsNullOrEmpty(email))
+        {
+            user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
+            // Link Keycloak subject ID on first login match
+            if (user is not null && !string.IsNullOrEmpty(subjectId) && string.IsNullOrEmpty(user.KeycloakSubjectId))
+            {
+                user.KeycloakSubjectId = subjectId;
+                user.UpdatedAt = DateTime.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        if (user is null)
+            return Results.NotFound(new { message = "User profile not found. Contact a System Administrator." });
+
+        return Results.Ok(ToResponse(user));
+    }
+
+    private static async Task<IResult> UpdateMyProfile(
+        ClaimsPrincipal principal,
+        [FromBody] UpdateProfileRequest request,
+        WarpBusinessDbContext db,
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        var subjectId = principal.FindFirstValue("sub") ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        var email = principal.FindFirstValue("email") ?? principal.FindFirstValue(ClaimTypes.Email);
+
+        ApplicationUser? user = null;
+
+        if (!string.IsNullOrEmpty(subjectId))
+        {
+            user = await db.Users.FirstOrDefaultAsync(u => u.KeycloakSubjectId == subjectId, cancellationToken);
+        }
+
+        if (user is null && !string.IsNullOrEmpty(email))
+        {
+            user = await db.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+        }
+
+        if (user is null)
+            return Results.NotFound(new { message = "User profile not found. Contact a System Administrator." });
+
+        // Update in Keycloak if we have their subject ID
+        if (!string.IsNullOrEmpty(user.KeycloakSubjectId))
+        {
+            await keycloakAdmin.UpdateUserAsync(
+                user.KeycloakSubjectId, request.FirstName, request.LastName, user.Email, cancellationToken);
+        }
+
+        user.FirstName = request.FirstName;
+        user.LastName = request.LastName;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToResponse(user));
+    }
+
+    private static async Task<IResult> GetAllUsers(
+        WarpBusinessDbContext db,
+        ClaimsPrincipal principal,
+        HttpContext httpContext,
+        CancellationToken cancellationToken)
+    {
+        // SystemAdministrators can see all users; if a tenant context is set, filter to that tenant
+        var isAdmin = IsSystemAdministrator(principal);
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+
+        if (isAdmin && tenantId is null)
+        {
+            var users = await db.Users
+                .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
+                .Select(u => ToResponse(u))
+                .ToListAsync(cancellationToken);
+            return Results.Ok(users);
+        }
+
+        // With tenant context, show only tenant members
+        var effectiveTenantId = tenantId;
+        if (effectiveTenantId is null)
+            return Results.Ok(Array.Empty<UserResponse>());
+
+        var tenantUsers = await db.UserTenantMemberships
+            .Where(m => m.TenantId == effectiveTenantId.Value)
+            .Include(m => m.User)
+            .OrderBy(m => m.User.LastName).ThenBy(m => m.User.FirstName)
+            .Select(m => ToResponse(m.User))
+            .ToListAsync(cancellationToken);
+
+        return Results.Ok(tenantUsers);
+    }
+
+    private static async Task<IResult> GetUserById(
+        Guid id,
+        WarpBusinessDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FindAsync([id], cancellationToken);
+        return user is null ? Results.NotFound() : Results.Ok(ToResponse(user));
+    }
+
+    private static async Task<IResult> CreateUser(
+        [FromBody] CreateUserRequest request,
+        WarpBusinessDbContext db,
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        // Check for duplicate email
+        if (await db.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
+            return Results.Conflict(new { message = "A user with this email already exists." });
+
+        // Create in Keycloak first
+        var keycloakId = await keycloakAdmin.CreateUserAsync(
+            request.FirstName, request.LastName, request.Email, request.Password, cancellationToken);
+
+        if (keycloakId is null)
+            return Results.Problem("Failed to create user in identity provider.", statusCode: 502);
+
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            KeycloakSubjectId = keycloakId,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            Role = request.Role,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        db.Users.Add(user);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Created($"/api/users/{user.Id}", ToResponse(user));
+    }
+
+    private static async Task<IResult> UpdateUser(
+        Guid id,
+        [FromBody] UpdateUserRequest request,
+        WarpBusinessDbContext db,
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FindAsync([id], cancellationToken);
+        if (user is null)
+            return Results.NotFound();
+
+        // Check email uniqueness if changed
+        if (!string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            if (await db.Users.AnyAsync(u => u.Email == request.Email && u.Id != id, cancellationToken))
+                return Results.Conflict(new { message = "A user with this email already exists." });
+        }
+
+        // Update in Keycloak if we have their subject ID
+        if (!string.IsNullOrEmpty(user.KeycloakSubjectId))
+        {
+            await keycloakAdmin.UpdateUserAsync(
+                user.KeycloakSubjectId, request.FirstName, request.LastName, request.Email, cancellationToken);
+        }
+
+        user.FirstName = request.FirstName;
+        user.LastName = request.LastName;
+        user.Email = request.Email;
+        user.Role = request.Role;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToResponse(user));
+    }
+
+    private static async Task<IResult> DeleteUser(
+        Guid id,
+        WarpBusinessDbContext db,
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FindAsync([id], cancellationToken);
+        if (user is null)
+            return Results.NotFound();
+
+        // Delete from Keycloak if we have their subject ID
+        if (!string.IsNullOrEmpty(user.KeycloakSubjectId))
+        {
+            await keycloakAdmin.DeleteUserAsync(user.KeycloakSubjectId, cancellationToken);
+        }
+
+        db.Users.Remove(user);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.NoContent();
+    }
+
+    private static UserResponse ToResponse(ApplicationUser user) =>
+        new(user.Id, user.FirstName, user.LastName, user.Email, user.Role, user.CreatedAt);
+
+    private static bool IsSystemAdministrator(ClaimsPrincipal principal)
+    {
+        var realmRoles = principal.FindFirst("realm_access")?.Value;
+        if (realmRoles is not null && realmRoles.Contains("system-administrator"))
+            return true;
+
+        return principal.HasClaim("app_role", "SystemAdministrator");
+    }
+}

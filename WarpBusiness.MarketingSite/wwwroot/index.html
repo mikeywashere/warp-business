@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Warp Business — the all-in-one platform that keeps your business moving faster than the competition." />
+  <title>Warp Business — When Business Moves at Warp Speed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Favicon & App Icons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#00d4ff">
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="#" class="nav-logo">
+        <svg class="nav-logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32" aria-hidden="true">
+          <defs>
+            <filter id="nav-glow">
+              <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <circle cx="50" cy="50" r="50" fill="#0a0e1a"/>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0.4"/>
+          <line x1="8" y1="50" x2="20" y2="50" stroke="#00d4ff" stroke-width="2" opacity="0.3"/>
+          <line x1="80" y1="50" x2="92" y2="50" stroke="#00d4ff" stroke-width="2" opacity="0.3"/>
+          <line x1="5" y1="42" x2="15" y2="42" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <line x1="85" y1="42" x2="95" y2="42" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <line x1="5" y1="58" x2="15" y2="58" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <line x1="85" y1="58" x2="95" y2="58" stroke="#00d4ff" stroke-width="1.5" opacity="0.2"/>
+          <polyline points="15,28 32,72 45,45 58,72 75,28" fill="none" stroke="#00d4ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="15,28 32,72 45,45 58,72 75,28" fill="none" stroke="#00d4ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" filter="url(#nav-glow)" opacity="0.7"/>
+        </svg>
+        <span>WARP BUSINESS</span>
+      </a>
+      <button class="nav__toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="nav__links" id="navLinks">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#cta" class="btn btn--nav">Get Started</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <canvas class="hero__starfield" id="starfield"></canvas>
+    <div class="hero__content">
+      <p class="hero__eyebrow">Business at Warp Speed</p>
+      <h1 class="hero__headline">When Business Moves<br /><span class="hero__accent">at Warp Speed</span></h1>
+      <p class="hero__sub">The all-in-one platform that keeps your business moving faster than the competition.</p>
+      <div class="hero__actions">
+        <a href="#cta" class="btn btn--primary">Get Started</a>
+        <a href="#features" class="btn btn--ghost">Learn More</a>
+      </div>
+    </div>
+    <div class="hero__stamp" aria-hidden="true">
+      <img src="coming-soon.png" alt="Coming Soon" class="hero__stamp-img" />
+    </div>
+    <div class="hero__scroll-hint" aria-hidden="true">
+      <span class="hero__scroll-arrow"></span>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="container">
+      <h2 class="section-title">Everything Your Business Needs</h2>
+      <p class="section-sub">One platform. Every tool. Zero compromise.</p>
+      <div class="features__grid">
+          <div class="feature-card">
+              <div class="feature-card__icon">🎯</div>
+              <h3 class="feature-card__title">CRM</h3>
+              <p class="feature-card__desc">Track contacts, companies, deals, and activities. Every relationship at your fingertips.</p>
+          </div>
+          <div class="feature-card">
+              <div class="feature-card__icon">👥</div>
+              <h3 class="feature-card__title">Employee Management</h3>
+              <p class="feature-card__desc">Onboard, manage, and empower your team from a single dashboard.</p>
+          </div>
+          <div class="feature-card">
+              <div class="feature-card__icon">⏱️</div>
+              <h3 class="feature-card__title">Time Management</h3>
+              <p class="feature-card__desc">Time management for your whole team, billing for their time onsite.</p>
+          </div>
+          <div class="feature-card">
+              <div class="feature-card__icon">🧾</div>
+              <h3 class="feature-card__title">Invoicing</h3>
+              <p class="feature-card__desc">Invoice your customers accurately and efficiently.</p>
+          </div>
+          <div class="feature-card">
+              <div class="feature-card__icon">📘</div>
+              <h3 class="feature-card__title">Product Catalog</h3>
+              <p class="feature-card__desc">A full catalog of all of your products.</p>
+          </div>
+          <div class="feature-card">
+              <div class="feature-card__icon">🌐</div>
+              <h3 class="feature-card__title">Customer Portal</h3>
+              <p class="feature-card__desc">Give customers direct access to their data and communications.</p>
+          </div>
+          <div class="feature-card">
+              <div class="feature-card__icon">🔌</div>
+              <h3 class="feature-card__title">Plugin Architecture</h3>
+              <p class="feature-card__desc">Extend Warp Business with plugins. Build what you need, when you need it.</p>
+          </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 
+    PLUGIN SHOWCASE — DEVELOPER REMINDER
+    When a new plugin is added to the Warp Business solution, add it here.
+    Each plugin entry needs: icon, name, tagline, description, and badge text.
+    Update the `plugins` array in js/main.js to add new entries.
+    Current plugins: CRM, Employee Management
+    Do NOT include the Sample plugin (it is a developer template, not a product).
+  -->
+  <section class="plugins" id="plugins">
+    <div class="container">
+      <h2 class="section-title">Powered by Plugins</h2>
+      <p class="section-sub">A growing ecosystem built for your business</p>
+      <div class="plugin-carousel" id="pluginCarousel">
+        <div class="plugin-carousel__track" id="pluginTrack">
+          <!-- Plugin cards injected by main.js -->
+        </div>
+        <div class="plugin-carousel__dots" id="pluginDots" role="tablist" aria-label="Plugin navigation">
+          <!-- Dots injected by main.js -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMING SOON -->
+  <section class="coming-soon" id="coming-soon">
+    <div class="container">
+      <div class="coming-soon__inner">
+        <div class="coming-soon__badge" aria-hidden="true">Coming Soon!</div>
+        <h2 class="coming-soon__headline">More Plugins Launching Soon</h2>
+        <p class="coming-soon__desc">The plugin ecosystem is expanding. Stay tuned for new capabilities that keep your business moving at warp speed.</p>
+        <p class="coming-soon__tagline">Warp Business · <span>Business at Warp Speed</span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS / ABOUT -->
+  <section class="stats" id="about">
+    <div class="container">
+      <h2 class="section-title">Business at Warp Speed</h2>
+      <div class="stats__grid">
+        <div class="stat">
+          <div class="stat__value">10x</div>
+          <div class="stat__label">Faster</div>
+        </div>
+        <div class="stat">
+          <div class="stat__value">360°</div>
+          <div class="stat__label">Visibility</div>
+        </div>
+        <div class="stat">
+          <div class="stat__value">∞</div>
+          <div class="stat__label">Extensible</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="cta">
+    <div class="container">
+      <div class="cta-section__inner">
+        <h2 class="cta-section__headline">When Business Moves Faster</h2>
+        <p class="cta-section__sub">Start your journey with Warp Business today.</p>
+        <a href="https://warp-business.com" class="btn btn--primary btn--lg">Get Started Free</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__inner">
+        <span class="footer__logo">WARP <span>BUSINESS</span></span>
+        <p class="footer__copy">© 2026 Warp Business. <a href="https://warp-business.com">warp-business.com</a></p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
+
+<!-- Update -->

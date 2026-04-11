@@ -1,0 +1,80 @@
+{
+  "realm": "warpbusiness",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "system-administrator",
+        "description": "System Administrator — full user management access"
+      },
+      {
+        "name": "user",
+        "description": "Standard User"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "warpbusiness-web",
+      "name": "WarpBusiness Web",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "warpbusiness-api",
+      "name": "WarpBusiness API",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "michael.schmidt",
+      "firstName": "Michael",
+      "lastName": "Schmidt",
+      "email": "mikenging@hotmail.com",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Warp2026!xK9",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["system-administrator"]
+    }
+  ]
+}

@@ -1,0 +1,594 @@
+@page "/tenants"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "SystemAdministrator")]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inject TenantApiClient TenantApi
+@inject UserApiClient UserApi
+
+<PageTitle>Tenant Management</PageTitle>
+
+<h1 class="mb-4">Tenant Management</h1>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @errorMessage
+        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @successMessage
+        <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+    </div>
+}
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    @* Add / Edit Tenant Form *@
+    @if (showForm)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">@(editingTenantId.HasValue ? "Edit Tenant" : "Add Tenant")</h5>
+            </div>
+            <div class="card-body">
+                <EditForm Model="formModel" OnValidSubmit="HandleFormSubmit" FormName="tenantForm">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary class="text-danger mb-3" />
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Name</label>
+                            <InputText @bind-Value="formModel.Name" class="form-control" />
+                            <ValidationMessage For="() => formModel.Name" class="text-danger" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Slug</label>
+                            <InputText @bind-Value="formModel.Slug" class="form-control" />
+                            <ValidationMessage For="() => formModel.Slug" class="text-danger" />
+                            <small class="text-muted">URL-friendly identifier (e.g. acme-corp)</small>
+                        </div>
+                        @if (editingTenantId.HasValue)
+                        {
+                            <div class="col-md-6">
+                                <label class="form-label">Active</label>
+                                <div class="form-check form-switch mt-1">
+                                    <InputCheckbox @bind-Value="formModel.IsActive" class="form-check-input" />
+                                    <label class="form-check-label">@(formModel.IsActive ? "Active" : "Inactive")</label>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            }
+                            @(editingTenantId.HasValue ? "Update Tenant" : "Create Tenant")
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CancelForm">Cancel</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    }
+
+    @* Tenants Table *@
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Tenants (@(tenants?.Count ?? 0))</h5>
+        @if (!showForm)
+        {
+            <button class="btn btn-primary" @onclick="ShowAddForm">
+                <span class="bi bi-plus-lg me-1"></span> Add Tenant
+            </button>
+        }
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Name</th>
+                    <th>Slug</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th style="width: 200px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (tenants is { Count: > 0 })
+                {
+                    @foreach (var tenant in tenants)
+                    {
+                        <tr>
+                            <td>@tenant.Name</td>
+                            <td><code>@tenant.Slug</code></td>
+                            <td>
+                                <span class="badge @(tenant.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(tenant.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                            <td>@tenant.CreatedAt.ToString("yyyy-MM-dd")</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ToggleMembers(tenant)" title="Members">
+                                    Members
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(tenant)" title="Edit">
+                                    Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(tenant)" title="Delete">
+                                    Delete
+                                </button>
+                            </td>
+                        </tr>
+
+                        @* Inline Members Panel *@
+                        @if (expandedTenantId == tenant.Id)
+                        {
+                            <tr>
+                                <td colspan="5">
+                                    <div class="card border-info">
+                                        <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
+                                            <strong>Members of @tenant.Name</strong>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowAddMember(tenant.Id)">
+                                                <span class="bi bi-plus-lg me-1"></span> Add Member
+                                            </button>
+                                        </div>
+                                        <div class="card-body p-0">
+                                            @if (showAddMember && addMemberTenantId == tenant.Id)
+                                            {
+                                                <div class="p-3 border-bottom bg-light">
+                                                    <div class="row g-2 align-items-end">
+                                                        <div class="col-md-8">
+                                                            <label class="form-label">Select User</label>
+                                                            <select class="form-select" @bind="selectedUserId">
+                                                                <option value="">-- Select a user --</option>
+                                                                @if (allUsers != null)
+                                                                {
+                                                                    @foreach (var user in allUsers.Where(u => members?.All(m => m.UserId != u.Id) ?? true))
+                                                                    {
+                                                                        <option value="@user.Id">@user.FirstName @user.LastName (@user.Email)</option>
+                                                                    }
+                                                                }
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <button class="btn btn-primary me-1" @onclick="ExecuteAddMember" disabled="@(string.IsNullOrEmpty(selectedUserId))">Add</button>
+                                                            <button class="btn btn-outline-secondary" @onclick="CancelAddMember">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            @if (isMembersLoading)
+                                            {
+                                                <div class="d-flex justify-content-center py-3">
+                                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                                        <span class="visually-hidden">Loading...</span>
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <table class="table table-sm mb-0">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Email</th>
+                                                            <th>Role</th>
+                                                            <th>Joined</th>
+                                                            <th style="width: 100px;">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @if (members is { Count: > 0 })
+                                                        {
+                                                            @foreach (var member in members)
+                                                            {
+                                                                <tr>
+                                                                    <td>@member.FirstName @member.LastName</td>
+                                                                    <td>@member.Email</td>
+                                                                    <td>
+                                                                        <span class="badge @(member.Role == "SystemAdministrator" ? "bg-warning text-dark" : "bg-info")">
+                                                                            @member.Role
+                                                                        </span>
+                                                                    </td>
+                                                                    <td>@member.JoinedAt.ToString("yyyy-MM-dd")</td>
+                                                                    <td>
+                                                                        <button class="btn btn-sm btn-outline-danger"
+                                                                                @onclick="() => ConfirmRemoveMember(tenant.Id, member)"
+                                                                                title="Remove">
+                                                                            Remove
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            }
+                                                        }
+                                                        else
+                                                        {
+                                                            <tr>
+                                                                <td colspan="5" class="text-center text-muted py-3">No members.</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            }
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">No tenants found.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @* Delete Confirmation Modal *@
+    @if (showDeleteConfirm && deletingTenant != null)
+    {
+        <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete tenant <strong>@deletingTenant.Name</strong>?</p>
+                        <p class="text-danger mb-0">This action cannot be undone. All tenant data will be removed.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="ExecuteDelete" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            }
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* Remove Member Confirmation Modal *@
+    @if (showRemoveMemberConfirm && removingMember != null)
+    {
+        <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Remove Member</h5>
+                        <button type="button" class="btn-close" @onclick="CancelRemoveMember"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Remove <strong>@removingMember.FirstName @removingMember.LastName</strong> from this tenant?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CancelRemoveMember">Cancel</button>
+                        <button type="button" class="btn btn-danger" @onclick="ExecuteRemoveMember" disabled="@isSubmitting">
+                            @if (isSubmitting)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                            }
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<TenantResponse>? tenants;
+    private List<TenantMemberResponse>? members;
+    private List<UserResponse>? allUsers;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isMembersLoading;
+    private bool showForm;
+    private bool showDeleteConfirm;
+    private bool showAddMember;
+    private bool showRemoveMemberConfirm;
+    private Guid? editingTenantId;
+    private Guid? expandedTenantId;
+    private Guid? addMemberTenantId;
+    private Guid? removeMemberTenantId;
+    private TenantResponse? deletingTenant;
+    private TenantMemberResponse? removingMember;
+    private string? selectedUserId;
+    private string? errorMessage;
+    private string? successMessage;
+    private TenantFormModel formModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTenants();
+    }
+
+    private async Task LoadTenants()
+    {
+        isLoading = true;
+        try
+        {
+            tenants = await TenantApi.GetTenantsAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load tenants: {ex.Message}";
+            tenants = [];
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        editingTenantId = null;
+        formModel = new TenantFormModel();
+        showForm = true;
+        ClearMessages();
+    }
+
+    private void ShowEditForm(TenantResponse tenant)
+    {
+        editingTenantId = tenant.Id;
+        formModel = new TenantFormModel
+        {
+            Name = tenant.Name,
+            Slug = tenant.Slug,
+            IsActive = tenant.IsActive
+        };
+        showForm = true;
+        ClearMessages();
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editingTenantId = null;
+        formModel = new TenantFormModel();
+    }
+
+    private async Task HandleFormSubmit()
+    {
+        isSubmitting = true;
+        ClearMessages();
+
+        try
+        {
+            if (editingTenantId.HasValue)
+            {
+                await TenantApi.UpdateTenantAsync(editingTenantId.Value, new UpdateTenantRequest(
+                    formModel.Name, formModel.Slug, formModel.IsActive));
+                successMessage = "Tenant updated successfully.";
+            }
+            else
+            {
+                await TenantApi.CreateTenantAsync(new CreateTenantRequest(formModel.Name, formModel.Slug));
+                successMessage = "Tenant created successfully.";
+            }
+
+            showForm = false;
+            editingTenantId = null;
+            formModel = new TenantFormModel();
+            await LoadTenants();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Operation failed: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ConfirmDelete(TenantResponse tenant)
+    {
+        deletingTenant = tenant;
+        showDeleteConfirm = true;
+        ClearMessages();
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirm = false;
+        deletingTenant = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (deletingTenant == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            await TenantApi.DeleteTenantAsync(deletingTenant.Id);
+            successMessage = $"Tenant '{deletingTenant.Name}' deleted.";
+            showDeleteConfirm = false;
+            deletingTenant = null;
+            if (expandedTenantId == deletingTenant?.Id)
+                expandedTenantId = null;
+            await LoadTenants();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Delete failed: {ex.Message}";
+            showDeleteConfirm = false;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    // Members
+    private async Task ToggleMembers(TenantResponse tenant)
+    {
+        if (expandedTenantId == tenant.Id)
+        {
+            expandedTenantId = null;
+            members = null;
+            return;
+        }
+
+        expandedTenantId = tenant.Id;
+        isMembersLoading = true;
+        members = null;
+
+        try
+        {
+            members = await TenantApi.GetTenantMembersAsync(tenant.Id);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load members: {ex.Message}";
+            members = [];
+        }
+        finally
+        {
+            isMembersLoading = false;
+        }
+    }
+
+    private async Task ShowAddMember(Guid tenantId)
+    {
+        addMemberTenantId = tenantId;
+        showAddMember = true;
+        selectedUserId = "";
+
+        if (allUsers == null)
+        {
+            try
+            {
+                allUsers = await UserApi.GetUsersAsync();
+            }
+            catch
+            {
+                allUsers = [];
+            }
+        }
+    }
+
+    private void CancelAddMember()
+    {
+        showAddMember = false;
+        addMemberTenantId = null;
+        selectedUserId = "";
+    }
+
+    private async Task ExecuteAddMember()
+    {
+        if (addMemberTenantId == null || string.IsNullOrEmpty(selectedUserId)) return;
+
+        isSubmitting = true;
+        ClearMessages();
+
+        try
+        {
+            await TenantApi.AddTenantMemberAsync(addMemberTenantId.Value,
+                new AddTenantMemberRequest(Guid.Parse(selectedUserId)));
+            successMessage = "Member added successfully.";
+            showAddMember = false;
+            selectedUserId = "";
+
+            // Refresh the members list
+            members = await TenantApi.GetTenantMembersAsync(addMemberTenantId.Value);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to add member: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ConfirmRemoveMember(Guid tenantId, TenantMemberResponse member)
+    {
+        removeMemberTenantId = tenantId;
+        removingMember = member;
+        showRemoveMemberConfirm = true;
+        ClearMessages();
+    }
+
+    private void CancelRemoveMember()
+    {
+        showRemoveMemberConfirm = false;
+        removingMember = null;
+        removeMemberTenantId = null;
+    }
+
+    private async Task ExecuteRemoveMember()
+    {
+        if (removeMemberTenantId == null || removingMember == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            await TenantApi.RemoveTenantMemberAsync(removeMemberTenantId.Value, removingMember.UserId);
+            successMessage = $"Member '{removingMember.FirstName} {removingMember.LastName}' removed.";
+            showRemoveMemberConfirm = false;
+
+            // Refresh members
+            members = await TenantApi.GetTenantMembersAsync(removeMemberTenantId.Value);
+            removingMember = null;
+            removeMemberTenantId = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to remove member: {ex.Message}";
+            showRemoveMemberConfirm = false;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ClearMessages()
+    {
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    public class TenantFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.StringLength(100, MinimumLength = 2)]
+        public string Name { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            ErrorMessage = "Slug must be lowercase letters, numbers, and hyphens only.")]
+        public string Slug { get; set; } = "";
+
+        public bool IsActive { get; set; } = true;
+    }
+}

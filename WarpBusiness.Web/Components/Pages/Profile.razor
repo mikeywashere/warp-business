@@ -1,0 +1,126 @@
+@page "/profile"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inject UserApiClient UserApi
+
+<PageTitle>My Profile</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">My Profile</h4>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">@errorMessage</div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success" role="alert">@successMessage</div>
+                    }
+
+                    @if (isLoading)
+                    {
+                        <div class="d-flex justify-content-center my-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (user is not null)
+                    {
+                        <EditForm Model="this" OnValidSubmit="SaveProfile" FormName="profileForm">
+                            <div class="mb-3">
+                                <label for="firstName" class="form-label">First Name</label>
+                                <InputText id="firstName" class="form-control" @bind-Value="firstName" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="lastName" class="form-label">Last Name</label>
+                                <InputText id="lastName" class="form-control" @bind-Value="lastName" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input id="email" class="form-control" value="@user.Email" readonly disabled />
+                            </div>
+                            <div class="mb-3">
+                                <label for="role" class="form-label">Role</label>
+                                <input id="role" class="form-control" value="@user.RoleName" readonly disabled />
+                            </div>
+                            <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                }
+                                Save
+                            </button>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserResponse? user;
+    private string firstName = string.Empty;
+    private string lastName = string.Empty;
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            user = await UserApi.GetCurrentUserAsync();
+            if (user is not null)
+            {
+                firstName = user.FirstName;
+                lastName = user.LastName;
+            }
+            else
+            {
+                errorMessage = "Could not load your profile.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load profile: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveProfile()
+    {
+        isSaving = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            await UserApi.UpdateProfileAsync(new UpdateProfileRequest(firstName, lastName));
+            successMessage = "Profile updated successfully.";
+
+            // Refresh user data
+            user = await UserApi.GetCurrentUserAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to save profile: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+}

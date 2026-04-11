@@ -1,0 +1,158 @@
+@page "/select-tenant"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inject TenantApiClient TenantApi
+@inject TenantStateService TenantState
+@inject NavigationManager Navigation
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Select Organization</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2 class="mb-4 text-center">Select Organization</h2>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert">@errorMessage</div>
+            }
+
+            @if (isLoading)
+            {
+                <div class="d-flex justify-content-center my-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (tenants is { Count: 0 })
+            {
+                <div class="alert alert-warning text-center">
+                    <h5 class="mb-2">No Organizations</h5>
+                    <p class="mb-0">You don't belong to any organizations. Contact an administrator.</p>
+                </div>
+
+                <AuthorizeView Roles="SystemAdministrator">
+                    <Authorized Context="authCtx">
+                        <div class="text-center mt-3">
+                            <a href="/tenants" class="btn btn-outline-primary">
+                                <span class="bi bi-gear me-1"></span> Manage All Tenants
+                            </a>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            }
+            else
+            {
+                <div class="row g-3">
+                    @foreach (var tenant in tenants!)
+                    {
+                        <div class="col-md-6">
+                            <div class="card h-100 border-primary tenant-card" role="button"
+                                 @onclick="() => SelectTenant(tenant)" style="cursor: pointer;">
+                                <div class="card-body d-flex flex-column justify-content-center text-center">
+                                    <h5 class="card-title mb-1">@tenant.TenantName</h5>
+                                    <small class="text-muted">@tenant.TenantSlug</small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <AuthorizeView Roles="SystemAdministrator">
+                    <Authorized Context="authCtx">
+                        <hr class="my-4" />
+                        <div class="text-center">
+                            <a href="/tenants" class="btn btn-outline-secondary">
+                                <span class="bi bi-gear me-1"></span> Manage All Tenants
+                            </a>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+            }
+
+            @if (isSelecting)
+            {
+                <div class="d-flex justify-content-center mt-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Selecting...</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .tenant-card:hover {
+        background-color: var(--bs-primary-bg-subtle, #e7f1ff);
+        border-color: var(--bs-primary) !important;
+        transform: translateY(-2px);
+        transition: all 0.15s ease;
+    }
+</style>
+
+@code {
+    private List<UserTenantResponse>? tenants;
+    private bool isLoading = true;
+    private bool isSelecting;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            tenants = await TenantApi.GetMyTenantsAsync();
+
+            // Auto-select if user has exactly one tenant
+            if (tenants is { Count: 1 })
+            {
+                await SelectTenant(tenants[0]);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load organizations: {ex.Message}";
+            tenants = [];
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SelectTenant(UserTenantResponse tenant)
+    {
+        isSelecting = true;
+        errorMessage = null;
+
+        try
+        {
+            // Call the minimal API endpoint to set the tenant cookie
+            var httpClient = HttpClientFactory.CreateClient();
+            var baseUri = Navigation.BaseUri.TrimEnd('/');
+            var response = await httpClient.PostAsJsonAsync(
+                $"{baseUri}/select-tenant",
+                new SelectTenantRequest(tenant.TenantId));
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = "Failed to select organization. Please try again.";
+                isSelecting = false;
+                return;
+            }
+
+            // Update in-memory state for Blazor components
+            TenantState.SetTenant(tenant.TenantId, tenant.TenantName);
+
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to select organization: {ex.Message}";
+            isSelecting = false;
+        }
+    }
+}

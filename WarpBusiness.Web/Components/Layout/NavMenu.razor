@@ -41,7 +41,7 @@
                                 <a href="/select-tenant" class="ms-1 text-decoration-none text-info" title="Switch organization">[Switch]</a>
                             </span>
                         }
-                        <span class="text-light me-3">@context.User.Identity?.Name</span>
+                        <a href="/profile" class="text-light text-decoration-none me-3 profile-link">@context.User.Identity?.Name</a>
                         <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
                     </Authorized>
                     <NotAuthorized>
@@ -52,6 +52,12 @@
         </div>
     </div>
 </nav>
+
+<style>
+    .profile-link:hover {
+        text-decoration: underline !important;
+    }
+</style>
 
 @code {
     private string? GetSelectedTenantName()

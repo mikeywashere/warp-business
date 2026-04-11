@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="WarpBusiness.Api/WarpBusiness.Api.csproj" />
+  <Project Path="WarpBusiness.AppHost/WarpBusiness.AppHost.csproj" />
+  <Project Path="WarpBusiness.ServiceDefaults/WarpBusiness.ServiceDefaults.csproj" />
+  <Project Path="WarpBusiness.Web/WarpBusiness.Web.csproj" />
+  <Project Path="WarpBusiness.Web.Tests/WarpBusiness.Web.Tests.csproj" />
+  <Project Path="WarpBusiness.Api.Tests/WarpBusiness.Api.Tests.csproj" />
+  <Project Path="WarpBusiness.MarketingSite/WarpBusiness.MarketingSite.csproj" />
+</Solution>
