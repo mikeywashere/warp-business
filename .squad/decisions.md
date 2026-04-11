@@ -2,6 +2,82 @@
 
 ## Active Decisions
 
+### Decision: Keycloak Authentication Architecture
+
+**Date:** 2026-04-11
+**Author:** Data (Backend Dev)
+**Status:** Active
+
+#### Context
+
+The project needed authentication and authorization. Keycloak was chosen as the identity provider, integrated via .NET Aspire's official hosting and authentication packages.
+
+#### Decision
+
+##### Identity Provider: Keycloak via Aspire
+
+- Keycloak runs as an Aspire container resource on port 8080 (pinned for OIDC cookie stability).
+- Data volume ensures state persists across `dotnet run` restarts.
+- Realm import from `WarpBusiness.AppHost/KeycloakConfiguration/` auto-provisions the `warpbusiness` realm on first start.
+
+##### Two Clients
+
+1. **warpbusiness-web** — Public OIDC client for the Blazor frontend. Standard flow + direct access grants enabled. Redirect URIs set to `*` for development.
+2. **warpbusiness-api** — Bearer-only client for the API. No interactive login.
+
+##### API Authentication
+
+- Uses `Aspire.Keycloak.Authentication` package with `AddKeycloakJwtBearer()`.
+- Connection string to Keycloak is resolved via Aspire service discovery (the `"keycloak"` resource name).
+- Weatherforecast endpoint requires authorization as proof of integration.
+
+##### Package Versions
+
+- Both Keycloak packages are at `13.2.2-preview.1.26207.2` (preview — no stable 13.2.2 release yet for Keycloak components).
+
+#### Consequences
+
+- ✅ Zero manual Keycloak setup — realm, clients, and test user are provisioned automatically.
+- ✅ Aspire service discovery handles Keycloak URL resolution for both API and Web.
+- ✅ Bearer-only API client means the API never handles login flows.
+- ⚠️ Preview packages — monitor for stable release and update when available.
+- ⚠️ Wildcard redirect URIs must be locked down before production.
+
+### Decision: OIDC Authentication in Blazor Web App
+
+**Date:** 2026-04-11
+**Author:** Geordi (Frontend Dev)
+**Status:** Active
+
+#### Context
+
+The Web project needed OIDC authentication against a Keycloak identity provider being set up by Data in the AppHost.
+
+#### Decision
+
+Used standard `Microsoft.AspNetCore.Authentication.OpenIdConnect` (v10.0.5) rather than a third-party Aspire Keycloak client package, since no official one exists.
+
+##### Key Choices
+
+- **Cookie + OIDC dual scheme**: Cookie as default scheme, OpenIdConnect as challenge scheme
+- **Keycloak URL from Aspire config**: Reads `services:keycloak:https:0` / `services:keycloak:http:0` — compatible with Aspire service discovery
+- **Minimal API login/logout**: `/login` triggers OIDC challenge, `/logout` signs out of both cookie and OIDC
+- **CascadingAuthenticationState via DI**: Uses `AddCascadingAuthenticationState()` instead of wrapping in `<CascadingAuthenticationState>` component
+- **NameClaimType set to `preferred_username`**: Keycloak's standard claim for user display name
+
+#### Rationale
+
+- Standard OIDC package is well-supported, framework-aligned, and avoids third-party dependency risk
+- Minimal API endpoints for login/logout are simpler than Razor pages and don't need antiforgery
+- DI-based cascading auth state is the modern .NET 8+ Blazor pattern
+
+#### Consequences
+
+- ✅ Clean integration with Aspire service discovery
+- ✅ No extra third-party dependencies
+- ⚠️ Keycloak realm `warpbusiness` and client `warpbusiness-web` must be configured to match (Data's responsibility in AppHost)
+- ⚠️ `RequireHttpsMetadata` is disabled in Development — acceptable for local Keycloak
+
 ### Decision: .NET Aspire Project Structure
 
 **Date:** 2026-04-11  
