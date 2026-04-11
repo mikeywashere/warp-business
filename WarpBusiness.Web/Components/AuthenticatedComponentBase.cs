@@ -1,19 +1,23 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components;
+using System.Text.Json;
 using WarpBusiness.Web.Services;
 
 namespace WarpBusiness.Web.Components;
 
 /// <summary>
 /// Base class for Blazor pages that need authenticated API access.
-/// Handles transferring the access token from the SSR prerender phase
+/// Handles transferring the access and refresh tokens from the SSR prerender phase
 /// to the interactive SignalR circuit via PersistentComponentState.
+/// Also performs a proactive token refresh when the access token is near-expiry.
 /// </summary>
 public abstract class AuthenticatedComponentBase : ComponentBase
 {
     [Inject] private PersistentComponentState PersistentState { get; set; } = default!;
     [Inject] private IHttpContextAccessor HttpContextAccessor { get; set; } = default!;
     [Inject] protected TokenProvider TokenProvider { get; set; } = default!;
+    [Inject] private TokenRefreshService TokenRefreshService { get; set; } = default!;
     [Inject] private ILoggerFactory LoggerFactory { get; set; } = default!;
 
     private ILogger? _logger;
@@ -38,20 +42,24 @@ public abstract class AuthenticatedComponentBase : ComponentBase
             "TokenProvider already has token: {HasToken}",
             hasHttpContext, !string.IsNullOrEmpty(TokenProvider.AccessToken));
 
-        // Interactive phase: restore token persisted during SSR prerender
+        // Interactive phase: restore tokens persisted during SSR prerender
         if (PersistentState.TryTakeFromJson<PersistedTokenData>("__auth_tokens", out var data)
             && data is not null)
         {
             _logger?.LogInformation("[AuthBase] PersistentComponentState restored — " +
-                "has access token: {HasToken}, has tenant: {HasTenant}",
-                !string.IsNullOrEmpty(data.AccessToken), !string.IsNullOrEmpty(data.SelectedTenantId));
+                "has access token: {HasToken}, has refresh token: {HasRefresh}, has tenant: {HasTenant}",
+                !string.IsNullOrEmpty(data.AccessToken),
+                !string.IsNullOrEmpty(data.RefreshToken),
+                !string.IsNullOrEmpty(data.SelectedTenantId));
 
             if (!string.IsNullOrEmpty(data.AccessToken))
             {
                 TokenProvider.AccessToken = data.AccessToken;
-                _logger?.LogDebug("[AuthBase] Token restored from persistence (starts: {Prefix}...)",
+                _logger?.LogDebug("[AuthBase] Access token restored from persistence (starts: {Prefix}...)",
                     data.AccessToken[..Math.Min(20, data.AccessToken.Length)]);
             }
+            if (!string.IsNullOrEmpty(data.RefreshToken))
+                TokenProvider.RefreshToken = data.RefreshToken;
             if (!string.IsNullOrEmpty(data.SelectedTenantId))
                 TokenProvider.SelectedTenantId = data.SelectedTenantId;
         }
@@ -60,17 +68,56 @@ public abstract class AuthenticatedComponentBase : ComponentBase
             _logger?.LogInformation("[AuthBase] PersistentComponentState had no persisted token data");
         }
 
-        // SSR phase: HttpContext is available — capture the token
+        // SSR phase: HttpContext is available — capture and potentially refresh tokens
         var httpContext = HttpContextAccessor.HttpContext;
         if (httpContext is not null)
         {
             if (string.IsNullOrEmpty(TokenProvider.AccessToken))
             {
                 var token = await httpContext.GetTokenAsync("access_token");
+                var refreshToken = await httpContext.GetTokenAsync("refresh_token");
+
                 if (!string.IsNullOrEmpty(token))
                 {
+                    // Proactive refresh: don't hand a near-expired token to the circuit
+                    if (IsTokenNearExpiry(token) && !string.IsNullOrEmpty(refreshToken))
+                    {
+                        _logger?.LogInformation("[AuthBase] SSR: access token is near-expiry — proactively refreshing before circuit transfer");
+                        var refreshResult = await TokenRefreshService.RefreshAsync(refreshToken);
+                        if (refreshResult is not null)
+                        {
+                            try
+                            {
+                                var authResult = await httpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                                if (authResult.Succeeded && authResult.Principal is not null)
+                                {
+                                    var properties = authResult.Properties!;
+                                    properties.UpdateTokenValue("access_token", refreshResult.AccessToken);
+                                    properties.UpdateTokenValue("refresh_token", refreshResult.RefreshToken);
+                                    await httpContext.SignInAsync(
+                                        CookieAuthenticationDefaults.AuthenticationScheme,
+                                        authResult.Principal,
+                                        properties);
+                                    _logger?.LogInformation("[AuthBase] SSR: auth cookie updated after proactive refresh");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger?.LogWarning(ex, "[AuthBase] SSR: failed to update auth cookie after proactive refresh");
+                            }
+
+                            token = refreshResult.AccessToken;
+                            refreshToken = refreshResult.RefreshToken;
+                        }
+                        else
+                        {
+                            _logger?.LogWarning("[AuthBase] SSR: proactive refresh failed — proceeding with existing (near-expired) token");
+                        }
+                    }
+
                     TokenProvider.AccessToken = token;
-                    _logger?.LogInformation("[AuthBase] SSR: captured token from HttpContext (starts: {Prefix}...)",
+                    TokenProvider.RefreshToken = refreshToken;
+                    _logger?.LogInformation("[AuthBase] SSR: captured tokens from HttpContext (access starts: {Prefix}...)",
                         token[..Math.Min(20, token.Length)]);
                 }
                 else
@@ -94,17 +141,56 @@ public abstract class AuthenticatedComponentBase : ComponentBase
         // Register persistence callback (only fires during prerender)
         PersistentState.RegisterOnPersisting(() =>
         {
-            _logger?.LogInformation("[AuthBase] Persisting token for circuit transfer — " +
-                "has token: {HasToken}", !string.IsNullOrEmpty(TokenProvider.AccessToken));
+            _logger?.LogInformation("[AuthBase] Persisting tokens for circuit transfer — " +
+                "has access token: {HasToken}, has refresh token: {HasRefresh}",
+                !string.IsNullOrEmpty(TokenProvider.AccessToken),
+                !string.IsNullOrEmpty(TokenProvider.RefreshToken));
             PersistentState.PersistAsJson("__auth_tokens", new PersistedTokenData(
-                TokenProvider.AccessToken, TokenProvider.SelectedTenantId));
+                TokenProvider.AccessToken,
+                TokenProvider.RefreshToken,
+                TokenProvider.SelectedTenantId));
             return Task.CompletedTask;
         });
 
-        _logger?.LogInformation("[AuthBase] Final state — TokenProvider has token: {HasToken}, tenant: {HasTenant}",
+        _logger?.LogInformation("[AuthBase] Final state — TokenProvider has token: {HasToken}, has refresh: {HasRefresh}, tenant: {HasTenant}",
             !string.IsNullOrEmpty(TokenProvider.AccessToken),
+            !string.IsNullOrEmpty(TokenProvider.RefreshToken),
             !string.IsNullOrEmpty(TokenProvider.SelectedTenantId));
     }
 
-    private record PersistedTokenData(string? AccessToken, string? SelectedTenantId);
+    /// <summary>
+    /// Returns true if the JWT access token is expired or will expire within <paramref name="bufferSeconds"/>.
+    /// Parses the <c>exp</c> claim from the token payload without full JWT validation.
+    /// </summary>
+    private static bool IsTokenNearExpiry(string token, int bufferSeconds = 60)
+    {
+        try
+        {
+            var parts = token.Split('.');
+            if (parts.Length != 3) return false;
+
+            var payload = parts[1];
+            // Base64url → standard Base64
+            var padded = payload
+                .Replace('-', '+')
+                .Replace('_', '/');
+            padded = padded.PadRight(padded.Length + (4 - padded.Length % 4) % 4, '=');
+
+            var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("exp", out var expElement))
+            {
+                var exp = expElement.GetInt64();
+                var expiry = DateTimeOffset.FromUnixTimeSeconds(exp);
+                return expiry <= DateTimeOffset.UtcNow.AddSeconds(bufferSeconds);
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private record PersistedTokenData(string? AccessToken, string? RefreshToken, string? SelectedTenantId);
 }

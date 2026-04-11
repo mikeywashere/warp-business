@@ -50,6 +50,10 @@ public class TokenCircuitHandler : CircuitHandler
                 "tokens may not be in auth cookie");
         }
 
+        var refreshToken = await httpContext.GetTokenAsync("refresh_token");
+        if (!string.IsNullOrEmpty(refreshToken))
+            _tokenProvider.RefreshToken = refreshToken;
+
         if (httpContext.Request.Cookies.TryGetValue("X-Selected-Tenant", out var tenantId)
             && !string.IsNullOrEmpty(tenantId))
         {

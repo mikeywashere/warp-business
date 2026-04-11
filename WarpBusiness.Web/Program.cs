@@ -51,6 +51,17 @@ builder.Services.AddScoped<TenantStateService>();
 builder.Services.AddScoped<TokenProvider>();
 builder.Services.AddScoped<CircuitHandler, TokenCircuitHandler>();
 
+// Token refresh service (calls Keycloak token endpoint to exchange refresh token for new access token)
+builder.Services.AddTransient<TokenRefreshService>();
+builder.Services.AddHttpClient("keycloak-token")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        // Allow HTTP in development (Keycloak may not have TLS locally)
+        ServerCertificateCustomValidationCallback = builder.Environment.IsDevelopment()
+            ? HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            : null
+    });
+
 // HTTP client for API calls with auth token forwarding
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<AuthTokenHandler>();
