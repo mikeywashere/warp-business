@@ -13,7 +13,8 @@ var api = builder.AddProject<Projects.WarpBusiness_Api>("api")
     .WaitFor(postgres)
     .WithReference(keycloak)
     .WaitFor(keycloak)
-    .WithEnvironment("Keycloak__AdminUser", "admin");
+    .WithEnvironment("Keycloak__AdminUser", "admin")
+    .WithEnvironment("Keycloak__AdminPassword", keycloak.Resource.AdminPasswordParameter);
 
 builder.AddProject<Projects.WarpBusiness_Web>("web")
     .WithExternalHttpEndpoints()

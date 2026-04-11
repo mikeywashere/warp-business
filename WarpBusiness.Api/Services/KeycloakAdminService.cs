@@ -62,7 +62,14 @@ public class KeycloakAdminService
             tokenRequest,
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError(
+                "Keycloak admin token request failed: {StatusCode} - {Error}. Verify Keycloak__AdminUser and Keycloak__AdminPassword are correct.",
+                response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
 
         var json = await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken);
         _accessToken = json!.AccessToken;
