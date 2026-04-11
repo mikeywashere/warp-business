@@ -9,6 +9,24 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Automatic Token Refresh (2026-04-11)
+
+- **Root cause:** OIDC `SaveTokens = true` stores the access token in the auth cookie at login time. The token is never refreshed automatically — after expiry (typically hours later), every API call returns 401.
+- **Two-layer fix:** (1) **Proactive** — `AuthenticatedComponentBase` decodes the JWT `exp` claim (no package needed, just base64url decode the payload) and calls `TokenRefreshService` if within 60 seconds of expiry during the SSR capture phase. (2) **Reactive** — `AuthTokenHandler` catches 401 with `WWW-Authenticate: Bearer error="invalid_token"`, refreshes, and retries the original request with the new token.
+- **Public client refresh:** Keycloak `warpbusiness-web` is a public client (no secret). Token endpoint: `POST {keycloakUrl}/realms/warpbusiness/protocol/openid-connect/token` with form body `grant_type=refresh_token&client_id=warpbusiness-web&refresh_token={token}`.
+- **Named HttpClient:** Register a dedicated `"keycloak-token"` `HttpClient` for refresh calls — never reuse the API client pipeline (would cause circular dependency through `AuthTokenHandler`).
+- **Cookie update:** After refresh in SSR phase, call `httpContext.AuthenticateAsync(Cookies)`, update properties with `UpdateTokenValue`, then `httpContext.SignInAsync`. In circuit phase, update `TokenProvider` in memory only (can't write cookies over SignalR).
+- **Request retry:** Call `request.Content.LoadIntoBufferAsync()` before the first send so the content can be re-read for the retry. For our API clients (all use `JsonContent.Create()`), content is replayable anyway.
+- **RefreshToken in TokenProvider:** `TokenProvider` now carries both `AccessToken` and `RefreshToken`. `TokenCircuitHandler` captures both at circuit open. `AuthenticatedComponentBase` persists both via `PersistentComponentState` for SSR→circuit transfer.
+- **Key files:**
+  - `WarpBusiness.Web/Services/TokenRefreshService.cs` — new service (transient DI)
+  - `WarpBusiness.Web/Services/TokenProvider.cs` — added `RefreshToken` property
+  - `WarpBusiness.Web/Services/AuthTokenHandler.cs` — reactive 401 refresh + retry
+  - `WarpBusiness.Web/Services/TokenCircuitHandler.cs` — captures refresh_token on circuit open
+  - `WarpBusiness.Web/Components/AuthenticatedComponentBase.cs` — proactive refresh + persists refresh_token
+  - `WarpBusiness.Web/Program.cs` — registers `TokenRefreshService`, `"keycloak-token"` HttpClient
+
+
 ### Keycloak Authentication (2026-04-11)
 
 - **Aspire Keycloak packages** are preview-only at 13.2.2: use version `13.2.2-preview.1.26207.2` for both `Aspire.Hosting.Keycloak` (AppHost) and `Aspire.Keycloak.Authentication` (API).
@@ -59,3 +77,23 @@
 - **Frontend client:** `UpdateProfileAsync` method added to `UserApiClient.cs`.
 - **Testing:** 4 comprehensive tests added by Worf (happy path, not found, email fallback, field preservation). All 56 tests pass.
 - **Status:** ✅ Complete. Endpoint tested, frontend UI built, ready for production.
+
+### Auth Token Flow Diagnostics (2026-04-11)
+
+- **Problem:** 401 Unauthorized persists on User Management page despite previous PersistentComponentState + per-request header fix compiling cleanly. Tests pass but runtime fails — config/infrastructure issue.
+- **Investigation findings:**
+  - Token flow has 3 redundant capture paths: AuthTokenHandler (SSR only), TokenCircuitHandler (circuit open), PersistentComponentState (SSR→circuit bridge). All should work but no visibility into which path fires.
+  - AuthTokenHandler does NOT interfere during circuit (httpContext is null → no-op). Typed client's `CreateRequest()` is the sole token source in circuit.
+  - No DI scope conflict: `UserApiClient` gets circuit-scoped `TokenProvider` because typed clients resolve from the current scope (not the IHttpClientFactory handler scope).
+  - API JWT validation failures were invisible — no JwtBearerEvents logging.
+  - **Likely root cause:** Keycloak data volume preserves old realm config. The `oidc-audience-mapper` for `warpbusiness-api` (added later to `warpbusiness-realm.json`) may not have been applied because Keycloak skips import when realm already exists.
+- **Fix:** Added comprehensive structured logging at every stage of the token flow (Web and API). Added JwtBearerEvents on API to reveal exact JWT rejection reason (issuer, audience, signature). User should delete Keycloak data volume and restart to ensure realm config is fresh.
+- **Key diagnostic log prefixes:** `[JWT]`, `[AuthBase]`, `[AuthTokenHandler]`, `[TokenCircuitHandler]`, `[UserApiClient]`, `[TenantApiClient]`
+- **Key files modified:**
+  - `WarpBusiness.Web/Services/AuthTokenHandler.cs` — added ILogger, SSR/circuit logging, 401 response logging with WWW-Authenticate
+  - `WarpBusiness.Web/Components/AuthenticatedComponentBase.cs` — added ILoggerFactory, full restore/capture flow logging
+  - `WarpBusiness.Web/Services/TokenCircuitHandler.cs` — added ILogger, circuit open diagnostics
+  - `WarpBusiness.Web/Services/UserApiClient.cs` — added ILogger, per-request token logging
+  - `WarpBusiness.Web/Services/TenantApiClient.cs` — added ILogger, per-request token logging
+  - `WarpBusiness.Api/Program.cs` — JwtBearerEvents (OnAuthenticationFailed, OnTokenValidated, OnChallenge, OnMessageReceived)
+  - `WarpBusiness.Web/Program.cs` — startup URL resolution logging
