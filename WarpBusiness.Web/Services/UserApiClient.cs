@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace WarpBusiness.Web.Services;
@@ -31,9 +32,23 @@ public class UserApiClient
 {
     private readonly HttpClient _httpClient;
 
-    public UserApiClient(HttpClient httpClient)
+    public UserApiClient(HttpClient httpClient, TokenProvider tokenProvider)
     {
         _httpClient = httpClient;
+
+        // In Blazor Server interactive mode, HttpContext is unavailable so the
+        // AuthTokenHandler can't set auth headers. Apply cached token/tenant as
+        // default headers so every request carries them automatically.
+        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
+        }
+
+        if (!string.IsNullOrEmpty(tokenProvider.SelectedTenantId))
+        {
+            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-Tenant-Id", tokenProvider.SelectedTenantId);
+        }
     }
 
     public async Task<List<UserResponse>> GetUsersAsync()

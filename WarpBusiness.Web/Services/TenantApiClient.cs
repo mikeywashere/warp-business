@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace WarpBusiness.Web.Services;
@@ -15,9 +16,20 @@ public class TenantApiClient
 {
     private readonly HttpClient _httpClient;
 
-    public TenantApiClient(HttpClient httpClient)
+    public TenantApiClient(HttpClient httpClient, TokenProvider tokenProvider)
     {
         _httpClient = httpClient;
+
+        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
+        }
+
+        if (!string.IsNullOrEmpty(tokenProvider.SelectedTenantId))
+        {
+            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-Tenant-Id", tokenProvider.SelectedTenantId);
+        }
     }
 
     public async Task<List<UserTenantResponse>> GetMyTenantsAsync()

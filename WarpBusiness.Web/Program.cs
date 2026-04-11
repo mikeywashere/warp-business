@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using WarpBusiness.Web.Components;
 using WarpBusiness.Web.Services;
@@ -42,6 +43,10 @@ builder.Services.AddCascadingAuthenticationState();
 
 // Tenant state service (scoped per circuit/session)
 builder.Services.AddScoped<TenantStateService>();
+
+// Token cache: survives the SSR → interactive circuit transition
+builder.Services.AddScoped<TokenProvider>();
+builder.Services.AddScoped<CircuitHandler, TokenCircuitHandler>();
 
 // HTTP client for API calls with auth token forwarding
 builder.Services.AddHttpContextAccessor();
