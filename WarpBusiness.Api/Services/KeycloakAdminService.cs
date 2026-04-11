@@ -1,9 +1,27 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WarpBusiness.Api.Services;
+
+/// <summary>
+/// Represents the outcome of a Keycloak Admin API operation.
+/// </summary>
+public record KeycloakOperationResult
+{
+    public bool Success { get; init; }
+    public string? KeycloakUserId { get; init; }
+    public HttpStatusCode? StatusCode { get; init; }
+    public string? ErrorMessage { get; init; }
+
+    public static KeycloakOperationResult Ok(string keycloakUserId) =>
+        new() { Success = true, KeycloakUserId = keycloakUserId };
+
+    public static KeycloakOperationResult Fail(HttpStatusCode statusCode, string errorMessage) =>
+        new() { Success = false, StatusCode = statusCode, ErrorMessage = errorMessage };
+}
 
 public class KeycloakAdminService
 {
@@ -44,7 +62,14 @@ public class KeycloakAdminService
             tokenRequest,
             cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError(
+                "Keycloak admin token request failed: {StatusCode} - {Error}. Verify Keycloak__AdminUser and Keycloak__AdminPassword are correct.",
+                response.StatusCode, errorBody);
+            response.EnsureSuccessStatusCode();
+        }
 
         var json = await response.Content.ReadFromJsonAsync<TokenResponse>(cancellationToken);
         _accessToken = json!.AccessToken;
@@ -61,7 +86,7 @@ public class KeycloakAdminService
         return request;
     }
 
-    public async Task<string?> CreateUserAsync(string firstName, string lastName, string email, string password, CancellationToken cancellationToken = default)
+    public async Task<KeycloakOperationResult> CreateUserAsync(string firstName, string lastName, string email, string password, CancellationToken cancellationToken = default)
     {
         var request = await CreateAuthorizedRequest(HttpMethod.Post, $"/admin/realms/{Realm}/users", cancellationToken);
 
@@ -88,21 +113,48 @@ public class KeycloakAdminService
 
         if (!response.IsSuccessStatusCode)
         {
-            var error = await response.Content.ReadAsStringAsync(cancellationToken);
-            _logger.LogError("Failed to create Keycloak user: {StatusCode} - {Error}", response.StatusCode, error);
-            return null;
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Failed to create Keycloak user: {StatusCode} - {Error}", response.StatusCode, errorBody);
+
+            var errorMessage = ParseKeycloakErrorMessage(errorBody) ?? "Failed to create user in identity provider.";
+            return KeycloakOperationResult.Fail(response.StatusCode, errorMessage);
         }
 
         // Keycloak returns the new user's ID in the Location header
         var locationHeader = response.Headers.Location?.ToString();
         if (locationHeader is not null)
         {
-            return locationHeader.Split('/').Last();
+            return KeycloakOperationResult.Ok(locationHeader.Split('/').Last());
         }
 
         // Fallback: look up by email
         var keycloakUser = await GetUserByEmailAsync(email, cancellationToken);
-        return keycloakUser?.Id;
+        return keycloakUser?.Id is not null
+            ? KeycloakOperationResult.Ok(keycloakUser.Id)
+            : KeycloakOperationResult.Fail(HttpStatusCode.InternalServerError, "User was created in Keycloak but could not be located.");
+    }
+
+    /// <summary>
+    /// Parses Keycloak's JSON error response to extract a human-readable message.
+    /// Keycloak returns { "errorMessage": "..." } for Admin API errors.
+    /// </summary>
+    private static string? ParseKeycloakErrorMessage(string errorBody)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(errorBody);
+            if (doc.RootElement.TryGetProperty("errorMessage", out var msg))
+                return msg.GetString();
+            if (doc.RootElement.TryGetProperty("error_description", out var desc))
+                return desc.GetString();
+            if (doc.RootElement.TryGetProperty("error", out var err))
+                return err.GetString();
+        }
+        catch (JsonException)
+        {
+            // Not JSON — return null so caller uses default message
+        }
+        return null;
     }
 
     public async Task<bool> DeleteUserAsync(string keycloakUserId, CancellationToken cancellationToken = default)

@@ -43,3 +43,8 @@
 - Profile page follows card-based layout pattern (consistent with TenantSelector.razor)
 - Email and Role displayed as readonly fields, FirstName/LastName editable via EditForm
 - Comprehensive testing pending for profile form interactions via Playwright E2E
+- Password field on user creation form has inline policy checklist (8+ chars, uppercase, lowercase, digit, special character) with live ✓/✗ indicators
+- Submit button is disabled until password meets all policy requirements (create mode only)
+- `ApiException` class in `UserApiClient.cs` parses JSON error bodies (`message`, `detail`, `title` fields) and provides fallback messages per status code
+- `UserApiClient.CreateUserAsync` reads response body on failure instead of using `EnsureSuccessStatusCode`, enabling user-friendly error display
+- `HandleFormSubmit` catches `ApiException` separately from generic exceptions for cleaner error messages

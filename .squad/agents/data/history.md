@@ -97,3 +97,14 @@
   - `WarpBusiness.Web/Services/TenantApiClient.cs` — added ILogger, per-request token logging
   - `WarpBusiness.Api/Program.cs` — JwtBearerEvents (OnAuthenticationFailed, OnTokenValidated, OnChallenge, OnMessageReceived)
   - `WarpBusiness.Web/Program.cs` — startup URL resolution logging
+
+### Keycloak Error Handling in User Creation (2026-04-12)
+
+- **Root cause of 500:** `KeycloakAdminService.CreateUserAsync` returned `null` on any Keycloak failure, losing the actual error details. The endpoint then returned HTTP 502, which Aspire's standard retry policy retried 3 times — all failing — producing the "Standard-Retry, Attempt: 3, Result: 500" log pattern.
+- **Fix:** Introduced `KeycloakOperationResult` record type that carries `Success`, `KeycloakUserId`, `StatusCode`, and parsed `ErrorMessage`. The `CreateUser` endpoint now maps Keycloak 409→Conflict, 4xx→400 BadRequest with detail, 5xx→502 BadGateway.
+- **Keycloak error parsing:** Keycloak Admin API returns JSON with `errorMessage`, `error_description`, or `error` fields. Added `ParseKeycloakErrorMessage()` to extract human-readable messages.
+- **No password policy in realm JSON:** `warpbusiness-realm.json` has no `passwordPolicy` setting, so Keycloak uses defaults. If password rejection occurs at runtime, it's due to policies configured via admin UI (persisted in data volume).
+- **Key principle:** Never let Keycloak 400-level responses bubble up as 500s — they're client validation errors that should not be retried.
+- **Key files:**
+  - `WarpBusiness.Api/Services/KeycloakAdminService.cs` — `KeycloakOperationResult`, updated `CreateUserAsync`, `ParseKeycloakErrorMessage()`
+  - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — `CreateUser` endpoint with proper status code mapping
