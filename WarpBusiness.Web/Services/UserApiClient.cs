@@ -31,42 +31,48 @@ public record UpdateProfileRequest(
 public class UserApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly TokenProvider _tokenProvider;
 
     public UserApiClient(HttpClient httpClient, TokenProvider tokenProvider)
     {
         _httpClient = httpClient;
+        _tokenProvider = tokenProvider;
+    }
 
-        // In Blazor Server interactive mode, HttpContext is unavailable so the
-        // AuthTokenHandler can't set auth headers. Apply cached token/tenant as
-        // default headers so every request carries them automatically.
-        if (!string.IsNullOrEmpty(tokenProvider.AccessToken))
-        {
-            _httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", tokenProvider.AccessToken);
-        }
-
-        if (!string.IsNullOrEmpty(tokenProvider.SelectedTenantId))
-        {
-            _httpClient.DefaultRequestHeaders.TryAddWithoutValidation("X-Tenant-Id", tokenProvider.SelectedTenantId);
-        }
+    private HttpRequestMessage CreateRequest(HttpMethod method, string uri, HttpContent? content = null)
+    {
+        var request = new HttpRequestMessage(method, uri) { Content = content };
+        if (!string.IsNullOrEmpty(_tokenProvider.AccessToken))
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _tokenProvider.AccessToken);
+        if (!string.IsNullOrEmpty(_tokenProvider.SelectedTenantId))
+            request.Headers.TryAddWithoutValidation("X-Tenant-Id", _tokenProvider.SelectedTenantId);
+        return request;
     }
 
     public async Task<List<UserResponse>> GetUsersAsync()
     {
-        return await _httpClient.GetFromJsonAsync<List<UserResponse>>("api/users")
-            ?? [];
+        using var request = CreateRequest(HttpMethod.Get, "api/users");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<UserResponse>>() ?? [];
     }
 
     public async Task<UserResponse?> GetUserAsync(Guid id)
     {
-        return await _httpClient.GetFromJsonAsync<UserResponse>($"api/users/{id}");
+        using var request = CreateRequest(HttpMethod.Get, $"api/users/{id}");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<UserResponse>();
     }
 
     public async Task<UserResponse?> GetCurrentUserAsync()
     {
         try
         {
-            return await _httpClient.GetFromJsonAsync<UserResponse>("api/users/me");
+            using var request = CreateRequest(HttpMethod.Get, "api/users/me");
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<UserResponse>();
         }
         catch (HttpRequestException)
         {
@@ -76,26 +82,30 @@ public class UserApiClient
 
     public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
     {
-        var response = await _httpClient.PostAsJsonAsync("api/users", request);
+        using var msg = CreateRequest(HttpMethod.Post, "api/users", JsonContent.Create(request));
+        var response = await _httpClient.SendAsync(msg);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<UserResponse>())!;
     }
 
     public async Task UpdateUserAsync(Guid id, UpdateUserRequest request)
     {
-        var response = await _httpClient.PutAsJsonAsync($"api/users/{id}", request);
+        using var msg = CreateRequest(HttpMethod.Put, $"api/users/{id}", JsonContent.Create(request));
+        var response = await _httpClient.SendAsync(msg);
         response.EnsureSuccessStatusCode();
     }
 
     public async Task UpdateProfileAsync(UpdateProfileRequest request)
     {
-        var response = await _httpClient.PutAsJsonAsync("api/users/me", request);
+        using var msg = CreateRequest(HttpMethod.Put, "api/users/me", JsonContent.Create(request));
+        var response = await _httpClient.SendAsync(msg);
         response.EnsureSuccessStatusCode();
     }
 
     public async Task DeleteUserAsync(Guid id)
     {
-        var response = await _httpClient.DeleteAsync($"api/users/{id}");
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/users/{id}");
+        var response = await _httpClient.SendAsync(msg);
         response.EnsureSuccessStatusCode();
     }
 }

@@ -2,6 +2,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 @using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject TenantApiClient TenantApi
 @inject TenantStateService TenantState
 @inject NavigationManager Navigation
@@ -100,7 +101,7 @@
     private bool isSelecting;
     private string? errorMessage;
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAuthenticatedInitializedAsync()
     {
         try
         {
