@@ -32,18 +32,28 @@ public class UserApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly TokenProvider _tokenProvider;
+    private readonly ILogger<UserApiClient> _logger;
 
-    public UserApiClient(HttpClient httpClient, TokenProvider tokenProvider)
+    public UserApiClient(HttpClient httpClient, TokenProvider tokenProvider, ILogger<UserApiClient> logger)
     {
         _httpClient = httpClient;
         _tokenProvider = tokenProvider;
+        _logger = logger;
     }
 
     private HttpRequestMessage CreateRequest(HttpMethod method, string uri, HttpContent? content = null)
     {
         var request = new HttpRequestMessage(method, uri) { Content = content };
         if (!string.IsNullOrEmpty(_tokenProvider.AccessToken))
+        {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _tokenProvider.AccessToken);
+            _logger.LogDebug("[UserApiClient] Token applied to {Method} {Uri} (starts: {Prefix}...)",
+                method, uri, _tokenProvider.AccessToken[..Math.Min(20, _tokenProvider.AccessToken.Length)]);
+        }
+        else
+        {
+            _logger.LogWarning("[UserApiClient] No token in TokenProvider for {Method} {Uri} — request will be unauthenticated", method, uri);
+        }
         if (!string.IsNullOrEmpty(_tokenProvider.SelectedTenantId))
             request.Headers.TryAddWithoutValidation("X-Tenant-Id", _tokenProvider.SelectedTenantId);
         return request;
