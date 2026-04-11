@@ -1,0 +1,7 @@
+::deep .nav-link.active {
+    font-weight: 600;
+}
+
+::deep .nav-link:hover {
+    color: white !important;
+}

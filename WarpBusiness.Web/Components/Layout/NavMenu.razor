@@ -1,0 +1,68 @@
+﻿@using WarpBusiness.Web.Services
+@inject TenantStateService TenantState
+@inject IHttpContextAccessor HttpContextAccessor
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">WarpBusiness</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Modules</NavLink>
+                </li>
+                <AuthorizeView>
+                    <Authorized>
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="users">Users</NavLink>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
+                <AuthorizeView Roles="SystemAdministrator">
+                    <Authorized>
+                        <li class="nav-item">
+                            <NavLink class="nav-link" href="tenants">Tenant Management</NavLink>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
+            </ul>
+            <div class="d-flex align-items-center">
+                <AuthorizeView>
+                    <Authorized>
+                        @{
+                            var tenantName = GetSelectedTenantName();
+                        }
+                        @if (!string.IsNullOrEmpty(tenantName))
+                        {
+                            <span class="text-light me-3">
+                                Working in: <strong>@tenantName</strong>
+                                <a href="/select-tenant" class="ms-1 text-decoration-none text-info" title="Switch organization">[Switch]</a>
+                            </span>
+                        }
+                        <span class="text-light me-3">@context.User.Identity?.Name</span>
+                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="btn btn-outline-light btn-sm">Login</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+</nav>
+
+@code {
+    private string? GetSelectedTenantName()
+    {
+        if (!string.IsNullOrEmpty(TenantState.SelectedTenantName))
+            return TenantState.SelectedTenantName;
+
+        var httpContext = HttpContextAccessor.HttpContext;
+        if (httpContext?.Request.Cookies.ContainsKey("X-Selected-Tenant") == true)
+            return "Selected Organization";
+
+        return null;
+    }
+}
