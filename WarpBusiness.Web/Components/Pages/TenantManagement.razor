@@ -2,6 +2,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "SystemAdministrator")]
 @rendermode InteractiveServer
 @using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject TenantApiClient TenantApi
 @inject UserApiClient UserApi
 
@@ -323,7 +324,7 @@ else
     private string? successMessage;
     private TenantFormModel formModel = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAuthenticatedInitializedAsync()
     {
         await LoadTenants();
     }

@@ -2,6 +2,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 @using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject UserApiClient UserApi
 
 <PageTitle>User Management</PageTitle>
@@ -205,7 +206,7 @@
     private string? successMessage;
     private UserFormModel formModel = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAuthenticatedInitializedAsync()
     {
         await LoadUsers();
     }

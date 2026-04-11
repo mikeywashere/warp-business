@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using WarpBusiness.Web.Components;
 using WarpBusiness.Web.Services;
@@ -21,6 +22,9 @@ builder.Services.AddAuthentication(options =>
     var keycloakUrl = builder.Configuration["services:keycloak:https:0"]
         ?? builder.Configuration["services:keycloak:http:0"]
         ?? "http://localhost:8080";
+
+    Console.WriteLine($"[Web Startup] Keycloak URL resolved to: {keycloakUrl}");
+    Console.WriteLine($"[Web Startup] OIDC Authority: {keycloakUrl}/realms/warpbusiness");
 
     options.Authority = $"{keycloakUrl}/realms/warpbusiness";
     options.ClientId = "warpbusiness-web";
@@ -43,6 +47,21 @@ builder.Services.AddCascadingAuthenticationState();
 // Tenant state service (scoped per circuit/session)
 builder.Services.AddScoped<TenantStateService>();
 
+// Token cache: survives the SSR → interactive circuit transition
+builder.Services.AddScoped<TokenProvider>();
+builder.Services.AddScoped<CircuitHandler, TokenCircuitHandler>();
+
+// Token refresh service (calls Keycloak token endpoint to exchange refresh token for new access token)
+builder.Services.AddTransient<TokenRefreshService>();
+builder.Services.AddHttpClient("keycloak-token")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    {
+        // Allow HTTP in development (Keycloak may not have TLS locally)
+        ServerCertificateCustomValidationCallback = builder.Environment.IsDevelopment()
+            ? HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            : null
+    });
+
 // HTTP client for API calls with auth token forwarding
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<AuthTokenHandler>();
@@ -52,6 +71,7 @@ Action<HttpClient> configureApiClient = client =>
     var apiUrl = builder.Configuration["services:api:https:0"]
         ?? builder.Configuration["services:api:http:0"]
         ?? "http://localhost:5000";
+    Console.WriteLine($"[Web Startup] API base URL resolved to: {apiUrl}");
     client.BaseAddress = new Uri(apiUrl);
 };
 
