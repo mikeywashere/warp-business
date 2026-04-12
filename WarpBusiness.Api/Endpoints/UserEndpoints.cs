@@ -326,10 +326,10 @@ public static class UserEndpoints
 
     private static bool IsSystemAdministrator(ClaimsPrincipal principal)
     {
-        var realmRoles = principal.FindFirst("realm_access")?.Value;
-        if (realmRoles is not null && realmRoles.Contains("system-administrator"))
+        if (principal.IsInRole("SystemAdministrator"))
             return true;
-
+        if (principal.HasClaim("roles", "SystemAdministrator"))
+            return true;
         return principal.HasClaim("app_role", "SystemAdministrator");
     }
 }

@@ -17,6 +17,7 @@ builder.Services.AddAuthentication()
     {
         options.Audience = "warpbusiness-api";
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.TokenValidationParameters.RoleClaimType = "roles";
     });
 
 // Diagnostic logging for JWT authentication failures
@@ -81,12 +82,13 @@ builder.Services.AddAuthorizationBuilder()
         policy.RequireAuthenticatedUser();
         policy.RequireAssertion(context =>
         {
-            // Check realm roles from Keycloak token
-            var realmRoles = context.User.FindFirst("realm_access")?.Value;
-            if (realmRoles is not null && realmRoles.Contains("system-administrator"))
+            // Check flat "roles" claim from Keycloak (configured via protocol mapper)
+            if (context.User.IsInRole("SystemAdministrator"))
+                return true;
+            if (context.User.HasClaim("roles", "SystemAdministrator"))
                 return true;
 
-            // Fallback: check custom claim or DB-backed role (via middleware)
+            // Fallback: check DB-backed role (added by role enrichment middleware)
             return context.User.HasClaim("app_role", "SystemAdministrator");
         });
     });
@@ -119,9 +121,9 @@ app.MapDefaultEndpoints();
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
-app.UseAuthorization();
 
-// Role enrichment middleware: adds app_role claim from DB for authorization policies
+// Role enrichment middleware: adds app_role claim from DB for authorization policies.
+// MUST run BEFORE UseAuthorization() so claims are available during policy evaluation.
 app.Use(async (context, next) =>
 {
     if (context.User.Identity?.IsAuthenticated == true)
@@ -152,6 +154,8 @@ app.Use(async (context, next) =>
     await next();
 });
 
+app.UseAuthorization();
+
 // Tenant context middleware: validates X-Tenant-Id header and sets TenantId in HttpContext.Items
 app.Use(async (context, next) =>
 {
@@ -177,10 +181,9 @@ app.Use(async (context, next) =>
         var db = scope.ServiceProvider.GetRequiredService<WarpBusinessDbContext>();
 
         // SystemAdministrators can access any tenant
-        var isAdmin = context.User.HasClaim("app_role", "SystemAdministrator");
-        var realmRoles = context.User.FindFirst("realm_access")?.Value;
-        if (realmRoles is not null && realmRoles.Contains("system-administrator"))
-            isAdmin = true;
+        var isAdmin = context.User.HasClaim("app_role", "SystemAdministrator")
+            || context.User.HasClaim("roles", "SystemAdministrator")
+            || context.User.IsInRole("SystemAdministrator");
 
         var tenantExists = await db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive);
 
