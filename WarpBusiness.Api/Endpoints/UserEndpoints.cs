@@ -191,6 +191,7 @@ public static class UserEndpoints
         [FromBody] CreateUserRequest request,
         WarpBusinessDbContext db,
         KeycloakAdminService keycloakAdmin,
+        ILogger<KeycloakAdminService> logger,
         CancellationToken cancellationToken)
     {
         // Check for duplicate email
@@ -210,36 +211,64 @@ public static class UserEndpoints
         var result = await keycloakAdmin.CreateUserAsync(
             request.FirstName, request.LastName, request.Email, request.Password, cancellationToken);
 
+        string keycloakUserId;
+
         if (!result.Success)
         {
             var statusCode = (int)(result.StatusCode ?? System.Net.HttpStatusCode.BadGateway);
 
-            // Keycloak 409 Conflict (duplicate in Keycloak but not in our DB)
+            // Keycloak 409 Conflict — user exists in Keycloak. Check if it's an orphan (missing from local DB).
             if (statusCode == 409)
             {
-                return Results.Conflict(new { message = result.ErrorMessage ?? "User already exists in identity provider." });
-            }
+                var existingKeycloakUser = await keycloakAdmin.GetUserByEmailAsync(request.Email, cancellationToken);
+                if (existingKeycloakUser is null)
+                {
+                    return Results.Conflict(new { message = result.ErrorMessage ?? "User already exists in identity provider." });
+                }
 
-            // Keycloak 400-level errors are client/validation problems — pass them through as 400
-            if (statusCode >= 400 && statusCode < 500)
+                // Check if this Keycloak user is already linked in our local DB
+                var existsInDb = await db.Users.AnyAsync(
+                    u => u.KeycloakSubjectId == existingKeycloakUser.Id || u.Email == request.Email,
+                    cancellationToken);
+
+                if (existsInDb)
+                {
+                    return Results.Conflict(new { message = "A user with this email already exists." });
+                }
+
+                // Orphaned Keycloak user — adopt it by creating the local DB record
+                logger.LogInformation(
+                    "Adopting orphaned Keycloak user {KeycloakUserId} for email {Email}",
+                    existingKeycloakUser.Id, request.Email);
+
+                keycloakUserId = existingKeycloakUser.Id;
+            }
+            else if (statusCode >= 400 && statusCode < 500)
             {
+                // Keycloak 400-level errors are client/validation problems — pass them through as 400
                 return Results.Problem(
                     detail: result.ErrorMessage,
                     title: "User creation failed",
                     statusCode: StatusCodes.Status400BadRequest);
             }
-
-            // Actual Keycloak server errors → 502
-            return Results.Problem(
-                detail: result.ErrorMessage ?? "Failed to create user in identity provider.",
-                title: "Identity provider error",
-                statusCode: StatusCodes.Status502BadGateway);
+            else
+            {
+                // Actual Keycloak server errors → 502
+                return Results.Problem(
+                    detail: result.ErrorMessage ?? "Failed to create user in identity provider.",
+                    title: "Identity provider error",
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+        }
+        else
+        {
+            keycloakUserId = result.KeycloakUserId!;
         }
 
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid(),
-            KeycloakSubjectId = result.KeycloakUserId!,
+            KeycloakSubjectId = keycloakUserId,
             FirstName = request.FirstName,
             LastName = request.LastName,
             Email = request.Email,
