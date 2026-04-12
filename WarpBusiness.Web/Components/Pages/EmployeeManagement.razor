@@ -1,0 +1,480 @@
+@page "/employees"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject EmployeeApiClient EmployeeApi
+
+<PageTitle>Employee Management</PageTitle>
+
+<h1 class="mb-4">Employee Management</h1>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            @* Add / Edit Form *@
+            @if (showForm)
+            {
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">@(editingEmployeeId.HasValue ? "Edit Employee" : "Add Employee")</h5>
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="formModel" OnValidSubmit="HandleFormSubmit" FormName="employeeForm">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger mb-3" />
+
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="formModel.FirstName" class="form-control" />
+                                    <ValidationMessage For="() => formModel.FirstName" class="text-danger" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Middle Name</label>
+                                    <InputText @bind-Value="formModel.MiddleName" class="form-control" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="formModel.LastName" class="form-control" />
+                                    <ValidationMessage For="() => formModel.LastName" class="text-danger" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Email <span class="text-danger">*</span></label>
+                                    <InputText @bind-Value="formModel.Email" class="form-control" type="email" />
+                                    <ValidationMessage For="() => formModel.Email" class="text-danger" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone</label>
+                                    <InputText @bind-Value="formModel.Phone" class="form-control" type="tel" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Date of Birth</label>
+                                    <InputDate @bind-Value="formModel.DateOfBirth" class="form-control" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Hire Date <span class="text-danger">*</span></label>
+                                    <InputDate @bind-Value="formModel.HireDate" class="form-control" />
+                                    <ValidationMessage For="() => formModel.HireDate" class="text-danger" />
+                                </div>
+                                @if (editingEmployeeId.HasValue)
+                                {
+                                    <div class="col-md-4">
+                                        <label class="form-label">Termination Date</label>
+                                        <InputDate @bind-Value="formModel.TerminationDate" class="form-control" />
+                                    </div>
+                                }
+                                <div class="col-md-6">
+                                    <label class="form-label">Department</label>
+                                    <InputText @bind-Value="formModel.Department" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Job Title</label>
+                                    <InputText @bind-Value="formModel.JobTitle" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Employment Status <span class="text-danger">*</span></label>
+                                    <InputSelect @bind-Value="formModel.EmploymentStatus" class="form-select">
+                                        <option value="">-- Select Status --</option>
+                                        <option value="Active">Active</option>
+                                        <option value="OnLeave">On Leave</option>
+                                        <option value="Terminated">Terminated</option>
+                                        <option value="Suspended">Suspended</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="() => formModel.EmploymentStatus" class="text-danger" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Employment Type <span class="text-danger">*</span></label>
+                                    <InputSelect @bind-Value="formModel.EmploymentType" class="form-select">
+                                        <option value="">-- Select Type --</option>
+                                        <option value="FullTime">Full Time</option>
+                                        <option value="PartTime">Part Time</option>
+                                        <option value="Contract">Contract</option>
+                                        <option value="Intern">Intern</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="() => formModel.EmploymentType" class="text-danger" />
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    @(editingEmployeeId.HasValue ? "Update Employee" : "Create Employee")
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CancelForm">Cancel</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            }
+
+            @* Employees Table *@
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Employees (@(employees?.Count ?? 0))</h5>
+                @if (!showForm)
+                {
+                    <button class="btn btn-primary" @onclick="ShowAddForm">
+                        <span class="bi bi-plus-lg me-1"></span> Add Employee
+                    </button>
+                }
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Employee #</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Job Title</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Hire Date</th>
+                            <th style="width: 150px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (employees is { Count: > 0 })
+                        {
+                            @foreach (var emp in employees)
+                            {
+                                <tr>
+                                    <td><code>@emp.EmployeeNumber</code></td>
+                                    <td>@emp.FirstName @emp.LastName</td>
+                                    <td>@emp.Email</td>
+                                    <td>@(emp.Department ?? "—")</td>
+                                    <td>@(emp.JobTitle ?? "—")</td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(emp.EmploymentStatus)">
+                                            @FormatStatus(emp.EmploymentStatus)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">
+                                            @FormatType(emp.EmploymentType)
+                                        </span>
+                                    </td>
+                                    <td>@emp.HireDate.ToString("yyyy-MM-dd")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(emp)" title="Edit">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(emp)" title="Delete">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">No employees found.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Delete Confirmation Modal *@
+            @if (showDeleteConfirm && deletingEmployee != null)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Confirm Delete</h5>
+                                <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Are you sure you want to delete <strong>@deletingEmployee.FirstName @deletingEmployee.LastName</strong> (@deletingEmployee.EmployeeNumber)?</p>
+                                <p class="text-danger mb-0">This action cannot be undone.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                                <button type="button" class="btn btn-danger" @onclick="ExecuteDelete" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-warning">
+            <h4>Access Denied</h4>
+            <p>You must be logged in to access employee management. <a href="/login">Login</a></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<EmployeeResponse>? employees;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool showForm;
+    private bool showDeleteConfirm;
+    private Guid? editingEmployeeId;
+    private EmployeeResponse? deletingEmployee;
+    private string? errorMessage;
+    private string? successMessage;
+    private EmployeeFormModel formModel = new();
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        await LoadEmployees();
+    }
+
+    private async Task LoadEmployees()
+    {
+        isLoading = true;
+        try
+        {
+            employees = await EmployeeApi.GetEmployeesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load employees: {ex.Message}";
+            employees = [];
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        editingEmployeeId = null;
+        formModel = new EmployeeFormModel();
+        showForm = true;
+        ClearMessages();
+    }
+
+    private void ShowEditForm(EmployeeResponse emp)
+    {
+        editingEmployeeId = emp.Id;
+        formModel = new EmployeeFormModel
+        {
+            FirstName = emp.FirstName,
+            LastName = emp.LastName,
+            MiddleName = emp.MiddleName ?? "",
+            Email = emp.Email,
+            Phone = emp.Phone ?? "",
+            DateOfBirth = emp.DateOfBirth,
+            HireDate = emp.HireDate,
+            TerminationDate = emp.TerminationDate,
+            Department = emp.Department ?? "",
+            JobTitle = emp.JobTitle ?? "",
+            EmploymentStatus = emp.EmploymentStatus,
+            EmploymentType = emp.EmploymentType
+        };
+        showForm = true;
+        ClearMessages();
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editingEmployeeId = null;
+        formModel = new EmployeeFormModel();
+    }
+
+    private async Task HandleFormSubmit()
+    {
+        isSubmitting = true;
+        ClearMessages();
+
+        try
+        {
+            if (editingEmployeeId.HasValue)
+            {
+                await EmployeeApi.UpdateEmployeeAsync(editingEmployeeId.Value, new UpdateEmployeeRequest(
+                    formModel.FirstName,
+                    formModel.LastName,
+                    string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
+                    formModel.Email,
+                    string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
+                    formModel.DateOfBirth,
+                    formModel.HireDate,
+                    formModel.TerminationDate,
+                    string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
+                    string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
+                    null,
+                    formModel.EmploymentStatus,
+                    formModel.EmploymentType,
+                    null));
+                successMessage = "Employee updated successfully.";
+            }
+            else
+            {
+                await EmployeeApi.CreateEmployeeAsync(new CreateEmployeeRequest(
+                    formModel.FirstName,
+                    formModel.LastName,
+                    string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
+                    formModel.Email,
+                    string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
+                    formModel.DateOfBirth,
+                    formModel.HireDate,
+                    string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
+                    string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
+                    null,
+                    formModel.EmploymentStatus,
+                    formModel.EmploymentType,
+                    null));
+                successMessage = "Employee created successfully.";
+            }
+
+            showForm = false;
+            editingEmployeeId = null;
+            formModel = new EmployeeFormModel();
+            await LoadEmployees();
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Operation failed: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ConfirmDelete(EmployeeResponse emp)
+    {
+        deletingEmployee = emp;
+        showDeleteConfirm = true;
+        ClearMessages();
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirm = false;
+        deletingEmployee = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (deletingEmployee == null) return;
+
+        isSubmitting = true;
+        try
+        {
+            await EmployeeApi.DeleteEmployeeAsync(deletingEmployee.Id);
+            successMessage = $"Employee {deletingEmployee.FirstName} {deletingEmployee.LastName} deleted.";
+            showDeleteConfirm = false;
+            deletingEmployee = null;
+            await LoadEmployees();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Delete failed: {ex.Message}";
+            showDeleteConfirm = false;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ClearMessages()
+    {
+        errorMessage = null;
+        successMessage = null;
+    }
+
+    private static string GetStatusBadgeClass(string status) => status switch
+    {
+        "Active" => "bg-success",
+        "OnLeave" => "bg-warning text-dark",
+        "Terminated" => "bg-danger",
+        "Suspended" => "bg-orange",
+        _ => "bg-secondary"
+    };
+
+    private static string FormatStatus(string status) => status switch
+    {
+        "OnLeave" => "On Leave",
+        _ => status
+    };
+
+    private static string FormatType(string type) => type switch
+    {
+        "FullTime" => "Full Time",
+        "PartTime" => "Part Time",
+        _ => type
+    };
+
+    public class EmployeeFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        public string FirstName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string LastName { get; set; } = "";
+
+        public string MiddleName { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.EmailAddress]
+        public string Email { get; set; } = "";
+
+        public string Phone { get; set; } = "";
+
+        public DateOnly? DateOfBirth { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public DateOnly HireDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+
+        public DateOnly? TerminationDate { get; set; }
+
+        public string Department { get; set; } = "";
+
+        public string JobTitle { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string EmploymentStatus { get; set; } = "Active";
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string EmploymentType { get; set; } = "";
+    }
+}
