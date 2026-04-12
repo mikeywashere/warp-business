@@ -197,7 +197,16 @@ public static class UserEndpoints
         if (await db.Users.AnyAsync(u => u.Email == request.Email, cancellationToken))
             return Results.Conflict(new { message = "A user with this email already exists." });
 
-        // Create in Keycloak first
+        // Validate tenant exists if provided
+        Tenant? tenant = null;
+        if (request.TenantId.HasValue)
+        {
+            tenant = await db.Tenants.FindAsync([request.TenantId.Value], cancellationToken);
+            if (tenant == null)
+                return Results.BadRequest(new { message = "The specified tenant does not exist." });
+        }
+
+        // Create in Keycloak
         var result = await keycloakAdmin.CreateUserAsync(
             request.FirstName, request.LastName, request.Email, request.Password, cancellationToken);
 
@@ -241,6 +250,19 @@ public static class UserEndpoints
 
         db.Users.Add(user);
         await db.SaveChangesAsync(cancellationToken);
+
+        // Create tenant membership if tenant was provided
+        if (tenant != null)
+        {
+            var membership = new UserTenantMembership
+            {
+                UserId = user.Id,
+                TenantId = tenant.Id,
+                JoinedAt = DateTime.UtcNow
+            };
+            db.UserTenantMemberships.Add(membership);
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         return Results.Created($"/api/users/{user.Id}", ToResponse(user));
     }
