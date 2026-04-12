@@ -174,3 +174,31 @@
 - **Integration:** Data + Geordi collaboration completed; PR #12 (Geordi) merged. Backend API ready for production.
 - **Status:** ✅ Complete and tested.
 
+### Orphaned Keycloak User Recovery (2026-04-12)
+
+- **Problem:** If a user exists in Keycloak but not in the local warp.Users table (orphaned from a partial creation), the CreateUser endpoint returned 409 and blocked re-adding the user.
+- **Fix:** When Keycloak returns 409 Conflict, the endpoint now: (1) looks up the existing Keycloak user by email via `GetUserByEmailAsync`, (2) checks if they exist in local DB by KeycloakSubjectId or email, (3) if missing locally → creates the ApplicationUser + UserTenantMembership linking to the existing Keycloak ID, (4) if already in both systems → returns the real duplicate error.
+- **Pattern:** "Adopt orphan" — when an external system has a record our DB doesn't, link to it rather than failing. This avoids requiring manual Keycloak admin intervention.
+- **Key principle:** The `ILogger<KeycloakAdminService>` was added to the CreateUser endpoint signature for structured logging of the adoption event. ASP.NET Core minimal API DI injects it automatically; tests must pass it via reflection (use `NullLogger<T>.Instance`).
+- **Key files:**
+  - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — orphan recovery in CreateUser 409 handler
+  - `WarpBusiness.Api.Tests/Endpoints/UserEndpointTests.cs` — updated CallCreateUser helper
+- **PR:** #14
+
+### Employee Module (2026-04-12)
+
+- **Architecture:** Separate class library `WarpBusiness.Employees` with its own `EmployeeDbContext` and PostgreSQL schema (`employees`). Same `warpdb` connection string, different schema — follows the per-module schema isolation pattern established in the Database Schema Namespacing decision.
+- **Entity model:** Employee with standard HR fields — EmployeeNumber (auto-generated EMP00001 format, unique per tenant), name fields, email (unique), phone, DOB, hire/termination dates, department, job title, self-referencing ManagerId for org hierarchy, EmploymentStatus/EmploymentType enums stored as strings, optional UserId link to warp.Users, required TenantId.
+- **DbInitializer pattern:** `EmployeeDbInitializer` (IHostedService) runs migrations on startup, consistent with existing `DbInitializer`.
+- **Endpoints:** Minimal API under `/api/employees` — full CRUD, tenant-scoped via X-Tenant-Id header, SystemAdministrator policy for writes, authenticated for reads. Consistent with UserEndpoints and TenantEndpoints patterns.
+- **Employee number generation:** Sequential per tenant (EMP00001, EMP00002...) via MAX query on existing records.
+- **Validation:** Manager must exist in same tenant; email unique within tenant; can't self-manage.
+- **Npgsql version:** `Npgsql.EntityFrameworkCore.PostgreSQL` 10.0.1 (latest stable for net10.0 — 10.0.5 does not exist).
+- **Key files:**
+  - `WarpBusiness.Employees/Models/Employee.cs` — entity + enums
+  - `WarpBusiness.Employees/Models/EmployeeDtos.cs` — CRUD DTOs
+  - `WarpBusiness.Employees/Data/EmployeeDbContext.cs` — EF Core context with `employees` schema
+  - `WarpBusiness.Employees/Data/EmployeeDbInitializer.cs` — migration runner
+  - `WarpBusiness.Employees/Endpoints/EmployeeEndpoints.cs` — minimal API endpoints
+  - `WarpBusiness.Employees/Data/Migrations/` — InitialCreate migration
+- **PR:** #15
