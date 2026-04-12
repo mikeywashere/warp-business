@@ -6,4 +6,5 @@
   <Project Path="WarpBusiness.Web.Tests/WarpBusiness.Web.Tests.csproj" />
   <Project Path="WarpBusiness.Api.Tests/WarpBusiness.Api.Tests.csproj" />
   <Project Path="WarpBusiness.MarketingSite/WarpBusiness.MarketingSite.csproj" />
+  <Project Path="WarpBusiness.Employees/WarpBusiness.Employees.csproj" />
 </Solution>

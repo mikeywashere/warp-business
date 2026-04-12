@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WarpBusiness.ServiceDefaults\WarpBusiness.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\WarpBusiness.Employees\WarpBusiness.Employees.csproj" />
   </ItemGroup>
 
 </Project>
