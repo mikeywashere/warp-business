@@ -20,7 +20,8 @@ public record CreateUserRequest(
     string LastName,
     string Email,
     string Password,
-    [property: JsonPropertyName("role")] string RoleName);
+    [property: JsonPropertyName("role")] string RoleName,
+    Guid? TenantId = null);
 
 public record UpdateUserRequest(
     string FirstName,

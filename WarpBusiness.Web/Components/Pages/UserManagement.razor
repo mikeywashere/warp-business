@@ -4,6 +4,7 @@
 @using WarpBusiness.Web.Services
 @inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject UserApiClient UserApi
+@inject TenantApiClient TenantApi
 
 <PageTitle>User Management</PageTitle>
 
@@ -105,10 +106,48 @@
                                     </InputSelect>
                                     <ValidationMessage For="() => formModel.RoleName" class="text-danger" />
                                 </div>
+                                @if (!editingUserId.HasValue)
+                                {
+                                    <div class="col-md-6">
+                                        <label class="form-label">Tenant <span class="text-danger">*</span></label>
+                                        <div class="position-relative">
+                                            <input type="text" class="form-control" placeholder="Search tenants..."
+                                                   value="@tenantSearchText"
+                                                   @onfocus="() => showTenantDropdown = true"
+                                                   @onblur="HandleTenantBlur"
+                                                   @oninput="FilterTenants" />
+                                            @if (showTenantDropdown && filteredTenants.Count > 0)
+                                            {
+                                                <ul class="list-group position-absolute w-100 shadow" style="z-index: 1050; max-height: 200px; overflow-y: auto;">
+                                                    @foreach (var tenant in filteredTenants)
+                                                    {
+                                                        <li class="list-group-item list-group-item-action"
+                                                            @onmousedown="() => SelectTenant(tenant)"
+                                                            @onmousedown:preventDefault>
+                                                            @tenant.Name
+                                                            @if (!tenant.IsActive)
+                                                            {
+                                                                <span class="badge bg-secondary ms-1">Inactive</span>
+                                                            }
+                                                        </li>
+                                                    }
+                                                </ul>
+                                            }
+                                            @if (!string.IsNullOrEmpty(formModel.TenantId.ToString()) && formModel.TenantId != Guid.Empty)
+                                            {
+                                                <small class="text-success">✓ Selected: @(allTenants?.FirstOrDefault(t => t.Id == formModel.TenantId)?.Name)</small>
+                                            }
+                                            else if (!string.IsNullOrEmpty(tenantSearchText))
+                                            {
+                                                <small class="text-danger">Please select a tenant from the list</small>
+                                            }
+                                        </div>
+                                    </div>
+                                }
                             </div>
 
                             <div class="mt-3">
-                                <button type="submit" class="btn btn-primary" disabled="@(isSubmitting || (!editingUserId.HasValue && !IsPasswordValid()))">
+                                <button type="submit" class="btn btn-primary" disabled="@(isSubmitting || (!editingUserId.HasValue && (!IsPasswordValid() || formModel.TenantId == Guid.Empty)))">
                                     @if (isSubmitting)
                                     {
                                         <span class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -250,6 +289,11 @@
     private string? errorMessage;
     private string? successMessage;
     private UserFormModel formModel = new();
+    
+    private List<TenantResponse>? allTenants;
+    private List<TenantResponse> filteredTenants = [];
+    private string tenantSearchText = "";
+    private bool showTenantDropdown;
 
     protected override async Task OnAuthenticatedInitializedAsync()
     {
@@ -274,10 +318,14 @@
         }
     }
 
-    private void ShowAddForm()
+    private async Task ShowAddForm()
     {
         editingUserId = null;
         formModel = new UserFormModel();
+        allTenants = await TenantApi.GetTenantsAsync();
+        filteredTenants = allTenants;
+        tenantSearchText = "";
+        showTenantDropdown = false;
         showForm = true;
         ClearMessages();
     }
@@ -301,6 +349,8 @@
         showForm = false;
         editingUserId = null;
         formModel = new UserFormModel();
+        tenantSearchText = "";
+        showTenantDropdown = false;
     }
 
     private async Task HandleFormSubmit()
@@ -309,6 +359,13 @@
         if (!editingUserId.HasValue && !IsPasswordValid())
         {
             errorMessage = "Password does not meet the required policy. Please check the password requirements.";
+            return;
+        }
+
+        // Validate tenant selection for new users
+        if (!editingUserId.HasValue && formModel.TenantId == Guid.Empty)
+        {
+            errorMessage = "Please select a tenant for the new user.";
             return;
         }
 
@@ -333,8 +390,11 @@
                     formModel.LastName,
                     formModel.Email,
                     formModel.Password,
-                    formModel.RoleName));
+                    formModel.RoleName,
+                    formModel.TenantId));
                 successMessage = "User created successfully.";
+                tenantSearchText = "";
+                showTenantDropdown = false;
             }
 
             showForm = false;
@@ -413,6 +473,31 @@
     private static string FormatRoleName(string roleName) =>
         roleName == "SystemAdministrator" ? "System Administrator" : roleName;
 
+    private void FilterTenants(ChangeEventArgs e)
+    {
+        tenantSearchText = e.Value?.ToString() ?? "";
+        filteredTenants = string.IsNullOrWhiteSpace(tenantSearchText)
+            ? (allTenants ?? [])
+            : (allTenants ?? []).Where(t => t.Name.Contains(tenantSearchText, StringComparison.OrdinalIgnoreCase)).ToList();
+        showTenantDropdown = true;
+        // Clear selection if text changed
+        formModel.TenantId = Guid.Empty;
+    }
+
+    private void SelectTenant(TenantResponse tenant)
+    {
+        formModel.TenantId = tenant.Id;
+        tenantSearchText = tenant.Name;
+        showTenantDropdown = false;
+    }
+
+    private async Task HandleTenantBlur()
+    {
+        // Small delay to allow click events to fire before hiding
+        await Task.Delay(200);
+        showTenantDropdown = false;
+    }
+
     public class UserFormModel
     {
         [System.ComponentModel.DataAnnotations.Required]
@@ -429,5 +514,7 @@
 
         [System.ComponentModel.DataAnnotations.Required]
         public string RoleName { get; set; } = "";
+
+        public Guid TenantId { get; set; }
     }
 }

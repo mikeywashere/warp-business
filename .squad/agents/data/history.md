@@ -147,3 +147,22 @@
   - `WarpBusiness.Api/Data/WarpBusinessDbContext.cs` — `HasDefaultSchema("warp")`
   - `WarpBusiness.Api/Data/Migrations/20260412043525_MoveToWarpSchema.cs` — schema migration
 - **PR:** #10
+
+### Logout id_token_hint Fix (2026-04-12)
+
+- **Root cause:** The `/logout` endpoint signed out of the cookie scheme first (`CookieAuthenticationDefaults.AuthenticationScheme`), which destroyed the authentication ticket containing all saved tokens. When the OIDC sign-out ran next, it couldn't find the `id_token` to send as `id_token_hint` to Keycloak, resulting in a "Missing parameters: id_token_hint" error page.
+- **Fix:** Capture `id_token` via `context.GetTokenAsync("id_token")` **before** any sign-out call. Then sign out of cookies, then pass the captured token to the OIDC sign-out via both `AuthenticationProperties.Items["id_token_hint"]` and `StoreTokens()` (the OIDC handler checks both locations).
+- **Key principle:** When implementing OIDC logout, always extract tokens from the auth ticket before destroying it. The order of sign-out calls matters — cookie sign-out destroys the ticket, OIDC sign-out reads from it.
+- **Key file:** `WarpBusiness.Web/Program.cs` — `/logout` endpoint
+- **PR:** #11
+
+### Tenant Assignment on User Creation (2026-04-12)
+
+- **Feature:** Add User form now supports optional tenant assignment. Users can be assigned to a tenant during creation, automatically creating a UserTenantMembership record.
+- **Validation ordering:** Tenant validation happens BEFORE Keycloak user creation to avoid orphaned Keycloak users when an invalid tenant ID is provided. Flow: (1) check email uniqueness, (2) validate tenant exists if provided, (3) create in Keycloak, (4) create ApplicationUser in DB, (5) create UserTenantMembership if tenant was specified.
+- **Error handling:** Returns `400 BadRequest` with message "The specified tenant does not exist." if an invalid tenant ID is provided, preventing the user creation entirely.
+- **DTOs updated:** Both API (`WarpBusiness.Api/Models/UserDtos.cs`) and Web (`WarpBusiness.Web/Services/UserApiClient.cs`) `CreateUserRequest` records now include `Guid? TenantId = null` optional parameter.
+- **Key files:**
+  - `WarpBusiness.Api/Models/UserDtos.cs` — added TenantId to CreateUserRequest
+  - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — tenant validation and membership creation in CreateUser endpoint
+  - `WarpBusiness.Web/Services/UserApiClient.cs` — added TenantId to CreateUserRequest
