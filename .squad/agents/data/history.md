@@ -166,3 +166,11 @@
   - `WarpBusiness.Api/Models/UserDtos.cs` — added TenantId to CreateUserRequest
   - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — tenant validation and membership creation in CreateUser endpoint
   - `WarpBusiness.Web/Services/UserApiClient.cs` — added TenantId to CreateUserRequest
+
+### Multi-Tenant User Onboarding (2026-04-12)
+
+- **Backend:** API CreateUser endpoint accepts TenantId, validates tenant exists before user creation, creates UserTenantMembership record automatically.
+- **Frontend:** Add User form now requires tenant selection with type-ahead dropdown (TenantApiClient integration).
+- **Integration:** Data + Geordi collaboration completed; PR #12 (Geordi) merged. Backend API ready for production.
+- **Status:** ✅ Complete and tested.
+

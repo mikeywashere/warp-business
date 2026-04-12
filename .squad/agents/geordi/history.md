@@ -53,3 +53,11 @@
 - **Type-ahead pattern**: Use `value="@field"` + `@oninput` (not `@bind` + `@oninput` together) to avoid Blazor RZ10008 duplicate attribute error
 - **Dropdown blur handling**: `@onmousedown` with `@onmousedown:preventDefault` on list items + `Task.Delay(200)` in blur handler allows click events to fire before hiding dropdown
 - **CreateUserRequest**: Now includes optional `Guid? TenantId = null` parameter for tenant assignment during user creation
+
+### Multi-Tenant User Onboarding (2026-04-12)
+
+- **Frontend:** Implemented tenant dropdown with type-ahead search in Add User form (UserManagement.razor).
+- **Integration:** Integrated TenantApiClient for fetching available tenants, added validation and visual feedback.
+- **PR #12:** Merged with backend API support (Data agent).
+- **Status:** ✅ Complete and deployed.
+
