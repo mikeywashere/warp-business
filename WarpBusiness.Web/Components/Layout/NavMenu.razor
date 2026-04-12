@@ -10,9 +10,18 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarContent">
             <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Modules</NavLink>
-                </li>
+                <AuthorizeView>
+                    <Authorized Context="modulesContext">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Modules
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li><NavLink class="dropdown-item" href="employees">Employees</NavLink></li>
+                            </ul>
+                        </li>
+                    </Authorized>
+                </AuthorizeView>
                 <AuthorizeView>
                     <Authorized>
                         <li class="nav-item dropdown">

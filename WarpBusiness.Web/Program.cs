@@ -101,6 +101,9 @@ builder.Services.AddHttpClient<UserApiClient>(configureApiClient)
 builder.Services.AddHttpClient<TenantApiClient>(configureApiClient)
     .AddHttpMessageHandler<AuthTokenHandler>();
 
+builder.Services.AddHttpClient<EmployeeApiClient>(configureApiClient)
+    .AddHttpMessageHandler<AuthTokenHandler>();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
