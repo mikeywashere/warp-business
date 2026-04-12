@@ -3,6 +3,8 @@ using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Endpoints;
 using WarpBusiness.Api.Models;
 using WarpBusiness.Api.Services;
+using WarpBusiness.Employees.Data;
+using WarpBusiness.Employees.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +12,7 @@ builder.AddServiceDefaults();
 
 // PostgreSQL + Entity Framework Core
 builder.AddNpgsqlDbContext<WarpBusinessDbContext>("warpdb");
+builder.AddNpgsqlDbContext<EmployeeDbContext>("warpdb");
 
 // Keycloak JWT Bearer authentication
 builder.Services.AddAuthentication()
@@ -104,6 +107,7 @@ builder.Services.AddHttpClient<KeycloakAdminService>(client =>
 
 // Database initialization (migrations + seed)
 builder.Services.AddHostedService<DbInitializer>();
+builder.Services.AddHostedService<EmployeeDbInitializer>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -239,6 +243,9 @@ app.MapUserEndpoints();
 
 // Tenant management API endpoints
 app.MapTenantEndpoints();
+
+// Employee management API endpoints
+app.MapEmployeeEndpoints();
 
 var summaries = new[]
 {
