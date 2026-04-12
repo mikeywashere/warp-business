@@ -39,6 +39,7 @@ builder.Services.AddAuthentication(options =>
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
 
     options.TokenValidationParameters.NameClaimType = "preferred_username";
+    options.TokenValidationParameters.RoleClaimType = "roles";
 });
 
 builder.Services.AddAuthorization();

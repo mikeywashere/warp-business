@@ -11,7 +11,7 @@
   "roles": {
     "realm": [
       {
-        "name": "system-administrator",
+        "name": "SystemAdministrator",
         "description": "System Administrator — full user management access"
       },
       {
@@ -30,6 +30,9 @@
       "directAccessGrantsEnabled": true,
       "redirectUris": ["*"],
       "webOrigins": ["*"],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      },
       "protocol": "openid-connect",
       "protocolMappers": [
         {
@@ -42,7 +45,7 @@
             "userinfo.token.claim": "true",
             "id.token.claim": "true",
             "access.token.claim": "true",
-            "claim.name": "realm_access.roles",
+            "claim.name": "roles",
             "jsonType.label": "String"
           }
         },
@@ -85,7 +88,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["system-administrator"]
+      "realmRoles": ["SystemAdministrator"]
     }
   ]
 }
