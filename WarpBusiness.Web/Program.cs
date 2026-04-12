@@ -40,6 +40,25 @@ builder.Services.AddAuthentication(options =>
 
     options.TokenValidationParameters.NameClaimType = "preferred_username";
     options.TokenValidationParameters.RoleClaimType = "roles";
+
+    // Ensure id_token_hint is sent to Keycloak on logout
+    options.Events = new OpenIdConnectEvents
+    {
+        OnRedirectToIdentityProviderForSignOut = async context =>
+        {
+            // Try getting the id_token from the still-active cookie auth ticket
+            var idToken = await context.HttpContext.GetTokenAsync("id_token");
+
+            // Fallback: check if it was stashed in the sign-out properties
+            if (string.IsNullOrEmpty(idToken))
+                idToken = context.Properties?.GetTokenValue("id_token");
+
+            if (!string.IsNullOrEmpty(idToken))
+            {
+                context.ProtocolMessage.IdTokenHint = idToken;
+            }
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -116,19 +135,16 @@ app.MapGet("/logout", async (HttpContext context) =>
     context.Response.Cookies.Delete("X-Selected-Tenant");
     context.Response.Cookies.Delete("X-Selected-Tenant-Name");
 
-    // Capture the id_token BEFORE signing out of cookies (which destroys the auth ticket)
-    var idToken = await context.GetTokenAsync("id_token");
-
-    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
-    var authProps = new AuthenticationProperties { RedirectUri = "/" };
-    if (!string.IsNullOrEmpty(idToken))
+    // Sign out of OIDC FIRST — the handler authenticates via cookie to find the
+    // id_token for Keycloak's logout endpoint.  Cookie must still exist at this point.
+    // The OnRedirectToIdentityProviderForSignOut event sets id_token_hint on the message.
+    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties
     {
-        authProps.Items["id_token_hint"] = idToken;
-        authProps.StoreTokens([new AuthenticationToken { Name = "id_token", Value = idToken }]);
-    }
+        RedirectUri = "/"
+    });
 
-    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, authProps);
+    // Then clear the local auth cookie (adds Set-Cookie header to the same response)
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 });
 
 // Tenant selection — browser-navigated GET sets cookies then redirects
