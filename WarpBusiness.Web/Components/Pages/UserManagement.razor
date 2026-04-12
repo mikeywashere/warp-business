@@ -127,9 +127,13 @@
                 <h5 class="mb-0">Users (@(users?.Count ?? 0))</h5>
                 @if (!showForm)
                 {
-                    <button class="btn btn-primary" @onclick="ShowAddForm">
-                        <span class="bi bi-plus-lg me-1"></span> Add User
-                    </button>
+                    <AuthorizeView Roles="SystemAdministrator">
+                        <Authorized>
+                            <button class="btn btn-primary" @onclick="ShowAddForm">
+                                <span class="bi bi-plus-lg me-1"></span> Add User
+                            </button>
+                        </Authorized>
+                    </AuthorizeView>
                 }
             </div>
 
@@ -140,6 +144,7 @@
                             <th>Name</th>
                             <th>Email</th>
                             <th>Role</th>
+                            <th>Tenants</th>
                             <th>Created</th>
                             <th style="width: 150px;">Actions</th>
                         </tr>
@@ -157,14 +162,31 @@
                                             @FormatRoleName(user.RoleName)
                                         </span>
                                     </td>
+                                    <td>
+                                        @if (user.Tenants is { Count: > 0 })
+                                        {
+                                            @foreach (var tenant in user.Tenants)
+                                            {
+                                                <span class="badge bg-secondary me-1">@tenant.TenantName</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
                                     <td>@user.CreatedAt.ToString("yyyy-MM-dd")</td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(user)" title="Edit">
-                                            Edit
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(user)" title="Delete">
-                                            Delete
-                                        </button>
+                                        <AuthorizeView Roles="SystemAdministrator">
+                                            <Authorized>
+                                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(user)" title="Edit">
+                                                    Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(user)" title="Delete">
+                                                    Delete
+                                                </button>
+                                            </Authorized>
+                                        </AuthorizeView>
                                     </td>
                                 </tr>
                             }
@@ -172,7 +194,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No users found.</td>
+                                <td colspan="6" class="text-center text-muted py-4">No users found.</td>
                             </tr>
                         }
                     </tbody>

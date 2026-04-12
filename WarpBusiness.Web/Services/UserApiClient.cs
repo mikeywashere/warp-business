@@ -1,28 +1,32 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json.Serialization;
 
 namespace WarpBusiness.Web.Services;
+
+public record UserTenantInfo(Guid TenantId, string TenantName);
 
 public record UserResponse(
     Guid Id,
     string FirstName,
     string LastName,
     string Email,
-    string RoleName,
-    DateTime CreatedAt);
+    [property: JsonPropertyName("role")] string RoleName,
+    DateTime CreatedAt,
+    List<UserTenantInfo>? Tenants = null);
 
 public record CreateUserRequest(
     string FirstName,
     string LastName,
     string Email,
     string Password,
-    string RoleName);
+    [property: JsonPropertyName("role")] string RoleName);
 
 public record UpdateUserRequest(
     string FirstName,
     string LastName,
     string Email,
-    string RoleName);
+    [property: JsonPropertyName("role")] string RoleName);
 
 public record UpdateProfileRequest(
     string FirstName,
