@@ -206,7 +206,7 @@ public class KeycloakAdminService
     {
         var request = await CreateAuthorizedRequest(HttpMethod.Put, $"/admin/realms/{Realm}/users/{keycloakUserId}", cancellationToken);
 
-        var payload = new { firstName, lastName, email, username = email };
+        var payload = new { firstName, lastName, email };
         request.Content = new StringContent(
             JsonSerializer.Serialize(payload),
             Encoding.UTF8,

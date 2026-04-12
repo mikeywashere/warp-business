@@ -102,8 +102,10 @@ public static class UserEndpoints
         // Update in Keycloak if we have their subject ID
         if (!string.IsNullOrEmpty(user.KeycloakSubjectId))
         {
-            await keycloakAdmin.UpdateUserAsync(
+            var keycloakSuccess = await keycloakAdmin.UpdateUserAsync(
                 user.KeycloakSubjectId, request.FirstName, request.LastName, user.Email, cancellationToken);
+            if (!keycloakSuccess)
+                return Results.Problem("Failed to update user in identity provider.");
         }
 
         user.FirstName = request.FirstName;
@@ -264,8 +266,10 @@ public static class UserEndpoints
         // Update in Keycloak if we have their subject ID
         if (!string.IsNullOrEmpty(user.KeycloakSubjectId))
         {
-            await keycloakAdmin.UpdateUserAsync(
+            var keycloakSuccess = await keycloakAdmin.UpdateUserAsync(
                 user.KeycloakSubjectId, request.FirstName, request.LastName, request.Email, cancellationToken);
+            if (!keycloakSuccess)
+                return Results.Problem("Failed to update user in identity provider.");
         }
 
         user.FirstName = request.FirstName;
