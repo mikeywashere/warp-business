@@ -21,8 +21,7 @@ public static class UserEndpoints
             .WithName("UpdateMyProfile");
 
         users.MapGet("/", GetAllUsers)
-            .WithName("GetAllUsers")
-            .RequireAuthorization("SystemAdministrator");
+            .WithName("GetAllUsers");
 
         users.MapGet("/{id:guid}", GetUserById)
             .WithName("GetUserById")
@@ -122,32 +121,59 @@ public static class UserEndpoints
         HttpContext httpContext,
         CancellationToken cancellationToken)
     {
-        // SystemAdministrators can see all users; if a tenant context is set, filter to that tenant
         var isAdmin = IsSystemAdministrator(principal);
         var tenantId = httpContext.Items["TenantId"] as Guid?;
 
+        // SystemAdministrators with no tenant context: return ALL users with tenant memberships
         if (isAdmin && tenantId is null)
         {
             var users = await db.Users
+                .Include(u => u.TenantMemberships)
+                    .ThenInclude(m => m.Tenant)
                 .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
-                .Select(u => ToResponse(u))
                 .ToListAsync(cancellationToken);
-            return Results.Ok(users);
+
+            var response = users.Select(u => ToResponseWithTenants(u)).ToList();
+            return Results.Ok(response);
         }
 
-        // With tenant context, show only tenant members
-        var effectiveTenantId = tenantId;
-        if (effectiveTenantId is null)
+        // Regular users with no tenant context: return empty list
+        if (!isAdmin && tenantId is null)
             return Results.Ok(Array.Empty<UserResponse>());
 
-        var tenantUsers = await db.UserTenantMemberships
-            .Where(m => m.TenantId == effectiveTenantId.Value)
-            .Include(m => m.User)
-            .OrderBy(m => m.User.LastName).ThenBy(m => m.User.FirstName)
-            .Select(m => ToResponse(m.User))
-            .ToListAsync(cancellationToken);
+        // At this point, we either have a tenant context or we need to filter by it
+        // With tenant context (admin or regular user): show only tenant members
+        if (tenantId.HasValue)
+        {
+            if (isAdmin)
+            {
+                // Admins: load users with full tenant memberships
+                var adminUsers = await db.UserTenantMemberships
+                    .Where(m => m.TenantId == tenantId.Value)
+                    .Include(m => m.User)
+                        .ThenInclude(u => u.TenantMemberships)
+                            .ThenInclude(tm => tm.Tenant)
+                    .OrderBy(m => m.User.LastName).ThenBy(m => m.User.FirstName)
+                    .Select(m => m.User)
+                    .ToListAsync(cancellationToken);
 
-        return Results.Ok(tenantUsers);
+                var adminResponse = adminUsers.Select(u => ToResponseWithTenants(u)).ToList();
+                return Results.Ok(adminResponse);
+            }
+
+            // Regular users: simple response, only users in their tenant
+            var tenantUsers = await db.UserTenantMemberships
+                .Where(m => m.TenantId == tenantId.Value)
+                .Include(m => m.User)
+                .OrderBy(m => m.User.LastName).ThenBy(m => m.User.FirstName)
+                .Select(m => ToResponse(m.User))
+                .ToListAsync(cancellationToken);
+
+            return Results.Ok(tenantUsers);
+        }
+
+        // This should never be reached, but return empty as fallback
+        return Results.Ok(Array.Empty<UserResponse>());
     }
 
     private static async Task<IResult> GetUserById(
@@ -277,6 +303,22 @@ public static class UserEndpoints
 
     private static UserResponse ToResponse(ApplicationUser user) =>
         new(user.Id, user.FirstName, user.LastName, user.Email, user.Role, user.CreatedAt);
+
+    private static UserWithTenantsResponse ToResponseWithTenants(ApplicationUser user)
+    {
+        var tenants = user.TenantMemberships
+            .Select(m => new UserTenantInfo(m.TenantId, m.Tenant.Name))
+            .ToList();
+
+        return new UserWithTenantsResponse(
+            user.Id,
+            user.FirstName,
+            user.LastName,
+            user.Email,
+            user.Role,
+            user.CreatedAt,
+            tenants);
+    }
 
     private static bool IsSystemAdministrator(ClaimsPrincipal principal)
     {

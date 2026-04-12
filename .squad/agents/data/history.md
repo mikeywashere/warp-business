@@ -108,3 +108,13 @@
 - **Key files:**
   - `WarpBusiness.Api/Services/KeycloakAdminService.cs` — `KeycloakOperationResult`, updated `CreateUserAsync`, `ParseKeycloakErrorMessage()`
   - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — `CreateUser` endpoint with proper status code mapping
+
+### Keycloak Admin Password Wiring (2026-04-12)
+
+- **Root cause of 401:** AppHost passed `Keycloak__AdminUser` but not `Keycloak__AdminPassword`. Aspire's `AddKeycloak()` generates a random password, so the API defaulted to "admin" which was wrong.
+- **Fix:** `keycloak.Resource.AdminPasswordParameter` exposes the generated password as a `ParameterResource`. Passed it via `.WithEnvironment("Keycloak__AdminPassword", keycloak.Resource.AdminPasswordParameter)`.
+- **Error handling:** `EnsureAccessTokenAsync` now logs the full response body before throwing on token acquisition failure, making credential mismatches immediately diagnosable.
+- **Aspire Keycloak API:** `KeycloakResource` exposes `AdminUserNameParameter` and `AdminPasswordParameter` properties. Both are `ParameterResource` instances that work directly with `WithEnvironment()`.
+- **Key files:**
+  - `WarpBusiness.AppHost/AppHost.cs` — added admin password environment variable
+  - `WarpBusiness.Api/Services/KeycloakAdminService.cs` — improved error logging in `EnsureAccessTokenAsync`
