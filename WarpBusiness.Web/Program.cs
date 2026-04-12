@@ -115,11 +115,20 @@ app.MapGet("/logout", async (HttpContext context) =>
 {
     context.Response.Cookies.Delete("X-Selected-Tenant");
     context.Response.Cookies.Delete("X-Selected-Tenant-Name");
+
+    // Capture the id_token BEFORE signing out of cookies (which destroys the auth ticket)
+    var idToken = await context.GetTokenAsync("id_token");
+
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties
+
+    var authProps = new AuthenticationProperties { RedirectUri = "/" };
+    if (!string.IsNullOrEmpty(idToken))
     {
-        RedirectUri = "/"
-    });
+        authProps.Items["id_token_hint"] = idToken;
+        authProps.StoreTokens([new AuthenticationToken { Name = "id_token", Value = idToken }]);
+    }
+
+    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, authProps);
 });
 
 // Tenant selection — browser-navigated GET sets cookies then redirects

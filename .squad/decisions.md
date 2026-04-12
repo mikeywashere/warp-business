@@ -471,6 +471,319 @@ The project needed a comprehensive test suite covering migrations, data layer, s
 - ⚠️ If endpoint method signatures change, reflection calls must be updated manually
 - ⚠️ Docker must be available for PostgreSQL container tests
 
+### Decision: Blazor Server Token Forwarding Pattern
+
+**Date:** 2026-04-11  
+**Agent:** Coordinator  
+**Status:** Inbox
+
+## Context
+
+In Blazor Server interactive mode, don't rely on `IHttpContextAccessor` in `DelegatingHandler` implementations for auth token forwarding. Instead, use a `CircuitHandler` to capture tokens when the circuit opens, store them in a scoped `TokenProvider`, and have typed HTTP clients set `DefaultRequestHeaders` from the `TokenProvider` in their constructors.
+
+## Rationale
+
+- **IHttpClientFactory handler pipeline** runs in a separate DI scope from the Blazor circuit
+- **Scoped services** instantiated in different scopes are different instances — the handler's `TokenProvider` ≠ circuit's `TokenProvider`
+- **HttpContext is null** after SignalR circuit initialization, breaking auth forwarding in the handler pipeline
+- **Typed clients run in circuit scope**, allowing them to access the correct `TokenProvider` instance
+- **Constructor-time header setup** ensures auth headers are present for all client requests without relying on per-request handler logic
+
+## Pattern
+
+1. Create scoped `TokenProvider` service to hold the access token
+2. Create `CircuitHandler` subclass with `OnCircuitOpenedAsync` override
+3. In `OnCircuitOpenedAsync`, retrieve token and set it in `TokenProvider`
+4. In typed client constructors, read token from `TokenProvider` and set `DefaultRequestHeaders.Authorization`
+
+## Key Files
+
+- `TokenProvider.cs` — Scoped service storing access token
+- `TokenCircuitHandler.cs` — CircuitHandler capturing token on circuit open
+- Typed clients (`UserApiClient.cs`, `TenantApiClient.cs`) — Set auth headers in constructors
+
+## Benefits
+
+✅ Works reliably in Blazor Server InteractiveServer mode  
+✅ No dependency on `IHttpContextAccessor` (which is null in circuit)  
+✅ Token is captured once per circuit (no per-request overhead)  
+✅ Auth headers present for all typed client requests  
+✅ Reusable pattern for other interactive components
+
+### Decision: Team Directive — Branch-Based Workflow
+
+**Date:** 2026-04-11T15:46:08Z  
+**By:** Michael R. Schmidt (via Copilot)  
+**Status:** Active
+
+Work in branches and pull requests — no direct commits to the main branch.
+
+**Rationale:** User request — ensures code review and maintains clean git history.
+
+### Decision: Team Directive — Multi-Schema Architecture
+
+**Date:** 2026-04-12T04:33:22Z  
+**By:** Michael R. Schmidt (via Copilot)  
+**Status:** Active
+
+Move all databases into a schema named "warp". System databases contain all common tables. Future modules will have new schemas with new data.
+
+**Rationale:** User request — establishes the multi-schema architecture pattern for the project.
+
+### Decision: Auth Token Flow Diagnostic Instrumentation
+
+**Date:** 2026-04-11
+**Author:** Data (Backend Dev)
+**Status:** Active
+
+## Context
+
+The User Management page returns 401 Unauthorized at runtime despite the auth token persistence code (PersistentComponentState, per-request headers) compiling and tests passing. Root cause investigation required visibility into the runtime token flow.
+
+## Decision
+
+Added structured diagnostic logging at every stage of the authentication token lifecycle:
+
+1. **Web side:** AuthTokenHandler, AuthenticatedComponentBase, TokenCircuitHandler, UserApiClient, TenantApiClient all log token presence/absence, phase (SSR vs circuit), and error conditions.
+2. **API side:** JwtBearerEvents log token receipt, validation success/failure with specific error details (issuer, audience, signature), and challenge issuance.
+3. **Startup logging:** Web project logs resolved Keycloak and API URLs to catch URL mismatches.
+
+## Identified Likely Root Cause
+
+Keycloak's `WithDataVolume()` preserves realm state across restarts. The `oidc-audience-mapper` for `warpbusiness-api` was added to `warpbusiness-realm.json` after the initial realm import. Keycloak skips import when the realm already exists, so the access token may lack the `warpbusiness-api` audience claim, causing the API's JWT audience validation to reject it.
+
+## Action Required
+
+Delete the Keycloak data volume and restart the Aspire AppHost to force a fresh realm import with the audience mapper. Then check structured logs for `[JWT]` prefixed messages to confirm token validation succeeds.
+
+## Consequences
+
+- ✅ Complete runtime visibility into auth failures
+- ✅ JWT rejection reason immediately visible in Aspire dashboard logs
+- ⚠️ Diagnostic logging should be removed or reduced to Debug level before production
+- ⚠️ Keycloak data volume must be deleted when realm config changes
+
+### Decision: Wire Keycloak Admin Password via Aspire ParameterResource
+
+**Date:** 2026-04-12
+**Author:** Data (Backend Dev)
+**Status:** Active
+
+## Context
+
+The API project needs Keycloak admin credentials to call the Admin REST API (user CRUD). The AppHost was only passing the admin username, not the password. Since Aspire generates a random admin password for the Keycloak container, the API's fallback of "admin" caused 401 Unauthorized errors.
+
+## Decision
+
+Use `keycloak.Resource.AdminPasswordParameter` to pass the Aspire-generated password to the API project as an environment variable. This is the cleanest approach — no hardcoded passwords, no extra parameters, just reading what Aspire already generates.
+
+```csharp
+.WithEnvironment("Keycloak__AdminPassword", keycloak.Resource.AdminPasswordParameter)
+```
+
+## Consequences
+
+- ✅ Admin password stays in sync automatically — no manual coordination needed.
+- ✅ Password is treated as a secret parameter by Aspire (not logged in plaintext).
+- ✅ Works with Keycloak data volumes — password is set at container creation, not on every restart.
+- ⚠️ If someone adds a second project that needs admin access, they must also wire this parameter.
+
+### Decision: Keycloak Realm Config — Logout, Role Name, and Claim Path Fixes
+
+**Author:** Data (Backend Dev)
+**Date:** 2026-04-12
+**Status:** Implemented
+
+## Context
+
+Three issues in `warpbusiness-realm.json` prevented correct auth behavior at runtime:
+
+1. **Logout broken:** `.NET`'s `SignOutAsync` sends `post_logout_redirect_uri` to Keycloak, but the client had no `post.logout.redirect.uris` attribute. Keycloak silently ignored the redirect, stranding users on the Keycloak logout page.   
+
+2. **Role mismatch:** The realm defined the role as `system-administrator` (kebab-case) but the Blazor frontend checks `Roles="SystemAdministrator"` (PascalCase). Role-gated UI never appeared.
+
+3. **Nested claim path:** The protocol mapper used `claim.name: "realm_access.roles"`, producing nested JSON in the token. .NET's OIDC middleware doesn't auto-flatten nested claims into `ClaimsPrincipal.IsInRole()` checks.
+
+## Decision
+
+- Added `"attributes": { "post.logout.redirect.uris": "+" }` to the `warpbusiness-web` client. The `+` value tells Keycloak to match against the existing `redirectUris` list.
+- Renamed the realm role from `system-administrator` to `SystemAdministrator` in both the role definition and the user's `realmRoles` assignment.
+- Changed `claim.name` from `realm_access.roles` to `roles` so roles appear as a flat top-level claim in the JWT.       
+
+## Consequences
+
+- Logout now correctly redirects back to the app.
+- `<AuthorizeView Roles="SystemAdministrator">` and `[Authorize(Roles = "SystemAdministrator")]` will match the Keycloak-issued role claim.
+- The Keycloak data volume must be deleted and the container restarted for these changes to take effect.
+
+### Decision: Fix Keycloak User Update Error
+
+**Author:** Data (Backend Dev)
+**Date:** 2026-04-12
+**Status:** Implemented
+**PR:** #7 (merged)
+
+## Context
+
+When updating a user profile, the `UpdateUserAsync` method sent `username = email` in the PUT payload to Keycloak. The realm configuration has `editUsernameAllowed: false`, so Keycloak rejected the entire update with a `BadRequest` containing `error-user-attribute-read-only`. The error was logged but swallowed — neither calling endpoint checked the return value — so the UI showed "updated successfully" while the Keycloak update silently failed.
+
+## Decision
+
+1. **Removed `username` from the update payload.** The username is set at user creation time and matches the email. It is read-only in Keycloak and should never be sent in update requests.
+
+2. **Propagated Keycloak failures to callers.** Both `UpdateMyProfile` and admin `UpdateUser` endpoints now check the boolean return value from `UpdateUserAsync`. On failure, they return `Results.Problem("Failed to update user in identity provider.")` instead of silently proceeding.
+
+## Consequences
+
+- Profile and admin user updates now correctly succeed in Keycloak.
+- If Keycloak is down or rejects an update for any reason, the API returns a clear error instead of falsely reporting success.
+- No DB changes are made if the Keycloak update fails (fail-fast before persisting).
+
+### Decision: Automatic Access Token Refresh Pattern
+
+**Author:** Data
+**Date:** 2026-04-11
+**Branch:** fix/blazor-auth-token-persistence
+
+## Problem
+
+OIDC `SaveTokens = true` stores the access token in the auth cookie at login. After the token expires (typically 5–15 minutes for Keycloak), every API call returns `401 invalid_token`. The user's session in Keycloak is still valid (refresh token is long-lived), but the app never exchanges it for a fresh access token.
+
+## Decision
+
+Implement a **two-layer automatic refresh** strategy in `WarpBusiness.Web`:
+
+### Layer 1 — Proactive (AuthenticatedComponentBase)
+During the SSR prerender phase, decode the JWT `exp` claim and check if the token expires within 60 seconds. If so, call `TokenRefreshService` before caching the token in `TokenProvider` and before it is transferred to the circuit. Update the auth cookie via `HttpContext.SignInAsync` with the new tokens.
+
+### Layer 2 — Reactive (AuthTokenHandler)
+When any API call returns `401` with `WWW-Authenticate: Bearer error="invalid_token"`, immediately attempt a refresh using the available refresh token (`HttpContext` in SSR, `TokenProvider.RefreshToken` in circuit). On success, update the token store, update the cookie (SSR only), and retry the original request exactly once.
+
+## Implementation
+
+- **`TokenRefreshService`** (new, transient): calls `POST {keycloakUrl}/realms/warpbusiness/protocol/openid-connect/token` with `grant_type=refresh_token`. Uses the dedicated `"keycloak-token"` named `HttpClient`.
+- **`TokenProvider`**: added `RefreshToken` property alongside `AccessToken`.
+- **Named HttpClient `"keycloak-token"`**: registered in `Program.cs` with dev-mode TLS bypass. Isolated from the API client pipeline to prevent circular dependencies.
+- **Request buffering**: `AuthTokenHandler` calls `LoadIntoBufferAsync` on the request content before the first send, enabling replay on retry.
+- **Cookie update pattern**: `httpContext.AuthenticateAsync(Cookies)` → `properties.UpdateTokenValue(...)` → `httpContext.SignInAsync(Cookies, principal, properties)`.
+- **Circuit phase limitation**: Cannot write HTTP cookies over SignalR. In circuit phase, `TokenProvider` is updated in-memory for the lifetime of the circuit. On next full page load, the cookie will contain fresh tokens from Keycloak.     
+
+## Alternatives Considered
+
+- **Middleware refresh**: Refresh on every request before forwarding. Rejected — unnecessary overhead; most requests use valid tokens.
+- **Background timer**: Refresh on a schedule. Rejected — adds complexity; reactive + proactive is sufficient and simpler.
+- **Force re-login on 401**: Redirect to `/login`. Rejected — poor UX; Keycloak session is still valid.
+
+## Impact
+
+- All team members should store and forward both `access_token` and `refresh_token` when building new token-aware services.
+- The `"keycloak-token"` HttpClient must not have `AuthTokenHandler` in its pipeline.
+- `PersistedTokenData` now has three fields: `AccessToken`, `RefreshToken`, `SelectedTenantId`.
+
+### Decision: Keycloak Error Response Handling Pattern
+
+**Date:** 2026-04-12
+**Author:** Data (Backend Dev)
+**Status:** Proposed
+
+## Context
+
+User creation was returning 500 errors because Keycloak 400-level responses (password policy violations, duplicate users) were treated as opaque failures. The API returned 502, Aspire's retry policy retried it 3 times, and the whole thing surfaced as a 500.
+
+## Decision
+
+- `KeycloakAdminService` methods that call Keycloak Admin API now return `KeycloakOperationResult` (typed result with status code + parsed error message) instead of `null` on failure.
+- API endpoints map Keycloak status codes to appropriate HTTP responses: 409→Conflict, 4xx→400 with detail message, 5xx→502.
+- Keycloak JSON error responses are parsed to extract human-readable messages (`errorMessage`, `error_description`, `error` fields).
+- This pattern should be applied to any future Keycloak Admin API integrations (e.g., password reset, role assignment). 
+
+## Impact
+
+- **Frontend (Geordi):** API now returns 400 with `detail` field for validation errors instead of 500. Error messages from Keycloak are passed through.
+- **Backend:** Other `KeycloakAdminService` methods (`SetPasswordAsync`, `DeleteUserAsync`, `UpdateUserAsync`) still return `bool` — these should be migrated to `KeycloakOperationResult` if richer error handling is needed.
+
+### Decision: Database Schema Namespacing with PostgreSQL Schemas
+
+**Date:** 2026-04-12
+**Author:** Data (Backend Dev)
+**Status:** Proposed
+**PR:** #10
+
+## Context
+
+All database tables were in the default `public` PostgreSQL schema. As the application grows and new modules are added, we need a way to organize tables by domain and prevent naming collisions.
+
+## Decision
+
+### Use PostgreSQL schemas for namespace separation
+
+- The `warp` schema holds all system/common tables (Users, Tenants, UserTenantMemberships).
+- `WarpBusinessDbContext` uses `modelBuilder.HasDefaultSchema("warp")` so all tables are automatically placed in the `warp` schema.
+- Future modules (e.g., billing, inventory) will get their own schemas with their own DbContext instances.
+
+### Why PostgreSQL schemas
+
+- PostgreSQL schemas are a first-class concept — lightweight, zero-overhead namespace separation.
+- EF Core has native support via `HasDefaultSchema()` and per-entity `.ToTable("name", "schema")`.
+- No changes needed to application code — EF Core qualifies all SQL automatically.
+- Existing data is preserved during migration (PostgreSQL `ALTER TABLE ... SET SCHEMA` moves tables without copying data).
+
+## Consequences
+
+- All new tables added to `WarpBusinessDbContext` will automatically go into the `warp` schema.
+- New module DbContexts should declare their own schema via `HasDefaultSchema()`.
+- Cross-schema queries work naturally in PostgreSQL (just qualify with `schema.table`).
+- Database tooling (pgAdmin, psql) will show tables organized by schema.
+
+## Alternatives Considered
+
+- **Table name prefixes** (e.g., `warp_users`): Clutters entity names, no tooling support, not reversible.
+- **Separate databases per module**: Too heavy for current scale, complicates cross-module queries.
+
+### Decision: Client-Side Password Policy Validation
+
+**Date:** 2026-04-12
+**Author:** Geordi (Frontend Dev)
+**Status:** Active
+
+## Context
+
+Users were getting 500 errors when creating users because Keycloak enforces password policies server-side. The frontend had no password validation, and the API was not returning helpful error messages.
+
+## Decision
+
+- **Password policy is enforced client-side** in the user creation form with inline validation (8+ chars, uppercase, lowercase, digit, special character). This mirrors the Keycloak realm policy.
+- **Submit button is disabled** until all password requirements are met.
+- **ApiException** class introduced in `UserApiClient.cs` to parse JSON error bodies from API responses and surface user-friendly messages. It checks for `message`, `detail`, and `title` fields in JSON responses.
+- **Error handling covers both current 500s and future 400s** — the frontend gracefully handles any non-success status code from the API.
+
+## Consequences
+
+- ✅ Users get immediate feedback on password requirements before submission.
+- ✅ API errors (400, 409, 500) are displayed as readable messages, not raw exceptions.
+- ⚠️ If the Keycloak password policy changes, the client-side rules must be updated to match. Consider a future `/api/password-policy` endpoint to fetch rules dynamically.
+- ⚠️ Other API write methods (`UpdateUserAsync`, `DeleteUserAsync`) still use `EnsureSuccessStatusCode` — should be migrated to `ApiException` pattern if similar issues arise.
+
+### Decision: Set RoleClaimType to "roles" in OIDC config
+
+**Date:** 2026-04-11
+**Author:** Geordi (Frontend Dev)
+**Status:** Implemented
+
+## Context
+The `AuthorizeView Roles="SystemAdministrator"` directive in NavMenu.razor (and potentially other components) was not working because .NET didn't know which token claim contained role information. Keycloak's default `realm_access.roles` nested claim isn't directly readable by .NET's built-in role machinery.
+
+## Decision
+Added `options.TokenValidationParameters.RoleClaimType = "roles";` to the OIDC configuration in `WarpBusiness.Web/Program.cs`. This tells .NET to read the `roles` claim from the token as the source of role information.
+
+## Coordination
+Data is updating the Keycloak client mapper to flatten `realm_access.roles` into a top-level `roles` claim, and standardizing role names (e.g., `SystemAdministrator`). This frontend change is the matching piece — .NET now reads `roles` as the role claim type.
+
+## Impact
+- `AuthorizeView Roles="SystemAdministrator"` in NavMenu.razor will now correctly gate the Tenant Management link       
+- Any future `AuthorizeView Roles="..."` usage will work without additional config
+- `HttpContext.User.IsInRole("...")` calls in backend-for-frontend code will also work
+
 ## Governance
 
 - All meaningful changes require team consensus
