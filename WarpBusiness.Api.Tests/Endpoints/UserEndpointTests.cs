@@ -446,7 +446,8 @@ public class UserEndpointTests
     {
         var method = typeof(UserEndpoints).GetMethod("CreateUser",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        return await (Task<IResult>)method.Invoke(null, [request, db, keycloakAdmin, CancellationToken.None])!;
+        var logger = NullLogger<KeycloakAdminService>.Instance;
+        return await (Task<IResult>)method.Invoke(null, [request, db, keycloakAdmin, logger, CancellationToken.None])!;
     }
 
     private static async Task<IResult> CallUpdateUser(WarpBusinessDbContext db, Guid id, UpdateUserRequest request, KeycloakAdminService keycloakAdmin)
