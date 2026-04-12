@@ -118,3 +118,21 @@
 - **Key files:**
   - `WarpBusiness.AppHost/AppHost.cs` — added admin password environment variable
   - `WarpBusiness.Api/Services/KeycloakAdminService.cs` — improved error logging in `EnsureAccessTokenAsync`
+
+### Keycloak Realm Config Fixes (2026-04-12)
+
+- **Logout redirect:** Added `"attributes": { "post.logout.redirect.uris": "+" }` to `warpbusiness-web` client. Without this, Keycloak rejects `post_logout_redirect_uri` from .NET's OIDC SignOut, leaving users stranded on the Keycloak logout page.
+- **Role name alignment:** Changed realm role from `system-administrator` (kebab-case) to `SystemAdministrator` (PascalCase) to match `<AuthorizeView Roles="SystemAdministrator">` in Blazor and the `UserRole.SystemAdministrator` enum in the API. Updated both `roles.realm` and `users[0].realmRoles`.
+- **Role claim path:** Changed protocol mapper `claim.name` from `realm_access.roles` to `roles`. The nested path produced JSON like `{ "realm_access": { "roles": [...] } }` which .NET OIDC middleware can't auto-map to role claims. The flat `roles` claim is directly parseable.
+- **Important:** Keycloak data volume must be deleted and the container restarted for realm JSON changes to take effect (Keycloak skips import when realm already exists).
+- **Key file:** `WarpBusiness.AppHost/KeycloakConfiguration/warpbusiness-realm.json`
+
+### Keycloak User Update Fix (2026-04-12)
+
+- **Root cause:** `UpdateUserAsync` sent `username = email` in the PUT payload, but the realm has `editUsernameAllowed: false`. Keycloak rejected the entire update with `error-user-attribute-read-only`.
+- **Silent failure:** Both `UpdateMyProfile` and admin `UpdateUser` endpoints called `UpdateUserAsync` but ignored its `false` return value, so the UI showed "updated successfully" while Keycloak rejected the change.
+- **Fix:** Removed `username` from the update payload (it's set at creation time and never changes). Both endpoints now check the return value and return `Results.Problem(...)` on failure.
+- **Key principle:** Always check return values from Keycloak admin operations. Never send read-only fields in update payloads.
+- **Key files:**
+  - `WarpBusiness.Api/Services/KeycloakAdminService.cs` — removed `username` from `UpdateUserAsync` payload
+  - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — added return-value checks in `UpdateMyProfile` and `UpdateUser`

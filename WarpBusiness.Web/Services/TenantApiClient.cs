@@ -10,7 +10,6 @@ public record CreateTenantRequest(string Name, string Slug);
 public record UpdateTenantRequest(string Name, string Slug, bool IsActive);
 public record AddTenantMemberRequest(Guid UserId);
 public record TenantMemberResponse(Guid UserId, string FirstName, string LastName, string Email, string Role, DateTime JoinedAt);
-public record SelectTenantRequest(Guid TenantId);
 
 public class TenantApiClient
 {

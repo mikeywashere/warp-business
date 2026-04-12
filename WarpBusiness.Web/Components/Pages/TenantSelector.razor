@@ -6,7 +6,6 @@
 @inject TenantApiClient TenantApi
 @inject TenantStateService TenantState
 @inject NavigationManager Navigation
-@inject IHttpClientFactory HttpClientFactory
 
 <PageTitle>Select Organization</PageTitle>
 
@@ -124,36 +123,30 @@
         }
     }
 
-    private async Task SelectTenant(UserTenantResponse tenant)
+    private Task SelectTenant(UserTenantResponse tenant)
     {
         isSelecting = true;
         errorMessage = null;
 
         try
         {
-            // Call the minimal API endpoint to set the tenant cookie
-            var httpClient = HttpClientFactory.CreateClient();
-            var baseUri = Navigation.BaseUri.TrimEnd('/');
-            var response = await httpClient.PostAsJsonAsync(
-                $"{baseUri}/select-tenant",
-                new SelectTenantRequest(tenant.TenantId));
-
-            if (!response.IsSuccessStatusCode)
-            {
-                errorMessage = "Failed to select organization. Please try again.";
-                isSelecting = false;
-                return;
-            }
-
-            // Update in-memory state for Blazor components
+            // Update in-memory state for current circuit (pre-navigation display)
             TenantState.SetTenant(tenant.TenantId, tenant.TenantName);
 
-            Navigation.NavigateTo("/", forceLoad: true);
+            // Navigate the browser to the cookie-setting endpoint.
+            // forceLoad: true ensures a real HTTP request so the Set-Cookie header
+            // reaches the browser (server-side HttpClient calls can't set browser cookies).
+            var encodedName = Uri.EscapeDataString(tenant.TenantName);
+            Navigation.NavigateTo(
+                $"/set-tenant?tenantId={tenant.TenantId}&tenantName={encodedName}&returnUrl=%2F",
+                forceLoad: true);
         }
         catch (Exception ex)
         {
             errorMessage = $"Failed to select organization: {ex.Message}";
             isSelecting = false;
         }
+
+        return Task.CompletedTask;
     }
 }

@@ -12,15 +12,18 @@ public class TokenCircuitHandler : CircuitHandler
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly TokenProvider _tokenProvider;
+    private readonly TenantStateService _tenantState;
     private readonly ILogger<TokenCircuitHandler> _logger;
 
     public TokenCircuitHandler(
         IHttpContextAccessor httpContextAccessor,
         TokenProvider tokenProvider,
+        TenantStateService tenantState,
         ILogger<TokenCircuitHandler> logger)
     {
         _httpContextAccessor = httpContextAccessor;
         _tokenProvider = tokenProvider;
+        _tenantState = tenantState;
         _logger = logger;
     }
 
@@ -58,6 +61,12 @@ public class TokenCircuitHandler : CircuitHandler
             && !string.IsNullOrEmpty(tenantId))
         {
             _tokenProvider.SelectedTenantId = tenantId;
+
+            // Initialize TenantStateService so NavMenu shows the tenant name immediately
+            var tenantName = httpContext.Request.Cookies.TryGetValue("X-Selected-Tenant-Name", out var name)
+                ? name : null;
+            if (Guid.TryParse(tenantId, out var tenantGuid))
+                _tenantState.SetTenant(tenantGuid, tenantName ?? "Selected Organization");
         }
     }
 }

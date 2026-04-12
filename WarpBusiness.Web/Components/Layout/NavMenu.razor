@@ -68,9 +68,17 @@
         if (!string.IsNullOrEmpty(TenantState.SelectedTenantName))
             return TenantState.SelectedTenantName;
 
+        // SSR fallback: TenantStateService isn't populated yet, read from cookies
         var httpContext = HttpContextAccessor.HttpContext;
-        if (httpContext?.Request.Cookies.ContainsKey("X-Selected-Tenant") == true)
-            return "Selected Organization";
+        if (httpContext is not null)
+        {
+            if (httpContext.Request.Cookies.TryGetValue("X-Selected-Tenant-Name", out var name)
+                && !string.IsNullOrEmpty(name))
+                return name;
+
+            if (httpContext.Request.Cookies.ContainsKey("X-Selected-Tenant"))
+                return "Selected Organization";
+        }
 
         return null;
     }
