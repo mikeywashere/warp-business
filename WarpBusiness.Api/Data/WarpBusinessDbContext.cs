@@ -17,6 +17,8 @@ public class WarpBusinessDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.HasDefaultSchema("warp");
+
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.HasKey(e => e.Id);
