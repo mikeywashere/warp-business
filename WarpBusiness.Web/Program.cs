@@ -114,6 +114,7 @@ app.MapGet("/login", (string? returnUrl) =>
 app.MapGet("/logout", async (HttpContext context) =>
 {
     context.Response.Cookies.Delete("X-Selected-Tenant");
+    context.Response.Cookies.Delete("X-Selected-Tenant-Name");
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
     await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties
     {
@@ -121,22 +122,30 @@ app.MapGet("/logout", async (HttpContext context) =>
     });
 });
 
-// Tenant selection endpoints
-app.MapPost("/select-tenant", (HttpContext context, SelectTenantRequest request) =>
+// Tenant selection — browser-navigated GET sets cookies then redirects
+app.MapGet("/set-tenant", (HttpContext context, Guid tenantId, string? tenantName, string? returnUrl) =>
 {
-    context.Response.Cookies.Append("X-Selected-Tenant", request.TenantId.ToString(), new CookieOptions
+    var cookieOptions = new CookieOptions
     {
         HttpOnly = true,
         SameSite = SameSiteMode.Strict,
         Path = "/",
-        Expires = DateTimeOffset.UtcNow.AddHours(12)
-    });
-    return Results.Ok();
+        Expires = DateTimeOffset.UtcNow.AddDays(30)
+    };
+    context.Response.Cookies.Append("X-Selected-Tenant", tenantId.ToString(), cookieOptions);
+    if (!string.IsNullOrEmpty(tenantName))
+        context.Response.Cookies.Append("X-Selected-Tenant-Name", tenantName, cookieOptions);
+
+    // Only allow local redirects to prevent open redirect attacks
+    var safeUrl = !string.IsNullOrEmpty(returnUrl) && Uri.IsWellFormedUriString(returnUrl, UriKind.Relative)
+        ? returnUrl : "/";
+    return Results.LocalRedirect(safeUrl);
 }).RequireAuthorization();
 
 app.MapPost("/clear-tenant", (HttpContext context) =>
 {
     context.Response.Cookies.Delete("X-Selected-Tenant");
+    context.Response.Cookies.Delete("X-Selected-Tenant-Name");
     return Results.Ok();
 }).RequireAuthorization();
 

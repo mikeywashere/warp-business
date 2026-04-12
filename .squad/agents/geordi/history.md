@@ -48,3 +48,4 @@
 - `ApiException` class in `UserApiClient.cs` parses JSON error bodies (`message`, `detail`, `title` fields) and provides fallback messages per status code
 - `UserApiClient.CreateUserAsync` reads response body on failure instead of using `EnsureSuccessStatusCode`, enabling user-friendly error display
 - `HandleFormSubmit` catches `ApiException` separately from generic exceptions for cleaner error messages
+- `TokenValidationParameters.RoleClaimType = "roles"` maps Keycloak's `roles` claim to .NET role claims, enabling `AuthorizeView Roles="..."` in Blazor components
