@@ -15,15 +15,18 @@
                 </li>
                 <AuthorizeView>
                     <Authorized>
-                        <li class="nav-item">
-                            <NavLink class="nav-link" href="users">Users</NavLink>
-                        </li>
-                    </Authorized>
-                </AuthorizeView>
-                <AuthorizeView Roles="SystemAdministrator">
-                    <Authorized>
-                        <li class="nav-item">
-                            <NavLink class="nav-link" href="tenants">Tenant Management</NavLink>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Admin
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark">
+                                <li><NavLink class="dropdown-item" href="users">Users</NavLink></li>
+                                <AuthorizeView Roles="SystemAdministrator">
+                                    <Authorized Context="adminContext">
+                                        <li><NavLink class="dropdown-item" href="tenants">Tenants</NavLink></li>
+                                    </Authorized>
+                                </AuthorizeView>
+                            </ul>
                         </li>
                     </Authorized>
                 </AuthorizeView>
