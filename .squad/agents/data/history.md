@@ -136,3 +136,14 @@
 - **Key files:**
   - `WarpBusiness.Api/Services/KeycloakAdminService.cs` — removed `username` from `UpdateUserAsync` payload
   - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — added return-value checks in `UpdateMyProfile` and `UpdateUser`
+
+### Database Schema Namespacing (2026-04-12)
+
+- **Architecture:** All tables now live under the `warp` PostgreSQL schema instead of `public`. This is the "system" schema for common/shared tables.
+- **Implementation:** `modelBuilder.HasDefaultSchema("warp")` in `WarpBusinessDbContext.OnModelCreating`. EF Core handles schema qualification in all generated SQL automatically.
+- **Migration:** `MoveToWarpSchema` creates the schema and moves existing tables. Fully reversible.
+- **Future pattern:** New modules will get their own schemas (e.g., `billing`, `inventory`), each potentially with its own DbContext and `HasDefaultSchema()`. This keeps the database organized as the application grows.
+- **Key files:**
+  - `WarpBusiness.Api/Data/WarpBusinessDbContext.cs` — `HasDefaultSchema("warp")`
+  - `WarpBusiness.Api/Data/Migrations/20260412043525_MoveToWarpSchema.cs` — schema migration
+- **PR:** #10
