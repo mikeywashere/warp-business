@@ -49,3 +49,7 @@
 - `UserApiClient.CreateUserAsync` reads response body on failure instead of using `EnsureSuccessStatusCode`, enabling user-friendly error display
 - `HandleFormSubmit` catches `ApiException` separately from generic exceptions for cleaner error messages
 - `TokenValidationParameters.RoleClaimType = "roles"` maps Keycloak's `roles` claim to .NET role claims, enabling `AuthorizeView Roles="..."` in Blazor components
+- **Tenant selection on user creation**: Add User form includes required tenant dropdown with type-ahead search; uses `TenantApiClient.GetTenantsAsync()` to populate options
+- **Type-ahead pattern**: Use `value="@field"` + `@oninput` (not `@bind` + `@oninput` together) to avoid Blazor RZ10008 duplicate attribute error
+- **Dropdown blur handling**: `@onmousedown` with `@onmousedown:preventDefault` on list items + `Task.Delay(200)` in blur handler allows click events to fire before hiding dropdown
+- **CreateUserRequest**: Now includes optional `Guid? TenantId = null` parameter for tenant assignment during user creation
