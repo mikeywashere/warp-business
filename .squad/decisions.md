@@ -784,6 +784,311 @@ Data is updating the Keycloak client mapper to flatten `realm_access.roles` into
 - Any future `AuthorizeView Roles="..."` usage will work without additional config
 - `HttpContext.User.IsInRole("...")` calls in backend-for-frontend code will also work
 
+### Decision: Employee Module Architecture
+
+**Date:** 2026-04-12
+**Author:** Data (Backend Dev)
+**Status:** Active
+
+## Context
+
+The project needed an Employee/HR data module. The existing architecture uses schema-per-module isolation in a shared PostgreSQL database.
+
+## Decision
+
+### Separate Class Library
+
+Created `WarpBusiness.Employees` as a standalone .NET class library (not embedded in the API project). This keeps employee concerns isolated and makes the module portable.
+
+### Schema Isolation
+
+`EmployeeDbContext` uses `HasDefaultSchema("employees")` — completely separate from the `warp` schema. Both contexts share the same `warpdb` connection string. The `EmployeeDbInitializer` runs its own migrations independently.
+
+### Tenant Scoping Without Cross-Schema FKs
+
+Employee records reference `TenantId` (Guid) but there is no cross-schema foreign key to `warp.Tenants`. This is intentional — it keeps the modules decoupled at the database level. Tenant validation happens at the API layer via the existing tenant middleware.
+
+### Employee Number Generation
+
+Auto-generated sequential numbers per tenant (EMP00001 format) using MAX query. Simple and sufficient for current scale. If high-concurrency inserts become a concern, this could move to a database sequence per tenant.
+
+## Consequences
+
+- ✅ Clean module boundaries — Employee code is self-contained in its own project
+- ✅ Independent migrations — Employee schema evolves independently of warp schema
+- ✅ No cross-schema FK coupling — modules can be extracted to separate databases later if needed
+- ⚠️ No referential integrity between employees.Employees.TenantId and warp.Tenants — enforced at API layer only
+- ⚠️ Employee number generation has a race condition under concurrent inserts (acceptable for current scale)
+
+### Decision: EmployeeNumber Unique Constraint Scoped to Tenant
+
+**Date:** 2026-04-13
+**Author:** Data (Backend Dev)
+**Status:** Active
+
+## Context
+
+The `EmployeeNumber` column had a global unique index (`IX_Employees_EmployeeNumber`). Since employee numbers are generated per-tenant (EMP00001, EMP00002, …), this prevented different tenants from ever having the same employee number — a cross-tenant collision.
+
+## Decision
+
+Changed the unique index to a composite on `(EmployeeNumber, TenantId)` so uniqueness is enforced within each tenant independently.
+
+## Implications
+
+- **Multi-tenant pattern:** All unique business identifiers in this system should include `TenantId` in their uniqueness constraint. The `Email` unique index may need the same treatment if email addresses are meant to be unique per-tenant rather than globally.
+- **Migration:** `FixEmployeeNumberTenantScopedUnique` must be applied to existing databases. It is safe to apply — it relaxes the constraint (allows more rows, not fewer).
+- **EF tooling:** When running `dotnet ef` commands, always specify `--context EmployeeDbContext` since multiple DbContexts exist in the solution.
+
+## PR
+
+- #19
+
+### Decision: Employee-User Linking Backend Architecture
+
+**Author:** Data (Backend Dev)
+**Date:** 2026-04-13
+**Status:** Implemented
+
+## Context
+Employee-User account linking requires endpoints that access both `WarpBusinessDbContext` (users, tenants) and `EmployeeDbContext` (employees). These live in separate projects.
+
+## Decisions
+
+1. **New `EmployeeUserEndpoints.cs` in `WarpBusiness.Api`** — Combined endpoints that need both DbContexts are placed in the API project where both are registered. The existing `EmployeeEndpoints.cs` in the Employees project remains unchanged for basic CRUD.
+
+2. **Passwordless user creation via Keycloak `requiredActions`** — Instead of generating temporary passwords, we set `requiredActions = ["UPDATE_PASSWORD"]` and send a Keycloak "execute actions email" for the user to set their own password. This is more secure and avoids password transmission.
+
+3. **Best-effort email sending** — `SendRequiredActionsEmailAsync` failures are logged but never throw. The user can still be created; an admin can manually trigger password reset later.
+
+4. **Filtered unique index on UserId** — `WHERE "UserId" IS NOT NULL` allows multiple null values while enforcing one-user-one-employee for linked records.
+
+5. **Tenant-scoped email uniqueness** — Changed from global email uniqueness to `(Email, TenantId)` composite unique index, allowing the same email across different tenants.
+
+6. **LinkedEmployeeId in user responses** — Batch-queried from EmployeeDbContext to avoid N+1 queries. Added as optional parameter to existing response records.
+
+### Decision: Use Absolute URLs for OIDC Post-Logout Redirects
+
+**Author:** Data (Backend Dev)
+**Date:** 2026-04-13
+**Status:** Implemented
+
+## Context
+
+After logout, users were being redirected to the Keycloak login page instead of the Warp web app's home page. The `PostLogoutRedirectUri` was set to `"/"` in two places in `WarpBusiness.Web/Program.cs`.
+
+## Decision
+
+Build absolute redirect URLs dynamically from `HttpContext.Request` (`{scheme}://{host}/`) instead of using relative paths. This applies to:
+
+1. `OnRedirectToIdentityProviderForSignOut` — the OIDC protocol message sent to Keycloak
+2. `/logout` endpoint — the `AuthenticationProperties.RedirectUri` for cookie sign-out
+
+## Rationale
+
+Keycloak (and most OIDC providers) interpret relative paths as relative to themselves, not the requesting application. Since Aspire assigns dynamic ports, hardcoding URLs isn't viable — `Request.Scheme` + `Request.Host` gives us the correct origin every time.
+
+## Team Impact
+
+- **Geordi:** No frontend changes needed. Logout navigation (`/logout`) works as before.
+- **Worf:** Existing logout tests should still pass. If testing redirect URLs, expect absolute URLs now.
+
+### Decision: Adopt Orphaned Keycloak Users on Creation
+
+**Date:** 2026-04-12
+**Author:** Data (Backend Dev)
+**PR:** #14
+
+## Context
+
+When a user exists in Keycloak but not in our warp.Users table (e.g., from a previous partial creation that failed after the Keycloak call but before the DB insert), the CreateUser endpoint returned 409 Conflict and the user was stuck — couldn't be added because Keycloak blocked it, but didn't exist locally either.
+
+## Decision
+
+On Keycloak 409, the CreateUser endpoint now attempts to **adopt** the orphaned Keycloak user rather than failing:
+
+1. Look up the existing Keycloak user by email
+2. Check if they exist in local DB (by KeycloakSubjectId or email)
+3. If missing locally → create the local record linking to the existing Keycloak ID
+4. If present locally → return the genuine duplicate error
+
+## Rationale
+
+- Avoids requiring manual Keycloak admin intervention to delete and re-create users
+- The orphan scenario is a known failure mode in distributed systems with two-phase writes (Keycloak + PostgreSQL)
+- The adopt pattern is safe because we verify the email matches and the user truly doesn't exist locally
+
+## Impact
+
+- Backend only — no frontend changes needed
+- Existing CreateUser behavior unchanged for non-conflict cases
+- Tests updated to pass new logger parameter
+
+### Decision: Warp Brand Rebrand Strategy
+
+**Author:** Geordi (Frontend Dev)
+**Date:** 2026-04-13
+**Status:** Implemented
+
+## Context
+
+The Blazor app used stock Bootstrap with generic colors and "Hello, world!" placeholder content. The marketing site has a polished dark space theme with a defined palette, Orbitron/Inter fonts, and SVG branding.
+
+## Decision
+
+Override Bootstrap via CSS custom properties rather than replacing it. This preserves Bootstrap's grid, components, and JS functionality while applying the Warp palette on top. No C# code was changed — purely visual.
+
+## Key Design Tokens
+
+All Warp colors are defined as CSS custom properties in `app.css` (`:root` block). Any new components should use these variables (e.g., `var(--clr-bg-card)`, `var(--clr-accent)`) rather than hardcoding hex values.
+
+## Impact
+
+- **All team members:** New components and pages should use the Warp palette variables, not Bootstrap's default colors.
+- **Worf (Testing):** Home.razor content changed — any E2E tests referencing "Hello, world!" need updating.
+- **Future work:** Consider extracting shared brand assets (logo SVG, color tokens) into a shared project if the marketing site and Blazor app diverge.
+
+### Decision: Employee Management UI Pattern
+
+**Date:** 2026-04-12
+**Author:** Geordi (Frontend Dev)
+**Status:** Active
+
+## Context
+
+Added the first "module" page (Employee Management) to the application, establishing the pattern for future business-domain pages under the Modules nav dropdown.
+
+## Decision
+
+- Module pages go under a "Modules" dropdown in NavMenu (Bootstrap dropdown-menu-dark, wrapped in AuthorizeView)
+- Each module gets its own ApiClient following the same TokenProvider/CreateRequest pattern as UserApiClient and TenantApiClient
+- API enum values (e.g., EmploymentStatus, EmploymentType) are treated as strings in Web DTOs — JSON serialization handles the conversion
+- CRUD pages inherit from AuthenticatedComponentBase and follow the same card-form + table + delete-modal layout as UserManagement.razor
+- Status fields use color-coded badges for visual distinction
+
+## Consequences
+
+- ✅ Consistent UX pattern for all future module pages
+- ✅ Modules dropdown is extensible — just add new `<li>` items
+- ⚠️ Future modules should follow this same pattern to maintain consistency
+
+### Decision: Employee-User Linking Frontend Architecture
+
+**Date:** 2026-04-12
+**Author:** Geordi (Frontend Dev)
+**Status:** Active
+
+## Context
+
+Employee and User accounts need to be linkable. The frontend must support creating employees with or without user accounts, linking to existing users, and combined editing of linked records.
+
+## Decision
+
+### Combined Edit via URL Deep Link
+
+- Employee Management page accepts `?edit={employeeId}` query parameter to auto-open the edit form
+- User Management redirects to `/employees?edit={LinkedEmployeeId}` when editing a linked user
+- This avoids duplicating edit forms across pages — Employee Management is the single source of truth for linked records
+
+### Mutual Exclusion UX for User Account Creation
+
+- "Link to Existing User" dropdown and "Create New User Account" section are mutually exclusive
+- Selecting an existing user disables and collapses the create section
+- Expanding create new user clears the existing user dropdown
+- This prevents conflicting state and makes the user's intent clear
+
+### API Contract for Parallel Development
+
+- Frontend calls 4 new endpoints (`GET api/users/unlinked`, `POST api/employees/with-user`, `PUT api/employees/{id}/with-user`, `GET api/employees/by-user/{userId}`)
+- DTOs: `CreateEmployeeWithUserRequest` (includes Role), `UpdateEmployeeWithUserRequest` (includes optional Role)
+- Backend (Data) is building these endpoints in parallel on the same branch
+
+## Consequences
+
+- ✅ Single combined edit form avoids data sync issues between Employee and User pages
+- ✅ URL deep-linking enables cross-page navigation without state sharing
+- ✅ Mutual exclusion prevents ambiguous form states
+- ⚠️ Frontend will show API errors until backend endpoints are deployed
+
+### Decision: Employee EmployeeNumber Global Unique Constraint
+
+**Author:** Worf (Tester)
+**Date:** 2026-04-13
+**Status:** Observation / Potential Issue
+
+## Context
+
+While writing employee endpoint tests, discovered that `EmployeeDbContext` defines `EmployeeNumber` with a **global unique index** (`entity.HasIndex(e => e.EmployeeNumber).IsUnique()`), but `GenerateEmployeeNumber` generates numbers scoped to a tenant (`WHERE TenantId == tenantId`).
+
+This means two tenants will independently generate `EMP00001`, which violates the global unique constraint on second insert.
+
+## Impact
+
+- Multi-tenant employee creation will fail when two tenants create their first employee
+- Tests had to work around this by directly inserting with distinct employee numbers
+
+## Recommendation
+
+Either:
+1. Make the unique index composite: `(TenantId, EmployeeNumber)` instead of just `EmployeeNumber`, OR
+2. Make `GenerateEmployeeNumber` query all tenants (remove the tenant filter)
+
+Option 1 is preferred — employee numbers should be tenant-scoped conceptually.
+
+## Files
+
+- `WarpBusiness.Employees/Data/EmployeeDbContext.cs` (line 25)
+- `WarpBusiness.Employees/Endpoints/EmployeeEndpoints.cs` (lines 204-219)
+
+### Decision: Employee-User Linking Test Contracts
+
+**Date:** 2026-04-13
+**Author:** Worf (Tester)
+**Status:** Pending Review
+
+## Context
+
+Written 22 unit tests + 4 E2E tests for the employee-user linking feature. Data and Geordi are building the backend and frontend in parallel.
+
+## Key Decisions & Contracts
+
+### 1. New endpoint method names (for Data)
+
+The tests call these methods via reflection. Data should use these exact names in the endpoint classes:
+
+- `UserEndpoints.GetUnlinkedUsers` — expected signature: `(HttpContext, WarpBusinessDbContext, EmployeeDbContext, CancellationToken)`
+- `EmployeeEndpoints.CreateEmployeeWithUser` — expected to accept a request DTO + `(HttpContext, EmployeeDbContext, WarpBusinessDbContext, KeycloakAdminService, CancellationToken)`
+- `EmployeeEndpoints.UpdateEmployeeWithUser` — expected: `(Guid id, request, HttpContext, EmployeeDbContext, WarpBusinessDbContext, KeycloakAdminService, CancellationToken)`
+- `EmployeeEndpoints.GetEmployeeByUserId` — expected: `(Guid userId, HttpContext, EmployeeDbContext, CancellationToken)`
+
+If Data uses different names or signatures, the reflection helpers in the test file have a `BuildEndpointArgs` dynamic matcher but the method names must match.
+
+### 2. Cross-schema dependency for validation
+
+`GetUnlinkedUsers` needs access to BOTH `WarpBusinessDbContext` (to find users in tenant) and `EmployeeDbContext` (to check which are linked). Data needs to inject both DbContexts into this endpoint.
+
+Similarly, `DeleteUser` blocking requires checking the employee schema. Data needs to inject `EmployeeDbContext` into the user deletion flow.
+
+### 3. Deletion blocking response code
+
+Tests expect HTTP 400 (Bad Request) when attempting to delete a linked employee or user. If Data prefers 409 (Conflict), the tests need updating.
+
+### 4. E2E selectors (for Geordi)
+
+The E2E tests look for these UI elements:
+- `text=User Account` — section heading in employee form
+- `[data-testid='expand-create-user']` or `.user-account-expand` — chevron/expand button
+- `th:has-text('User')` or `.bi-person-check` or `[data-testid='user-link-indicator']` — table link indicator
+- Linked user edit button should redirect URL to contain `/employees/`
+
+Geordi can use any of these selectors — tests check multiple patterns.
+
+## Action Items
+
+- **Data**: Verify method names match or inform Worf of differences
+- **Geordi**: Add `data-testid` attributes for testability
+- **Worf**: Adjust tests once both implementations land
+
 ## Governance
 
 - All meaningful changes require team consensus

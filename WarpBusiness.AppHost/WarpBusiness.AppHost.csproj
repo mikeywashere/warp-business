@@ -4,6 +4,7 @@
     <ProjectReference Include="..\WarpBusiness.ServiceDefaults\WarpBusiness.ServiceDefaults.csproj" IsAspireProjectResource="false" />
     <ProjectReference Include="..\WarpBusiness.Api\WarpBusiness.Api.csproj" />
     <ProjectReference Include="..\WarpBusiness.Web\WarpBusiness.Web.csproj" />
+    <ProjectReference Include="..\WarpBusiness.MarketingSite\WarpBusiness.MarketingSite.csproj" />
   </ItemGroup>
 
   <ItemGroup>

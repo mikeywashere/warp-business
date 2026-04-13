@@ -83,3 +83,17 @@
 - **Branch:** `feature/employee-user-linking`
 - **Status:** 🔧 Frontend complete, awaiting backend API endpoints
 
+### Warp Brand Rebrand (2026-04-13)
+
+- **Scope:** Rebranded WarpBusiness.Web Blazor app to match marketing site's dark space theme
+- **Favicon:** Copied SVG favicon from marketing site, updated App.razor to reference it
+- **Fonts:** Added Google Fonts (Orbitron for headings, Inter for body) and theme-color meta tag
+- **CSS:** Introduced Warp design tokens as CSS custom properties; overrode Bootstrap defaults for body, cards, tables, forms, modals, buttons, pagination with dark palette (#050b18 bg, #00c8ff accent, #e8f0fe text)
+- **Navbar:** Replaced generic `navbar-dark bg-dark` with branded navbar: inline Warp SVG logo, Orbitron brand text, translucent dark bg with backdrop blur, cyan accent links/dropdowns
+- **Home:** Replaced "Hello, world!" placeholder with branded dashboard: Orbitron heading, tagline, three module cards (Employees, Users, Tenants) with dark card styling
+- **Layout:** Updated MainLayout.razor.css for dark theme page and main area backgrounds
+- **Approach:** Kept Bootstrap for structure/grid/components, overrode colors/fonts only — no C# changes
+- **Branch:** `fix/logout-redirect`
+- **Commit:** eb9be53
+- **Status:** ✅ Complete and pushed
+

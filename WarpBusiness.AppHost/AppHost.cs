@@ -21,4 +21,7 @@ builder.AddProject<Projects.WarpBusiness_Web>("web")
     .WithReference(api)
     .WithReference(keycloak);
 
+builder.AddProject<Projects.WarpBusiness_MarketingSite>("marketing-site")
+    .WithExternalHttpEndpoints();
+
 builder.Build().Run();
