@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\WarpBusiness.Api\WarpBusiness.Api.csproj" />
+    <ProjectReference Include="..\WarpBusiness.Employees\WarpBusiness.Employees.csproj" />
   </ItemGroup>
 
 </Project>

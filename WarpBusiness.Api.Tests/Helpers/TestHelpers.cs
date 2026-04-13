@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using WarpBusiness.Api.Data;
+using WarpBusiness.Employees.Data;
 
 namespace WarpBusiness.Api.Tests.Helpers;
 
@@ -67,5 +68,17 @@ public static class TestHelpers
             .Options;
 
         return new WarpBusinessDbContext(options);
+    }
+
+    /// <summary>
+    /// Creates an EmployeeDbContext configured for PostgreSQL with the given connection string.
+    /// </summary>
+    public static EmployeeDbContext CreatePostgresEmployeeDbContext(string connectionString)
+    {
+        var options = new DbContextOptionsBuilder<EmployeeDbContext>()
+            .UseNpgsql(connectionString)
+            .Options;
+
+        return new EmployeeDbContext(options);
     }
 }
