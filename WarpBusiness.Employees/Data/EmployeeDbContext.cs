@@ -21,7 +21,7 @@ public class EmployeeDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
 
-            entity.HasIndex(e => e.EmployeeNumber).IsUnique();
+            entity.HasIndex(e => new { e.EmployeeNumber, e.TenantId }).IsUnique();
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.TenantId);
 
