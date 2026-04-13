@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace WarpBusiness.Employees.Models;
 
 public class Employee
@@ -25,6 +27,7 @@ public class Employee
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EmploymentStatus
 {
     Active,
@@ -33,6 +36,7 @@ public enum EmploymentStatus
     Suspended
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum EmploymentType
 {
     FullTime,
