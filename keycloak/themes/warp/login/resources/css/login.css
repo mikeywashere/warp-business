@@ -1,0 +1,349 @@
+/* ============================================================
+   Warp Business — Keycloak Login Theme
+   Dark space theme · Orbitron headings · Inter body
+   Matches WarpBusiness.Web branding
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Orbitron:wght@700;900&display=swap');
+
+/* ── Design Tokens ── */
+:root {
+    --warp-bg:          #050b18;
+    --warp-bg-section:  #070e20;
+    --warp-bg-card:     #0b1628;
+    --warp-accent:      #00c8ff;
+    --warp-accent-2:    #0055ff;
+    --warp-accent-glow: rgba(0, 200, 255, 0.25);
+    --warp-text:        #e8f0fe;
+    --warp-text-muted:  #8899bb;
+    --warp-border:      rgba(0, 200, 255, 0.18);
+    --warp-error:       #ff4d6a;
+    --warp-success:     #26b050;
+}
+
+/* ── Body / Page Background ── */
+body {
+    background: radial-gradient(ellipse at 50% 0%, #0a1f4a 0%, var(--warp-bg) 70%) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+    color: var(--warp-text) !important;
+    min-height: 100vh;
+}
+
+/* ── Login Page Layout ── */
+.login-pf body,
+body.login-pf {
+    background: radial-gradient(ellipse at 50% 0%, #0a1f4a 0%, var(--warp-bg) 70%) !important;
+}
+
+#kc-header {
+    padding: 2rem 0 0 !important;
+}
+
+#kc-header-wrapper {
+    font-family: 'Orbitron', sans-serif !important;
+    font-size: 0 !important;
+    text-align: center !important;
+    padding: 1rem 0 !important;
+}
+
+/* Replace the header text with the Warp logo */
+#kc-header-wrapper::before {
+    content: '';
+    display: block;
+    width: 280px;
+    height: 60px;
+    margin: 0 auto 0.5rem;
+    background: url('../img/logo.svg') no-repeat center / contain;
+}
+
+/* ── Login Card / Form Container ── */
+#kc-content {
+    margin: 0 auto;
+}
+
+.card-pf {
+    background-color: var(--warp-bg-card) !important;
+    border: 1px solid var(--warp-border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                0 0 60px rgba(0, 200, 255, 0.07) !important;
+    color: var(--warp-text) !important;
+    padding: 2rem !important;
+    max-width: 440px !important;
+    margin: 1rem auto !important;
+}
+
+/* ── Form Labels ── */
+.control-label,
+label {
+    color: var(--warp-text-muted) !important;
+    font-weight: 500 !important;
+    font-size: 0.85rem !important;
+    letter-spacing: 0.02em !important;
+}
+
+/* ── Form Inputs ── */
+.login-pf .form-control,
+.form-control {
+    background-color: var(--warp-bg-section) !important;
+    border: 1px solid var(--warp-border) !important;
+    border-radius: 6px !important;
+    color: var(--warp-text) !important;
+    padding: 0.6rem 0.75rem !important;
+    font-size: 0.95rem !important;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+.login-pf .form-control:focus,
+.form-control:focus {
+    background-color: var(--warp-bg) !important;
+    border-color: var(--warp-accent) !important;
+    color: var(--warp-text) !important;
+    box-shadow: 0 0 0 0.25rem var(--warp-accent-glow) !important;
+    outline: none !important;
+}
+
+.form-control::placeholder {
+    color: var(--warp-text-muted) !important;
+}
+
+/* ── Primary Buttons (Login, Submit) ── */
+.btn-primary,
+.btn-primary:visited,
+input.btn-primary,
+input[type="submit"].btn-primary {
+    background: linear-gradient(135deg, var(--warp-accent-2), var(--warp-accent)) !important;
+    border: none !important;
+    border-radius: 6px !important;
+    color: #fff !important;
+    font-family: 'Orbitron', sans-serif !important;
+    font-size: 0.75rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    padding: 0.75rem 1.5rem !important;
+    box-shadow: 0 0 20px var(--warp-accent-glow) !important;
+    transition: all 0.25s ease !important;
+    cursor: pointer !important;
+    width: 100% !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+input.btn-primary:hover,
+input[type="submit"].btn-primary:hover {
+    box-shadow: 0 0 36px rgba(0, 200, 255, 0.5) !important;
+    transform: translateY(-1px) !important;
+    filter: brightness(1.1) !important;
+}
+
+.btn-primary:active,
+input.btn-primary:active {
+    transform: translateY(0) !important;
+}
+
+/* ── Secondary / Default Buttons ── */
+.btn-default,
+.btn-default:visited {
+    background-color: transparent !important;
+    border: 1px solid var(--warp-accent) !important;
+    border-radius: 6px !important;
+    color: var(--warp-accent) !important;
+    font-size: 0.85rem !important;
+    padding: 0.5rem 1rem !important;
+    transition: all 0.25s ease !important;
+}
+
+.btn-default:hover,
+.btn-default:focus {
+    background-color: var(--warp-accent-glow) !important;
+    color: var(--warp-accent) !important;
+}
+
+/* ── Links ── */
+a,
+.login-pf a {
+    color: var(--warp-accent) !important;
+    text-decoration: none !important;
+    transition: opacity 0.25s ease !important;
+}
+
+a:hover,
+.login-pf a:hover {
+    color: #5de0ff !important;
+    text-decoration: none !important;
+}
+
+/* ── Form Group Spacing ── */
+.form-group {
+    margin-bottom: 1.25rem !important;
+}
+
+/* ── Remember Me Checkbox ── */
+.checkbox label,
+.login-pf .checkbox label {
+    color: var(--warp-text-muted) !important;
+}
+
+.checkbox input[type="checkbox"] {
+    accent-color: var(--warp-accent) !important;
+}
+
+/* ── Alert / Error Messages ── */
+.alert {
+    border-radius: 8px !important;
+    font-size: 0.9rem !important;
+}
+
+.alert-error,
+.alert-danger {
+    background-color: rgba(255, 77, 106, 0.12) !important;
+    border: 1px solid rgba(255, 77, 106, 0.3) !important;
+    color: var(--warp-error) !important;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+    border: 1px solid rgba(255, 193, 7, 0.25) !important;
+    color: #ffc107 !important;
+}
+
+.alert-success {
+    background-color: rgba(38, 176, 80, 0.1) !important;
+    border: 1px solid rgba(38, 176, 80, 0.25) !important;
+    color: var(--warp-success) !important;
+}
+
+.alert-info {
+    background-color: rgba(0, 200, 255, 0.1) !important;
+    border: 1px solid var(--warp-border) !important;
+    color: var(--warp-accent) !important;
+}
+
+/* ── Page Title (Login, Register, Reset Password, etc.) ── */
+#kc-page-title {
+    font-family: 'Orbitron', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 1.3rem !important;
+    color: var(--warp-text) !important;
+    text-align: center !important;
+    margin-bottom: 1.5rem !important;
+    letter-spacing: 0.04em !important;
+}
+
+/* ── Social Login Buttons ── */
+.kc-social-provider {
+    margin-bottom: 0.5rem !important;
+}
+
+.kc-social-provider a,
+.kc-social-provider .zocial {
+    background-color: var(--warp-bg-section) !important;
+    border: 1px solid var(--warp-border) !important;
+    border-radius: 6px !important;
+    color: var(--warp-text) !important;
+    padding: 0.6rem 1rem !important;
+    transition: all 0.25s ease !important;
+}
+
+.kc-social-provider a:hover {
+    background-color: var(--warp-accent-glow) !important;
+    border-color: var(--warp-accent) !important;
+}
+
+/* ── OTP / Authenticator ── */
+.otp-input,
+#kc-otp-login-form .form-control {
+    text-align: center !important;
+    font-size: 1.5rem !important;
+    letter-spacing: 0.3em !important;
+}
+
+/* ── Footer / Info Links ── */
+#kc-info,
+#kc-info-wrapper {
+    text-align: center !important;
+}
+
+#kc-info a,
+#kc-info-wrapper a {
+    color: var(--warp-text-muted) !important;
+    font-size: 0.85rem !important;
+}
+
+#kc-info a:hover,
+#kc-info-wrapper a:hover {
+    color: var(--warp-accent) !important;
+}
+
+/* ── Locale Dropdown ── */
+#kc-locale ul {
+    background-color: var(--warp-bg-card) !important;
+    border: 1px solid var(--warp-border) !important;
+    border-radius: 6px !important;
+}
+
+#kc-locale ul li a {
+    color: var(--warp-text) !important;
+}
+
+#kc-locale ul li a:hover {
+    background-color: var(--warp-accent-glow) !important;
+}
+
+/* ── Tabs (e.g., credential selection) ── */
+.nav-tabs {
+    border-bottom-color: var(--warp-border) !important;
+}
+
+.nav-tabs > li > a {
+    color: var(--warp-text-muted) !important;
+    border: 1px solid transparent !important;
+}
+
+.nav-tabs > li.active > a,
+.nav-tabs > li.active > a:hover {
+    background-color: var(--warp-bg-card) !important;
+    border-color: var(--warp-border) !important;
+    border-bottom-color: var(--warp-bg-card) !important;
+    color: var(--warp-accent) !important;
+}
+
+/* ── Separator (or) ── */
+#kc-form-options,
+.kc-form-options {
+    text-align: center !important;
+    color: var(--warp-text-muted) !important;
+    font-size: 0.85rem !important;
+}
+
+/* ── Scrollbar (matches Web app) ── */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--warp-bg);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--warp-text-muted);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--warp-accent);
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+    .card-pf {
+        margin: 0.5rem !important;
+        padding: 1.5rem !important;
+    }
+    
+    #kc-header-wrapper::before {
+        width: 220px;
+        height: 48px;
+    }
+}
