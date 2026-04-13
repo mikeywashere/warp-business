@@ -119,3 +119,12 @@
 - **Pattern:** Keycloak themes use `theme.properties` with `parent=keycloak` + `styles=css/filename.css`
 - **Status:** ✅ Complete
 
+### Tenant List UI Fix (2026-04-13)
+
+- **Colspan bug:** PR #23 added a Currency column to the tenant table (6 columns total) but left `colspan="5"` on the members panel and empty-state rows — fixed all three to `colspan="6"`
+- **Button spacing:** Delete button was missing `me-1` class that Members and Edit buttons had, causing inconsistent gaps — added `me-1` for uniform spacing
+- **Currency column:** Already present from PR #23 (header at line 122, data cell at line 136 using `tenant.PreferredCurrencyCode ?? "—"`)
+- **Pattern note:** When adding columns to tables, always audit all `colspan` values in the same `<table>` — easy to miss on expandable/inline panels
+- **File:** `WarpBusiness.Web/Components/Pages/TenantManagement.razor`
+- **Status:** ✅ Complete
+

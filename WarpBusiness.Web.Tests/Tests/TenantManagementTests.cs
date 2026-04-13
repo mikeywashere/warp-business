@@ -64,4 +64,77 @@ public class TenantManagementTests : PlaywrightTestBase
         Assert.That(isRedirectedToLogin, Is.True,
             "Expected redirect to login for unauthenticated users accessing tenant management");
     }
+
+    [Test]
+    public async Task TenantTable_HasCurrencyColumnHeader()
+    {
+        await LoginAndSelectTenantAsync();
+        await Page.GotoAsync($"{BaseUrl}/tenants");
+        await Page.WaitForSelectorAsync("table.table", new() { Timeout = 10000 });
+
+        // The table header row should include all 6 columns: Name, Slug, Currency, Status, Created, Actions
+        var headers = Page.Locator("table.table thead th");
+        var headerCount = await headers.CountAsync();
+        Assert.That(headerCount, Is.EqualTo(6), "Expected 6 column headers (Name, Slug, Currency, Status, Created, Actions)");
+
+        var currencyHeader = Page.Locator("table.table thead th", new() { HasText = "Currency" });
+        await Expect(currencyHeader).ToBeVisibleAsync();
+    }
+
+    [Test]
+    public async Task TenantTable_ShowsCurrencyDataForTenants()
+    {
+        await LoginAndSelectTenantAsync();
+        await Page.GotoAsync($"{BaseUrl}/tenants");
+        await Page.WaitForSelectorAsync("table.table", new() { Timeout = 10000 });
+
+        // The third column (index 2) in each tenant row should contain currency data or the em-dash placeholder
+        var firstRowCurrencyCell = Page.Locator("table.table tbody tr:first-child td:nth-child(3)");
+        await Expect(firstRowCurrencyCell).ToBeVisibleAsync();
+
+        var cellText = await firstRowCurrencyCell.TextContentAsync();
+        Assert.That(cellText, Is.Not.Null.And.Not.Empty,
+            "Currency cell should display a currency code or placeholder");
+    }
+
+    [Test]
+    public async Task TenantTable_ColspanMatchesColumnCount()
+    {
+        await LoginAndSelectTenantAsync();
+        await Page.GotoAsync($"{BaseUrl}/tenants");
+        await Page.WaitForSelectorAsync("table.table", new() { Timeout = 10000 });
+
+        // Expand the members panel for the first tenant to expose the colspan row
+        var membersButton = Page.Locator("table.table tbody tr:first-child button", new() { HasText = "Members" });
+        await Expect(membersButton).ToBeVisibleAsync();
+        await membersButton.ClickAsync();
+
+        // The members panel row uses a td[colspan] — verify it matches the 6-column header
+        var colspanCell = Page.Locator("table.table > tbody > tr td[colspan]").First;
+        await Expect(colspanCell).ToBeVisibleAsync();
+
+        var colspanValue = await colspanCell.GetAttributeAsync("colspan");
+        Assert.That(colspanValue, Is.EqualTo("6"),
+            "Members panel colspan must match the 6-column table header (Name, Slug, Currency, Status, Created, Actions)");
+    }
+
+    [Test]
+    public async Task TenantTable_ActionButtonsHaveConsistentSpacing()
+    {
+        await LoginAndSelectTenantAsync();
+        await Page.GotoAsync($"{BaseUrl}/tenants");
+        await Page.WaitForSelectorAsync("table.table", new() { Timeout = 10000 });
+
+        // All three action buttons (Members, Edit, Delete) should have the me-1 spacing class
+        var firstRowActions = Page.Locator("table.table tbody tr:first-child td:last-child");
+        await Expect(firstRowActions).ToBeVisibleAsync();
+
+        var membersBtn = firstRowActions.Locator("button", new() { HasText = "Members" });
+        var editBtn = firstRowActions.Locator("button", new() { HasText = "Edit" });
+        var deleteBtn = firstRowActions.Locator("button", new() { HasText = "Delete" });
+
+        await Expect(membersBtn).ToHaveClassAsync(new System.Text.RegularExpressions.Regex(@"\bme-1\b"));
+        await Expect(editBtn).ToHaveClassAsync(new System.Text.RegularExpressions.Regex(@"\bme-1\b"));
+        await Expect(deleteBtn).ToHaveClassAsync(new System.Text.RegularExpressions.Regex(@"\bme-1\b"));
+    }
 }
