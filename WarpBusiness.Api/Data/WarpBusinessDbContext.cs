@@ -49,6 +49,7 @@ public class WarpBusinessDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.Slug).HasMaxLength(100);
             entity.Property(e => e.PreferredCurrencyCode).HasMaxLength(3);
+            entity.Property(e => e.LoginTimeoutMinutes).HasDefaultValue(480);
 
             entity.HasOne(e => e.PreferredCurrency)
                 .WithMany()
