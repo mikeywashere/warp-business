@@ -23,9 +23,6 @@ builder.Services.AddAuthentication(options =>
         ?? builder.Configuration["services:keycloak:http:0"]
         ?? "http://localhost:8080";
 
-    Console.WriteLine($"[Web Startup] Keycloak URL resolved to: {keycloakUrl}");
-    Console.WriteLine($"[Web Startup] OIDC Authority: {keycloakUrl}/realms/warpbusiness");
-
     options.Authority = $"{keycloakUrl}/realms/warpbusiness";
     options.ClientId = "warpbusiness-web";
     options.ResponseType = OpenIdConnectResponseType.Code;
@@ -49,7 +46,6 @@ builder.Services.AddAuthentication(options =>
             // Cache the id_token in a secure HttpOnly cookie so it survives
             // the Blazor Server WebSocket mode where GetTokenAsync returns null
             var idToken = context.TokenEndpointResponse?.IdToken;
-            Console.WriteLine($"[OIDC] OnTokenResponseReceived — id_token present: {!string.IsNullOrEmpty(idToken)} (length: {idToken?.Length ?? 0})");
             if (!string.IsNullOrEmpty(idToken))
             {
                 context.HttpContext.Response.Cookies.Append("X-IdToken-Cache", idToken, new CookieOptions
@@ -66,33 +62,25 @@ builder.Services.AddAuthentication(options =>
         OnRedirectToIdentityProviderForSignOut = async context =>
         {
             var idToken = await context.HttpContext.GetTokenAsync("id_token");
-            Console.WriteLine($"[OIDC Logout] GetTokenAsync: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")}");
 
             if (string.IsNullOrEmpty(idToken))
                 idToken = context.Properties?.GetTokenValue("id_token");
-            Console.WriteLine($"[OIDC Logout] Properties.GetTokenValue: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")}");
 
             if (string.IsNullOrEmpty(idToken))
                 idToken = context.HttpContext.Request.Cookies["X-IdToken-Cache"];
-            Console.WriteLine($"[OIDC Logout] Cookie cache: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")}");
 
             if (!string.IsNullOrEmpty(idToken))
             {
                 context.ProtocolMessage.IdTokenHint = idToken;
-                Console.WriteLine($"[OIDC Logout] id_token_hint SET (length: {idToken.Length})");
-            }
-            else
-            {
-                Console.WriteLine("[OIDC Logout] WARNING: No id_token found — using client_id fallback");
             }
 
             // Always send client_id as a fallback. Keycloak requires EITHER
             // id_token_hint OR client_id when post_logout_redirect_uri is used.
-            // The id_token may not survive re-login cycles in Blazor Server,
-            // but client_id is always available and satisfies Keycloak's requirement.
             context.ProtocolMessage.ClientId = "warpbusiness-web";
 
-            context.ProtocolMessage.PostLogoutRedirectUri = "/";
+            // Build absolute URI so Keycloak redirects back to the web app, not to itself
+            var request = context.HttpContext.Request;
+            context.ProtocolMessage.PostLogoutRedirectUri = $"{request.Scheme}://{request.Host}/";
         }
     };
 });
@@ -127,7 +115,6 @@ Action<HttpClient> configureApiClient = client =>
     var apiUrl = builder.Configuration["services:api:https:0"]
         ?? builder.Configuration["services:api:http:0"]
         ?? "http://localhost:5000";
-    Console.WriteLine($"[Web Startup] API base URL resolved to: {apiUrl}");
     client.BaseAddress = new Uri(apiUrl);
 };
 
@@ -179,16 +166,17 @@ app.MapGet("/logout", async (HttpContext context) =>
     if (string.IsNullOrEmpty(idToken))
         idToken = context.Request.Cookies["X-IdToken-Cache"];
 
-    Console.WriteLine($"[Logout] id_token resolved: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")} (length: {idToken?.Length ?? 0})");
-
     context.Response.Cookies.Delete("X-Selected-Tenant");
     context.Response.Cookies.Delete("X-Selected-Tenant-Name");
+
+    // Build absolute URI so the cookie auth redirect goes back to the web app
+    var absoluteRedirect = $"{context.Request.Scheme}://{context.Request.Host}/";
 
     // Stash the id_token in sign-out properties so the OIDC handler
     // finds it via properties.GetTokenValue("id_token") before our event fires
     var signOutProperties = new AuthenticationProperties
     {
-        RedirectUri = "/"
+        RedirectUri = absoluteRedirect
     };
 
     if (!string.IsNullOrEmpty(idToken))
