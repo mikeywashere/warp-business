@@ -97,3 +97,17 @@
 - **Commit:** eb9be53
 - **Status:** ✅ Complete and pushed
 
+### Keycloak Custom Theme — "warp" (2026-04-13)
+
+- **Theme location:** `keycloak/themes/warp/` in repo root — bind-mounted into Keycloak container at `/opt/keycloak/themes/warp/`
+- **Scope:** `login` and `account` sub-themes, both using `parent=keycloak` to inherit base templates
+- **Login CSS:** `keycloak/themes/warp/login/resources/css/login.css` — full dark-space override matching Web app design tokens (#050b18 bg, #00c8ff accent, Orbitron headings, Inter body)
+- **Account CSS:** `keycloak/themes/warp/account/resources/css/account.css` — matching dark theme for user account pages
+- **Logo:** `keycloak/themes/warp/login/resources/img/logo.svg` — Warp W icon + "WARP BUSINESS" text in Orbitron font
+- **Favicon:** `keycloak/themes/warp/login/resources/img/favicon.svg` — matches Web app favicon
+- **AppHost wiring:** `WithBindMount("../keycloak/themes/warp", "/opt/keycloak/themes/warp")` on keycloak resource
+- **Realm import:** Added `"loginTheme": "warp"` and `"accountTheme": "warp"` to `warpbusiness-realm.json`
+- **Note:** If Keycloak data volume exists from previous runs, delete it or manually select theme in Admin Console → Realm Settings → Themes
+- **Pattern:** Keycloak themes use `theme.properties` with `parent=keycloak` + `styles=css/filename.css`
+- **Status:** ✅ Complete
+

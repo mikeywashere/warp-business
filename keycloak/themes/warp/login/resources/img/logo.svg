@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 60">
+  <defs>
+    <filter id="kc-glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Icon: W in circle -->
+  <circle cx="30" cy="30" r="28" fill="#0a0e1a"/>
+  <circle cx="30" cy="30" r="25" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0.4"/>
+  <polyline points="12,14 22,46 30,28 38,46 48,14"
+    fill="none" stroke="#00d4ff" stroke-width="5"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="12,14 22,46 30,28 38,46 48,14"
+    fill="none" stroke="#00d4ff" stroke-width="5"
+    stroke-linecap="round" stroke-linejoin="round"
+    filter="url(#kc-glow)" opacity="0.7"/>
+
+  <!-- Text: WARP BUSINESS -->
+  <text x="70" y="38" font-family="'Orbitron', 'Segoe UI', sans-serif" font-weight="900"
+    font-size="26" letter-spacing="0.12em" fill="#e8f0fe">
+    WARP <tspan fill="#00c8ff">BUSINESS</tspan>
+  </text>
+</svg>

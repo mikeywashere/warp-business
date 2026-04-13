@@ -6,7 +6,8 @@ var postgres = builder.AddPostgres("postgres")
 
 var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithDataVolume()
-    .WithRealmImport("./KeycloakConfiguration");
+    .WithRealmImport("./KeycloakConfiguration")
+    .WithBindMount("../keycloak/themes/warp", "/opt/keycloak/themes/warp");
 
 var api = builder.AddProject<Projects.WarpBusiness_Api>("api")
     .WithReference(postgres)
