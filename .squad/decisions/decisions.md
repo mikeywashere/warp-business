@@ -117,3 +117,32 @@ All Warp branding CSS custom properties (defined in `app.css`) are the single so
 - ✅ Consistent visual theme across all pages and modals
 - ✅ Easier future theme updates via CSS variables
 - ⚠️ Developers must remember to use CSS variables for new components
+
+---
+
+### 5. Override Bootstrap Utility Classes for Dark Theme
+
+**Date:** 2026-04-13  
+**Author:** Geordi (Frontend Dev)  
+**Status:** Active
+
+#### Context
+
+Bootstrap utility classes like `.text-muted`, `<code>`, and `.bg-light` use hard-coded light-theme colors that are unreadable on our dark background (#050b18). Even though we override `.table`, `.card`, and `.form-control` styles, Bootstrap utility classes have higher specificity and override inherited colors.
+
+#### Decision
+
+Override Bootstrap utility classes globally in `app.css` to use Warp design tokens:
+- `code` → cyan accent color with subtle background
+- `.text-muted` → `--clr-text-muted` (#8899bb) with `!important`
+- `.bg-light` → `--clr-bg-section` with light text
+- All `.alert-*`, `.badge-*`, `.btn-*` variants with proper dark theme colors
+- Table, form, dropdown, breadcrumb, list group, tooltip, popover, modal, and card utilities overridden
+
+#### Consequences
+
+- ✅ All pages automatically get readable text without per-component fixes
+- ✅ Design tokens are the single source of truth for colors
+- ✅ 253-line override applied to `app.css` covering all major Bootstrap components
+- ⚠️ `!important` on utility overrides needed to beat Bootstrap's specificity — acceptable for a global theme override
+- ⚠️ Any new Bootstrap utility classes used in future components should be audited against the dark theme

@@ -139,3 +139,22 @@
 - **File:** `WarpBusiness.Web/Components/Pages/TenantManagement.razor`, `WarpBusiness.Web/Services/TenantApiClient.cs`
 - **Status:** ✅ Complete — build passes
 
+### Dark Theme Text Visibility Fix (2026-04-13)
+
+- **Problem:** Bootstrap utility classes (`text-muted`, `<code>`, `bg-light`) use light-theme defaults that are unreadable on the Warp dark background (#050b18)
+- **Fix:** Added CSS overrides in `app.css` for `code` (→ cyan accent), `.text-muted` (→ --clr-text-muted #8899bb), `.bg-light` (→ dark section bg)
+- **Pattern:** Always override Bootstrap utility classes in app.css when they conflict with the dark theme — don't rely on inheritance from `.table` or `.card` rules since utility classes have higher specificity
+- **File:** `WarpBusiness.Web/wwwroot/app.css`
+- **Status:** ✅ Complete — build passes
+
+### Comprehensive Dark Theme Text Overrides (2026-04-13)
+
+- **Problem:** Previous dark theme fix only covered `code`, `.text-muted`, `.bg-light` — many Bootstrap components still rendered black/dark text (alerts, badges, buttons, table-dark headers, form elements, dropdowns, close buttons, etc.)
+- **Fix:** Added ~250 lines of CSS overrides in `app.css` covering all Bootstrap utility classes and components that default to light-theme colors
+- **Key overrides:** `.alert-danger/.alert-success/.alert-warning` (translucent dark bg + light text), `.badge` variants, `.btn-secondary` + all `.btn-outline-*` variants, `.btn-close` (inverted filter), `thead.table-dark` (accent-colored), `.form-check-label/.form-check-input/.form-switch`, `.form-select option`, `.text-danger`, `.dropdown-menu/.dropdown-item`, `.breadcrumb`, `.list-group-item`, `.tooltip-inner/.popover`, `.validation-errors`
+- **Pattern:** When adding dark theme to a Bootstrap app, audit EVERY utility class and component variant — Bootstrap has dozens of classes that assume white/light backgrounds
+- **Pattern:** `.text-dark` intentionally NOT overridden — it's used correctly on `bg-warning` badges where dark text on yellow is the right contrast
+- **Branch:** `fix/tenant-text-colors`
+- **PR:** #28
+- **Status:** ✅ Complete — build passes
+
