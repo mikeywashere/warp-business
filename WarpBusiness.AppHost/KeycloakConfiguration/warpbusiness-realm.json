@@ -13,9 +13,6 @@
   "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 28800,
   "accessTokenLifespan": 300,
-  "offlineSessionMaxLifespanEnabled": true,
-  "offlineSessionIdleTimeout": 2592000,
-  "offlineSessionMaxLifespan": 2592000,
   "roles": {
     "realm": [
       {

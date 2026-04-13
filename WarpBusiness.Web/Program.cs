@@ -39,8 +39,6 @@ builder.Services.AddAuthentication(options =>
     options.MapInboundClaims = false;
     options.Scope.Add("openid");
     options.Scope.Add("profile");
-    options.Scope.Add("offline_access");
-
     // In development, Keycloak may use HTTP
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
 
