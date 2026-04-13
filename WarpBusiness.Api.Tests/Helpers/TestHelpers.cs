@@ -81,4 +81,33 @@ public static class TestHelpers
 
         return new EmployeeDbContext(options);
     }
+
+    /// <summary>
+    /// Ensures the employee schema tables exist. EnsureCreatedAsync skips when ANY tables
+    /// exist in the database (e.g., from MigrateAsync on WarpBusinessDbContext), so we
+    /// check explicitly and create from the model DDL if needed.
+    /// </summary>
+    public static async Task EnsureEmployeeSchemaAsync(EmployeeDbContext db)
+    {
+        try
+        {
+            _ = await db.Employees.AnyAsync();
+        }
+        catch
+        {
+            await db.Database.ExecuteSqlRawAsync(db.Database.GenerateCreateScript());
+        }
+    }
+
+    /// <summary>
+    /// A permissive IUserValidator stub for tests that don't test user validation.
+    /// Always returns true for both existence and tenant membership.
+    /// </summary>
+    public class PermissiveUserValidator : WarpBusiness.Employees.Services.IUserValidator
+    {
+        public Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+        public Task<bool> UserBelongsToTenantAsync(Guid userId, Guid tenantId, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+    }
 }

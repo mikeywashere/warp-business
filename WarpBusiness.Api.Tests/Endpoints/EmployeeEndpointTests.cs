@@ -24,7 +24,7 @@ public class EmployeeEndpointTests
     private async Task<EmployeeDbContext> CreateCleanContext()
     {
         var db = TestHelpers.CreatePostgresEmployeeDbContext(_fixture.ConnectionString);
-        await db.Database.EnsureCreatedAsync();
+        await TestHelpers.EnsureEmployeeSchemaAsync(db);
         db.Employees.RemoveRange(db.Employees);
         await db.SaveChangesAsync();
         return db;
@@ -350,7 +350,8 @@ public class EmployeeEndpointTests
     {
         var method = typeof(EmployeeEndpoints).GetMethod("CreateEmployee",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        return await (Task<IResult>)method.Invoke(null, [request, httpContext, db, CancellationToken.None])!;
+        var validator = new TestHelpers.PermissiveUserValidator();
+        return await (Task<IResult>)method.Invoke(null, [request, httpContext, db, validator, CancellationToken.None])!;
     }
 
     private static async Task<IResult> CallGetAllEmployees(

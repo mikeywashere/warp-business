@@ -10,6 +10,7 @@ using WarpBusiness.Api.Models;
 using WarpBusiness.Api.Services;
 using WarpBusiness.Api.Tests.Helpers;
 using WarpBusiness.Api.Tests.Infrastructure;
+using WarpBusiness.Employees.Data;
 
 namespace WarpBusiness.Api.Tests.Endpoints;
 
@@ -30,6 +31,15 @@ public class UserEndpointTests
         db.UserTenantMemberships.RemoveRange(db.UserTenantMemberships);
         db.Users.RemoveRange(db.Users);
         db.Tenants.RemoveRange(db.Tenants);
+        await db.SaveChangesAsync();
+        return db;
+    }
+
+    private async Task<EmployeeDbContext> CreateCleanEmployeeContext()
+    {
+        var db = TestHelpers.CreatePostgresEmployeeDbContext(_fixture.ConnectionString);
+        await TestHelpers.EnsureEmployeeSchemaAsync(db);
+        db.Employees.RemoveRange(db.Employees);
         await db.SaveChangesAsync();
         return db;
     }
@@ -154,12 +164,13 @@ public class UserEndpointTests
     public async Task GetAllUsers_Admin_NoTenantContext_ReturnsAll()
     {
         await using var db = await CreateCleanContext();
+        await using var empDb = await CreateCleanEmployeeContext();
         await SeedTestData(db);
 
         var principal = TestHelpers.CreateAdminPrincipal();
         var httpContext = CreateHttpContext(principal, tenantId: null);
 
-        var result = await CallGetAllUsers(db, principal, httpContext);
+        var result = await CallGetAllUsers(db, empDb, principal, httpContext);
 
         result.Should().BeOfType<Ok<List<UserResponse>>>();
         var okResult = (Ok<List<UserResponse>>)result;
@@ -170,12 +181,13 @@ public class UserEndpointTests
     public async Task GetAllUsers_Admin_WithTenantContext_ReturnsTenantMembers()
     {
         await using var db = await CreateCleanContext();
+        await using var empDb = await CreateCleanEmployeeContext();
         var (_, regularUser, tenant) = await SeedTestData(db);
 
         var principal = TestHelpers.CreateAdminPrincipal();
         var httpContext = CreateHttpContext(principal, tenantId: tenant.Id);
 
-        var result = await CallGetAllUsers(db, principal, httpContext);
+        var result = await CallGetAllUsers(db, empDb, principal, httpContext);
 
         result.Should().BeOfType<Ok<List<UserResponse>>>();
         var okResult = (Ok<List<UserResponse>>)result;
@@ -257,6 +269,7 @@ public class UserEndpointTests
     public async Task DeleteUser_Success_CascadesMemberships()
     {
         await using var db = await CreateCleanContext();
+        await using var empDb = await CreateCleanEmployeeContext();
         var (_, regularUser, _) = await SeedTestData(db);
         var userId = regularUser.Id;
 
@@ -264,7 +277,7 @@ public class UserEndpointTests
         handler.QueueSuccessResponse();
         var keycloakAdmin = CreateFakeKeycloakAdmin(handler);
 
-        var result = await CallDeleteUser(db, regularUser.Id, keycloakAdmin);
+        var result = await CallDeleteUser(db, empDb, regularUser.Id, keycloakAdmin);
 
         result.Should().BeOfType<NoContent>();
 
@@ -278,10 +291,11 @@ public class UserEndpointTests
     public async Task DeleteUser_NotFound_Returns404()
     {
         await using var db = await CreateCleanContext();
+        await using var empDb = await CreateCleanEmployeeContext();
 
         var keycloakAdmin = CreateFakeKeycloakAdmin();
 
-        var result = await CallDeleteUser(db, Guid.NewGuid(), keycloakAdmin);
+        var result = await CallDeleteUser(db, empDb, Guid.NewGuid(), keycloakAdmin);
 
         result.Should().BeOfType<NotFound>();
     }
@@ -428,11 +442,11 @@ public class UserEndpointTests
         return await (Task<IResult>)method.Invoke(null, [principal, db, CancellationToken.None])!;
     }
 
-    private static async Task<IResult> CallGetAllUsers(WarpBusinessDbContext db, System.Security.Claims.ClaimsPrincipal principal, HttpContext httpContext)
+    private static async Task<IResult> CallGetAllUsers(WarpBusinessDbContext db, EmployeeDbContext empDb, System.Security.Claims.ClaimsPrincipal principal, HttpContext httpContext)
     {
         var method = typeof(UserEndpoints).GetMethod("GetAllUsers",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        return await (Task<IResult>)method.Invoke(null, [db, principal, httpContext, CancellationToken.None])!;
+        return await (Task<IResult>)method.Invoke(null, [db, empDb, principal, httpContext, CancellationToken.None])!;
     }
 
     private static async Task<IResult> CallGetUserById(WarpBusinessDbContext db, Guid id)
@@ -457,11 +471,11 @@ public class UserEndpointTests
         return await (Task<IResult>)method.Invoke(null, [id, request, db, keycloakAdmin, CancellationToken.None])!;
     }
 
-    private static async Task<IResult> CallDeleteUser(WarpBusinessDbContext db, Guid id, KeycloakAdminService keycloakAdmin)
+    private static async Task<IResult> CallDeleteUser(WarpBusinessDbContext db, EmployeeDbContext empDb, Guid id, KeycloakAdminService keycloakAdmin)
     {
         var method = typeof(UserEndpoints).GetMethod("DeleteUser",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
-        return await (Task<IResult>)method.Invoke(null, [id, db, keycloakAdmin, CancellationToken.None])!;
+        return await (Task<IResult>)method.Invoke(null, [id, db, empDb, keycloakAdmin, CancellationToken.None])!;
     }
 
     private static async Task<IResult> CallUpdateMyProfile(
