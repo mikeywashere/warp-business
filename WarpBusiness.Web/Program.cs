@@ -83,14 +83,16 @@ builder.Services.AddAuthentication(options =>
             }
             else
             {
-                Console.WriteLine("[OIDC Logout] WARNING: No id_token found from any source!");
+                Console.WriteLine("[OIDC Logout] WARNING: No id_token found — using client_id fallback");
             }
 
-            var lastTenantSlug = context.HttpContext.Request.Cookies["X-Last-Tenant-Slug"];
-            if (!string.IsNullOrEmpty(lastTenantSlug))
-            {
-                context.ProtocolMessage.PostLogoutRedirectUri = "/";
-            }
+            // Always send client_id as a fallback. Keycloak requires EITHER
+            // id_token_hint OR client_id when post_logout_redirect_uri is used.
+            // The id_token may not survive re-login cycles in Blazor Server,
+            // but client_id is always available and satisfies Keycloak's requirement.
+            context.ProtocolMessage.ClientId = "warpbusiness-web";
+
+            context.ProtocolMessage.PostLogoutRedirectUri = "/";
         }
     };
 });
