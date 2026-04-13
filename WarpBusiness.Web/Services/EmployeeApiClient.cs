@@ -61,7 +61,7 @@ public record CreateEmployeeWithUserRequest(
     string Email, string? Phone, DateOnly? DateOfBirth,
     DateOnly HireDate, string? Department, string? JobTitle,
     Guid? ManagerId, string EmploymentStatus, string EmploymentType,
-    string Role);
+    string Role, string? Username = null);
 
 public record UpdateEmployeeWithUserRequest(
     string FirstName, string LastName, string? MiddleName,

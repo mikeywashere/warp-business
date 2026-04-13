@@ -11,6 +11,7 @@ public record UserResponse(
     string FirstName,
     string LastName,
     string Email,
+    string Username,
     [property: JsonPropertyName("role")] string RoleName,
     DateTime CreatedAt,
     List<UserTenantInfo>? Tenants = null,
@@ -22,6 +23,7 @@ public record CreateUserRequest(
     string Email,
     string Password,
     [property: JsonPropertyName("role")] string RoleName,
+    string? Username = null,
     Guid? TenantId = null);
 
 public record UpdateUserRequest(

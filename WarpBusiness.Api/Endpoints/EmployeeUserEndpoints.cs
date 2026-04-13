@@ -65,7 +65,7 @@ public static class EmployeeUserEndpoints
             .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
             .ToListAsync(cancellationToken);
 
-        var response = users.Select(u => new UserResponse(u.Id, u.FirstName, u.LastName, u.Email, u.Role, u.CreatedAt)).ToList();
+        var response = users.Select(u => new UserResponse(u.Id, u.FirstName, u.LastName, u.Email, u.Username, u.Role, u.CreatedAt)).ToList();
         return Results.Ok(response);
     }
 
@@ -100,9 +100,17 @@ public static class EmployeeUserEndpoints
         if (!Enum.TryParse<UserRole>(request.Role, true, out var userRole))
             return Results.BadRequest(new { message = $"Invalid role: {request.Role}. Valid values: User, SystemAdministrator." });
 
+        // Derive username: use provided value, or extract from email local part
+        var username = !string.IsNullOrWhiteSpace(request.Username)
+            ? request.Username
+            : request.Email.Split('@')[0];
+
+        // Keycloak username is prefixed with tenant ID for uniqueness across tenants
+        var keycloakUsername = $"{tenantId.Value}.{username}";
+
         // Create Keycloak user WITHOUT password
         var kcResult = await keycloakAdmin.CreateUserWithoutPasswordAsync(
-            request.FirstName, request.LastName, request.Email, cancellationToken);
+            request.FirstName, request.LastName, request.Email, keycloakUsername, cancellationToken);
 
         string keycloakUserId;
 
@@ -154,6 +162,7 @@ public static class EmployeeUserEndpoints
             FirstName = request.FirstName,
             LastName = request.LastName,
             Email = request.Email,
+            Username = username,
             Role = userRole,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

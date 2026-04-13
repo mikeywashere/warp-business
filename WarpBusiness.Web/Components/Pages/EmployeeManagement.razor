@@ -83,7 +83,8 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Email <span class="text-danger">*</span></label>
-                                    <InputText @bind-Value="formModel.Email" class="form-control" type="email" />
+                                    <InputText @bind-Value="formModel.Email" class="form-control" type="email"
+                                               @bind-Value:after="OnEmployeeEmailChanged" />
                                     <ValidationMessage For="() => formModel.Email" class="text-danger" />
                                 </div>
                                 <div class="col-md-6">
@@ -221,6 +222,13 @@
                                         {
                                             <div class="mt-2 ms-4">
                                                 <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">Username</label>
+                                                        <InputText @bind-Value="formModel.NewUserUsername" class="form-control" />
+                                                        <small class="text-muted d-block mt-1">
+                                                            Defaults to the local part of the email. Cannot be changed after creation.
+                                                        </small>
+                                                    </div>
                                                     <div class="col-md-6">
                                                         <label class="form-label">Role</label>
                                                         <InputSelect @bind-Value="formModel.UserRole" class="form-select">
@@ -556,7 +564,8 @@
                         null,
                         formModel.EmploymentStatus,
                         formModel.EmploymentType,
-                        formModel.UserRole));
+                        formModel.UserRole,
+                        string.IsNullOrWhiteSpace(formModel.NewUserUsername) ? null : formModel.NewUserUsername));
                     successMessage = "Employee created with new user account. A 'set password' email will be sent.";
                 }
                 else
@@ -679,6 +688,21 @@
             formModel.LinkedUserId = null;
             userSearchText = "";
             formModel.UserRole = "User";
+            // Auto-derive username from current email
+            if (string.IsNullOrEmpty(formModel.NewUserUsername) && !string.IsNullOrEmpty(formModel.Email))
+            {
+                formModel.NewUserUsername = formModel.Email.Contains('@') ? formModel.Email.Split('@')[0] : formModel.Email;
+            }
+        }
+    }
+
+    private void OnEmployeeEmailChanged()
+    {
+        // Auto-derive new-user username from email if create-new-user is toggled on
+        if (formModel.CreateNewUser && string.IsNullOrEmpty(formModel.NewUserUsername))
+        {
+            var email = formModel.Email;
+            formModel.NewUserUsername = email.Contains('@') ? email.Split('@')[0] : email;
         }
     }
 
@@ -753,5 +777,6 @@
         public Guid? LinkedUserId { get; set; }
         public bool CreateNewUser { get; set; }
         public string UserRole { get; set; } = "User";
+        public string NewUserUsername { get; set; } = "";
     }
 }

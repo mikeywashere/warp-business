@@ -86,13 +86,13 @@ public class KeycloakAdminService
         return request;
     }
 
-    public async Task<KeycloakOperationResult> CreateUserAsync(string firstName, string lastName, string email, string password, CancellationToken cancellationToken = default)
+    public async Task<KeycloakOperationResult> CreateUserAsync(string firstName, string lastName, string email, string password, string? username = null, CancellationToken cancellationToken = default)
     {
         var request = await CreateAuthorizedRequest(HttpMethod.Post, $"/admin/realms/{Realm}/users", cancellationToken);
 
         var userPayload = new
         {
-            username = email,
+            username = username ?? email,
             firstName,
             lastName,
             email,
@@ -202,13 +202,13 @@ public class KeycloakAdminService
         return response.IsSuccessStatusCode;
     }
 
-    public async Task<KeycloakOperationResult> CreateUserWithoutPasswordAsync(string firstName, string lastName, string email, CancellationToken cancellationToken = default)
+    public async Task<KeycloakOperationResult> CreateUserWithoutPasswordAsync(string firstName, string lastName, string email, string? username = null, CancellationToken cancellationToken = default)
     {
         var request = await CreateAuthorizedRequest(HttpMethod.Post, $"/admin/realms/{Realm}/users", cancellationToken);
 
         var userPayload = new
         {
-            username = email,
+            username = username ?? email,
             firstName,
             lastName,
             email,
