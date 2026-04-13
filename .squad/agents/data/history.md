@@ -233,3 +233,18 @@
 - **Cleanup:** Removed all diagnostic `Console.WriteLine` statements from OIDC events, `/logout` endpoint, and startup configuration (7 statements total). Structured `ILogger` logging added previously is sufficient.
 - **Key principle:** When using an external identity provider (Keycloak, Auth0, etc.), always use absolute URIs for redirect parameters. Relative paths are interpreted relative to the IdP, not the app.
 - **Key file:** `WarpBusiness.Web/Program.cs`
+
+### LoginTimeoutMinutes & Persistent Auth Sessions (2026-04-13)
+
+- **LoginTimeoutMinutes field:** Added `int? LoginTimeoutMinutes` (default 480 / 8 hours) to `Tenant` entity, all DTOs (`TenantResponse`, `CreateTenantRequest`, `UpdateTenantRequest`), and CRUD endpoints. EF Core migration `AddLoginTimeoutMinutesToTenant` adds the column with default value.
+- **Auth cookie sliding expiration:** Configured `.AddCookie()` in `WarpBusiness.Web/Program.cs` with `ExpireTimeSpan = 8h`, `SlidingExpiration = true`, `Cookie.MaxAge = 8h`. Each request within the window resets the expiration timer.
+- **Offline access scope:** Added `offline_access` to OIDC scopes so Keycloak issues offline refresh tokens that survive SSO session idle timeouts.
+- **Keycloak session settings:** Added to `warpbusiness-realm.json`: `ssoSessionIdleTimeout: 28800` (8h), `ssoSessionMaxLifespan: 28800` (8h), `accessTokenLifespan: 300` (5m), offline session max 30 days. Access tokens are short-lived and refreshed; the SSO session and auth cookie keep users logged in.
+- **Key files:**
+  - `WarpBusiness.Api/Models/Tenant.cs` — new property
+  - `WarpBusiness.Api/Models/TenantDtos.cs` — updated records
+  - `WarpBusiness.Api/Endpoints/TenantEndpoints.cs` — create/update/response mapping
+  - `WarpBusiness.Api/Data/WarpBusinessDbContext.cs` — column default value config
+  - `WarpBusiness.Api/Data/Migrations/20260413203252_AddLoginTimeoutMinutesToTenant.cs` — migration
+  - `WarpBusiness.Web/Program.cs` — cookie config, offline_access scope
+  - `WarpBusiness.AppHost/KeycloakConfiguration/warpbusiness-realm.json` — session timeouts

@@ -85,6 +85,12 @@ else
                             </InputSelect>
                             <small class="text-muted">Default currency for this tenant</small>
                         </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Login Timeout (minutes)</label>
+                            <InputNumber @bind-Value="formModel.LoginTimeoutMinutes" class="form-control" min="5" step="1" />
+                            <ValidationMessage For="() => formModel.LoginTimeoutMinutes" class="text-danger" />
+                            <small class="text-muted">@FormatDuration(formModel.LoginTimeoutMinutes)</small>
+                        </div>
                     </div>
 
                     <div class="mt-3">
@@ -120,6 +126,7 @@ else
                     <th>Name</th>
                     <th>Slug</th>
                     <th>Currency</th>
+                    <th>Login Timeout</th>
                     <th>Status</th>
                     <th>Created</th>
                     <th style="width: 200px;">Actions</th>
@@ -134,6 +141,7 @@ else
                             <td>@tenant.Name</td>
                             <td><code>@tenant.Slug</code></td>
                             <td>@(tenant.PreferredCurrencyCode ?? "—")</td>
+                            <td><small class="text-muted">@FormatDuration(tenant.LoginTimeoutMinutes)</small></td>
                             <td>
                                 <span class="badge @(tenant.IsActive ? "bg-success" : "bg-secondary")">
                                     @(tenant.IsActive ? "Active" : "Inactive")
@@ -157,7 +165,7 @@ else
                         @if (expandedTenantId == tenant.Id)
                         {
                             <tr>
-                                <td colspan="6">
+                                <td colspan="7">
                                     <div class="card border-info">
                                         <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
                                             <strong>Members of @tenant.Name</strong>
@@ -238,7 +246,7 @@ else
                                                         else
                                                         {
                                                             <tr>
-                                                                <td colspan="6" class="text-center text-muted py-3">No members.</td>
+                                                                <td colspan="7" class="text-center text-muted py-3">No members.</td>
                                                             </tr>
                                                         }
                                                     </tbody>
@@ -254,7 +262,7 @@ else
                 else
                 {
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">No tenants found.</td>
+                        <td colspan="7" class="text-center text-muted py-4">No tenants found.</td>
                     </tr>
                 }
             </tbody>
@@ -394,7 +402,8 @@ else
             Name = tenant.Name,
             Slug = tenant.Slug,
             IsActive = tenant.IsActive,
-            PreferredCurrencyCode = tenant.PreferredCurrencyCode ?? ""
+            PreferredCurrencyCode = tenant.PreferredCurrencyCode ?? "",
+            LoginTimeoutMinutes = tenant.LoginTimeoutMinutes
         };
         showForm = true;
         ClearMessages();
@@ -418,13 +427,15 @@ else
             {
                 await TenantApi.UpdateTenantAsync(editingTenantId.Value, new UpdateTenantRequest(
                     formModel.Name, formModel.Slug, formModel.IsActive,
-                    string.IsNullOrEmpty(formModel.PreferredCurrencyCode) ? null : formModel.PreferredCurrencyCode));
+                    string.IsNullOrEmpty(formModel.PreferredCurrencyCode) ? null : formModel.PreferredCurrencyCode,
+                    formModel.LoginTimeoutMinutes));
                 successMessage = "Tenant updated successfully.";
             }
             else
             {
                 await TenantApi.CreateTenantAsync(new CreateTenantRequest(formModel.Name, formModel.Slug,
-                    string.IsNullOrEmpty(formModel.PreferredCurrencyCode) ? null : formModel.PreferredCurrencyCode));
+                    string.IsNullOrEmpty(formModel.PreferredCurrencyCode) ? null : formModel.PreferredCurrencyCode,
+                    formModel.LoginTimeoutMinutes));
                 successMessage = "Tenant created successfully.";
             }
 
@@ -613,6 +624,35 @@ else
         successMessage = null;
     }
 
+    private static string FormatDuration(int minutes)
+    {
+        if (minutes <= 0) return "0 minutes";
+        if (minutes < 60) return minutes == 1 ? "1 minute" : $"{minutes} minutes";
+
+        int days = minutes / 1440;
+        int remainingAfterDays = minutes % 1440;
+        int hours = remainingAfterDays / 60;
+        int remainingMinutes = remainingAfterDays % 60;
+
+        if (days > 0 && hours == 0 && remainingMinutes == 0)
+            return days == 1 ? "1 day" : $"{days} days";
+
+        if (days == 0)
+        {
+            if (remainingMinutes == 0)
+                return hours == 1 ? "1 hour" : $"{hours} hours";
+            if (remainingMinutes == 30)
+                return hours == 0 ? "30 minutes" : $"{hours} 1/2 hours";
+            return hours == 0 ? $"{remainingMinutes} minutes" : $"{hours}h {remainingMinutes}m";
+        }
+
+        var parts = new List<string>();
+        parts.Add(days == 1 ? "1 day" : $"{days} days");
+        if (hours > 0) parts.Add(hours == 1 ? "1 hour" : $"{hours} hours");
+        if (remainingMinutes > 0) parts.Add($"{remainingMinutes}m");
+        return string.Join(" ", parts);
+    }
+
     public class TenantFormModel
     {
         [System.ComponentModel.DataAnnotations.Required]
@@ -627,5 +667,8 @@ else
         public bool IsActive { get; set; } = true;
 
         public string PreferredCurrencyCode { get; set; } = "";
+
+        [System.ComponentModel.DataAnnotations.Range(5, int.MaxValue, ErrorMessage = "Login timeout must be at least 5 minutes.")]
+        public int LoginTimeoutMinutes { get; set; } = 480;
     }
 }

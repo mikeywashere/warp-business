@@ -5,9 +5,9 @@ namespace WarpBusiness.Web.Services;
 
 // DTOs
 public record UserTenantResponse(Guid TenantId, string TenantName, string TenantSlug);
-public record TenantResponse(Guid Id, string Name, string Slug, bool IsActive, DateTime CreatedAt, string? PreferredCurrencyCode);
-public record CreateTenantRequest(string Name, string Slug, string? PreferredCurrencyCode);
-public record UpdateTenantRequest(string Name, string Slug, bool IsActive, string? PreferredCurrencyCode);
+public record TenantResponse(Guid Id, string Name, string Slug, bool IsActive, DateTime CreatedAt, string? PreferredCurrencyCode, int LoginTimeoutMinutes = 480);
+public record CreateTenantRequest(string Name, string Slug, string? PreferredCurrencyCode, int LoginTimeoutMinutes = 480);
+public record UpdateTenantRequest(string Name, string Slug, bool IsActive, string? PreferredCurrencyCode, int LoginTimeoutMinutes = 480);
 public record AddTenantMemberRequest(Guid UserId);
 public record TenantMemberResponse(Guid UserId, string FirstName, string LastName, string Email, string Role, DateTime JoinedAt);
 
