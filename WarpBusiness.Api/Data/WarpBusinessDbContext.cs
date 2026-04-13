@@ -12,6 +12,7 @@ public class WarpBusinessDbContext : DbContext
     public DbSet<ApplicationUser> Users => Set<ApplicationUser>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<UserTenantMembership> UserTenantMemberships => Set<UserTenantMembership>();
+    public DbSet<Currency> Currencies => Set<Currency>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -32,12 +33,27 @@ public class WarpBusinessDbContext : DbContext
             entity.Property(e => e.KeycloakSubjectId).HasMaxLength(256);
         });
 
+        modelBuilder.Entity<Currency>(entity =>
+        {
+            entity.HasKey(e => e.Code);
+            entity.Property(e => e.Code).HasMaxLength(3).IsFixedLength();
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Symbol).HasMaxLength(10);
+            entity.Property(e => e.NumericCode).HasMaxLength(3);
+        });
+
         modelBuilder.Entity<Tenant>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.Slug).IsUnique();
             entity.Property(e => e.Name).HasMaxLength(200);
             entity.Property(e => e.Slug).HasMaxLength(100);
+            entity.Property(e => e.PreferredCurrencyCode).HasMaxLength(3);
+
+            entity.HasOne(e => e.PreferredCurrency)
+                .WithMany()
+                .HasForeignKey(e => e.PreferredCurrencyCode)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<UserTenantMembership>(entity =>

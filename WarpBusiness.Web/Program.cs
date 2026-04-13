@@ -104,6 +104,9 @@ builder.Services.AddHttpClient<TenantApiClient>(configureApiClient)
 builder.Services.AddHttpClient<EmployeeApiClient>(configureApiClient)
     .AddHttpMessageHandler<AuthTokenHandler>();
 
+builder.Services.AddHttpClient<CurrencyApiClient>(configureApiClient)
+    .AddHttpMessageHandler<AuthTokenHandler>();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
