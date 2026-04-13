@@ -147,7 +147,7 @@ else
                                 <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(tenant)" title="Edit">
                                     Edit
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(tenant)" title="Delete">
+                                <button class="btn btn-sm btn-outline-danger me-1" @onclick="() => ConfirmDelete(tenant)" title="Delete">
                                     Delete
                                 </button>
                             </td>
@@ -157,7 +157,7 @@ else
                         @if (expandedTenantId == tenant.Id)
                         {
                             <tr>
-                                <td colspan="5">
+                                <td colspan="6">
                                     <div class="card border-info">
                                         <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
                                             <strong>Members of @tenant.Name</strong>
@@ -238,7 +238,7 @@ else
                                                         else
                                                         {
                                                             <tr>
-                                                                <td colspan="5" class="text-center text-muted py-3">No members.</td>
+                                                                <td colspan="6" class="text-center text-muted py-3">No members.</td>
                                                             </tr>
                                                         }
                                                     </tbody>
@@ -254,7 +254,7 @@ else
                 else
                 {
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">No tenants found.</td>
+                        <td colspan="6" class="text-center text-muted py-4">No tenants found.</td>
                     </tr>
                 }
             </tbody>
