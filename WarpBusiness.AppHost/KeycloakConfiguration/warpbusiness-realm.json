@@ -1,6 +1,8 @@
 {
   "realm": "warpbusiness",
   "enabled": true,
+  "loginTheme": "warp",
+  "accountTheme": "warp",
   "sslRequired": "external",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
