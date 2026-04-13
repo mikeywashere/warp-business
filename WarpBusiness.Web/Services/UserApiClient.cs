@@ -13,7 +13,8 @@ public record UserResponse(
     string Email,
     [property: JsonPropertyName("role")] string RoleName,
     DateTime CreatedAt,
-    List<UserTenantInfo>? Tenants = null);
+    List<UserTenantInfo>? Tenants = null,
+    Guid? LinkedEmployeeId = null);
 
 public record CreateUserRequest(
     string FirstName,

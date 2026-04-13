@@ -5,6 +5,7 @@ using WarpBusiness.Api.Models;
 using WarpBusiness.Api.Services;
 using WarpBusiness.Employees.Data;
 using WarpBusiness.Employees.Endpoints;
+using WarpBusiness.Employees.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,8 @@ builder.AddServiceDefaults();
 // PostgreSQL + Entity Framework Core
 builder.AddNpgsqlDbContext<WarpBusinessDbContext>("warpdb");
 builder.AddNpgsqlDbContext<EmployeeDbContext>("warpdb");
+
+builder.Services.AddScoped<IUserValidator, UserValidator>();
 
 // Keycloak JWT Bearer authentication
 builder.Services.AddAuthentication()
@@ -246,6 +249,9 @@ app.MapTenantEndpoints();
 
 // Employee management API endpoints
 app.MapEmployeeEndpoints();
+
+// Employee-User linking API endpoints
+app.MapEmployeeUserEndpoints();
 
 var summaries = new[]
 {

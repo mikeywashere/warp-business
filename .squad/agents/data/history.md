@@ -202,3 +202,26 @@
   - `WarpBusiness.Employees/Endpoints/EmployeeEndpoints.cs` — minimal API endpoints
   - `WarpBusiness.Employees/Data/Migrations/` — InitialCreate migration
 - **PR:** #15
+
+### Employee-User Account Linking (2026-04-13)
+
+- **Feature:** Link Employee and User accounts with `once linked, always linked` semantics
+- **Architecture decisions:**
+  - New `EmployeeUserEndpoints.cs` in `WarpBusiness.Api/Endpoints/` — combined endpoints needing both DbContexts
+  - Both `WarpBusinessDbContext` (warp schema) and `EmployeeDbContext` (employees schema) share the same PostgreSQL database via Aspire `warpdb`
+  - `KeycloakAdminService` extended with passwordless user creation (`CreateUserWithoutPasswordAsync`) and `SendRequiredActionsEmailAsync`
+  - Filtered unique index on `Employee.UserId` (`WHERE UserId IS NOT NULL`) enforces one-user-one-employee globally
+  - Email index changed from global unique to tenant-scoped (`Email + TenantId`)
+- **Data integrity rules:**
+  - Employee deletion blocked if `UserId` is set (400)
+  - User deletion blocked if any employee has that `UserId` (400)
+  - Once `Employee.UserId` is set, `UpdateEmployee` rejects changes to it (400)
+- **Key files:**
+  - `WarpBusiness.Api/Endpoints/EmployeeUserEndpoints.cs` — `/api/users/unlinked`, `/api/employees/with-user`, `/api/employees/{id}/with-user`, `/api/employees/by-user/{userId}`
+  - `WarpBusiness.Api/Models/EmployeeUserDtos.cs` — `CreateEmployeeWithUserRequest`, `UpdateEmployeeWithUserRequest`
+  - `WarpBusiness.Api/Services/KeycloakAdminService.cs` — added `CreateUserWithoutPasswordAsync`, `SendRequiredActionsEmailAsync`
+  - `WarpBusiness.Api/Endpoints/UserEndpoints.cs` — `LinkedEmployeeId` added to responses, delete blocked if linked
+  - `WarpBusiness.Api/Models/UserDtos.cs` — `UserResponse` and `UserWithTenantsResponse` include `LinkedEmployeeId`
+  - `WarpBusiness.Employees/Endpoints/EmployeeEndpoints.cs` — immutability guard on `UserId`, delete blocked if linked
+  - `WarpBusiness.Employees/Data/EmployeeDbContext.cs` — new indexes
+  - Migration: `AddUserIdUniqueAndTenantScopedEmail`

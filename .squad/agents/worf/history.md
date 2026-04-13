@@ -28,3 +28,15 @@
 - For email-fallback tests, seed a user with empty `KeycloakSubjectId` and use a principal whose `sub` won't match but whose `email` will — no Keycloak mock responses needed since the endpoint skips Keycloak when KeycloakSubjectId is empty
 - **Test Results:** All 56 tests passing (48 existing + 4 new profile update tests)
 - **Status:** ✅ Complete. Feature fully tested and ready for integration.
+
+### 2026-04-11: Employee-User Linking Test Suite Created
+
+- Created `WarpBusiness.Api.Tests/Endpoints/EmployeeUserLinkingTests.cs` — 22 unit tests covering data integrity, link validation, deletion blocking, unlinked users endpoint, create-with-user, update-with-user, and by-user lookup
+- Created `WarpBusiness.Web.Tests/Tests/EmployeeUserLinkingE2ETests.cs` — 4 E2E tests for user account section, chevron expand, link indicator, and edit-redirect behavior
+- **FluentAssertions 8.x** changed `BeOneOf` API — use `.Match(s => s == X || s == Y)` for nullable numeric assertions with reason strings
+- **Reflection-based testing for not-yet-implemented endpoints**: Use `GetMethod()` with null-check + `Assert.Fail()` to produce clear messages when Data hasn't created the endpoint yet, rather than NullReferenceException
+- **Dynamic argument builder**: `BuildEndpointArgs()` matches parameters by type for flexibility when Data's method signatures aren't finalized. This avoids needing exact parameter order
+- **Both DbContexts share the same PostgreSQL testcontainer** — EmployeeDbContext uses `employees` schema, WarpBusinessDbContext uses `warp` schema
+- Tests that need cross-schema data (e.g., DeleteUser_BlockedWhenLinkedToEmployee) seed data in both contexts independently
+- **Key edge case identified**: `UpdateEmployee_CanSetUserIdFromNull` accepts both 200 and 400 because the null→value transition is valid per the immutability rule, but may fail user-existence validation
+- **Status:** ✅ Tests compile. Awaiting Data's backend implementation for runtime verification.

@@ -62,7 +62,7 @@ public class MigrationTests
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = """
             SELECT table_name FROM information_schema.tables 
-            WHERE table_schema = 'public' 
+            WHERE table_schema = 'warp' 
             AND table_name IN ('Users', 'Tenants', 'UserTenantMemberships')
             ORDER BY table_name;
             """;

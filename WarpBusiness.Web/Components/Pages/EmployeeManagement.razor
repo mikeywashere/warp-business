@@ -4,10 +4,27 @@
 @using WarpBusiness.Web.Services
 @inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject EmployeeApiClient EmployeeApi
+@inject NavigationManager Navigation
 
 <PageTitle>Employee Management</PageTitle>
 
 <h1 class="mb-4">Employee Management</h1>
+
+<style>
+    .chevron-toggle {
+        display: inline-block;
+        transition: transform 0.2s ease;
+        cursor: pointer;
+    }
+    .chevron-toggle.expanded {
+        transform: rotate(90deg);
+    }
+    .user-dropdown-list {
+        z-index: 1050;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+</style>
 
 <AuthorizeView>
     <Authorized Context="authContext">
@@ -121,6 +138,106 @@
                                 </div>
                             </div>
 
+                            @* User Account Section *@
+                            @if (editingEmployeeId.HasValue && editingEmployeeHasUser)
+                            {
+                                @* Combined edit: show role for linked user *@
+                                <hr class="my-4" />
+                                <h6 class="text-muted mb-3">Linked User Account</h6>
+                                <div class="alert alert-info py-2 mb-3">
+                                    <small>Changes to name and email will update both the employee record and user account.</small>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Role</label>
+                                        <InputSelect @bind-Value="formModel.UserRole" class="form-select">
+                                            <option value="User">User</option>
+                                            <option value="SystemAdministrator">System Administrator</option>
+                                        </InputSelect>
+                                    </div>
+                                </div>
+                            }
+                            else if (!editingEmployeeId.HasValue)
+                            {
+                                @* Add mode: user account section *@
+                                <hr class="my-4" />
+                                <h6 class="text-muted mb-3">User Account (Optional)</h6>
+
+                                @if (isLoadingUnlinkedUsers)
+                                {
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                                        <span class="text-muted">Loading available users…</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @* Link to Existing User dropdown *@
+                                    <div class="mb-3">
+                                        <label class="form-label">Link to Existing User</label>
+                                        <div class="position-relative">
+                                            <div class="input-group">
+                                                <input type="text" class="form-control"
+                                                       placeholder="Search users to link..."
+                                                       value="@userSearchText"
+                                                       @onfocus="() => showUserDropdown = true"
+                                                       @onblur="HandleUserSearchBlur"
+                                                       @oninput="FilterUnlinkedUsers"
+                                                       disabled="@formModel.CreateNewUser" />
+                                                @if (formModel.LinkedUserId.HasValue)
+                                                {
+                                                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearLinkedUser" title="Clear selection">✕</button>
+                                                }
+                                            </div>
+                                            @if (showUserDropdown && filteredUnlinkedUsers.Count > 0 && !formModel.LinkedUserId.HasValue)
+                                            {
+                                                <ul class="list-group position-absolute w-100 shadow user-dropdown-list">
+                                                    @foreach (var user in filteredUnlinkedUsers)
+                                                    {
+                                                        <li class="list-group-item list-group-item-action"
+                                                            @onmousedown="() => SelectLinkedUser(user)"
+                                                            @onmousedown:preventDefault>
+                                                            @user.FirstName @user.LastName (@user.Email)
+                                                        </li>
+                                                    }
+                                                </ul>
+                                            }
+                                            @if (formModel.LinkedUserId.HasValue)
+                                            {
+                                                <small class="text-success">✓ Will link to this user account</small>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    @* Create New User Account expandable section *@
+                                    <div class="mb-3">
+                                        <div class="@(formModel.LinkedUserId.HasValue ? "text-muted" : "")"
+                                             @onclick="ToggleCreateNewUser"
+                                             style="cursor: @(formModel.LinkedUserId.HasValue ? "default" : "pointer");">
+                                            <span class="chevron-toggle @(formModel.CreateNewUser ? "expanded" : "")">▶</span>
+                                            <strong class="ms-1">Create New User Account</strong>
+                                        </div>
+                                        @if (formModel.CreateNewUser && !formModel.LinkedUserId.HasValue)
+                                        {
+                                            <div class="mt-2 ms-4">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <label class="form-label">Role</label>
+                                                        <InputSelect @bind-Value="formModel.UserRole" class="form-select">
+                                                            <option value="User">User</option>
+                                                            <option value="SystemAdministrator">System Administrator</option>
+                                                        </InputSelect>
+                                                    </div>
+                                                </div>
+                                                <p class="text-muted small mt-2 mb-0">
+                                                    A "set password" email will be sent to the employee's email address.
+                                                </p>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+
                             <div class="mt-3">
                                 <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
                                     @if (isSubmitting)
@@ -159,6 +276,7 @@
                             <th>Status</th>
                             <th>Type</th>
                             <th>Hire Date</th>
+                            <th>User Account</th>
                             <th style="width: 150px;">Actions</th>
                         </tr>
                     </thead>
@@ -185,6 +303,16 @@
                                     </td>
                                     <td>@emp.HireDate.ToString("yyyy-MM-dd")</td>
                                     <td>
+                                        @if (emp.UserId.HasValue)
+                                        {
+                                            <span class="badge bg-primary">🔗 Linked</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
                                         <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(emp)" title="Edit">
                                             Edit
                                         </button>
@@ -198,7 +326,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4">No employees found.</td>
+                                <td colspan="10" class="text-center text-muted py-4">No employees found.</td>
                             </tr>
                         }
                     </tbody>
@@ -250,14 +378,35 @@
     private bool showForm;
     private bool showDeleteConfirm;
     private Guid? editingEmployeeId;
+    private bool editingEmployeeHasUser;
     private EmployeeResponse? deletingEmployee;
     private string? errorMessage;
     private string? successMessage;
     private EmployeeFormModel formModel = new();
 
+    // User linking state
+    private List<UserResponse> unlinkedUsers = [];
+    private List<UserResponse> filteredUnlinkedUsers = [];
+    private string userSearchText = "";
+    private bool showUserDropdown;
+    private bool isLoadingUnlinkedUsers;
+
+    [SupplyParameterFromQuery(Name = "edit")]
+    public string? EditEmployeeId { get; set; }
+
     protected override async Task OnAuthenticatedInitializedAsync()
     {
         await LoadEmployees();
+
+        // Support /employees?edit={id} deep link
+        if (!string.IsNullOrEmpty(EditEmployeeId) && Guid.TryParse(EditEmployeeId, out var editId))
+        {
+            var emp = employees?.FirstOrDefault(e => e.Id == editId);
+            if (emp != null)
+            {
+                ShowEditForm(emp);
+            }
+        }
     }
 
     private async Task LoadEmployees()
@@ -278,17 +427,38 @@
         }
     }
 
-    private void ShowAddForm()
+    private async Task ShowAddForm()
     {
         editingEmployeeId = null;
+        editingEmployeeHasUser = false;
         formModel = new EmployeeFormModel();
         showForm = true;
         ClearMessages();
+
+        // Load unlinked users for the dropdown
+        isLoadingUnlinkedUsers = true;
+        StateHasChanged();
+        try
+        {
+            unlinkedUsers = await EmployeeApi.GetUnlinkedUsersAsync();
+            filteredUnlinkedUsers = unlinkedUsers;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load available users: {ex.Message}";
+            unlinkedUsers = [];
+            filteredUnlinkedUsers = [];
+        }
+        finally
+        {
+            isLoadingUnlinkedUsers = false;
+        }
     }
 
     private void ShowEditForm(EmployeeResponse emp)
     {
         editingEmployeeId = emp.Id;
+        editingEmployeeHasUser = emp.UserId.HasValue;
         formModel = new EmployeeFormModel
         {
             FirstName = emp.FirstName,
@@ -302,7 +472,8 @@
             Department = emp.Department ?? "",
             JobTitle = emp.JobTitle ?? "",
             EmploymentStatus = emp.EmploymentStatus,
-            EmploymentType = emp.EmploymentType
+            EmploymentType = emp.EmploymentType,
+            UserRole = "User"
         };
         showForm = true;
         ClearMessages();
@@ -312,7 +483,10 @@
     {
         showForm = false;
         editingEmployeeId = null;
+        editingEmployeeHasUser = false;
         formModel = new EmployeeFormModel();
+        userSearchText = "";
+        showUserDropdown = false;
     }
 
     private async Task HandleFormSubmit()
@@ -324,45 +498,95 @@
         {
             if (editingEmployeeId.HasValue)
             {
-                await EmployeeApi.UpdateEmployeeAsync(editingEmployeeId.Value, new UpdateEmployeeRequest(
-                    formModel.FirstName,
-                    formModel.LastName,
-                    string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
-                    formModel.Email,
-                    string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
-                    formModel.DateOfBirth,
-                    formModel.HireDate,
-                    formModel.TerminationDate,
-                    string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
-                    string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
-                    null,
-                    formModel.EmploymentStatus,
-                    formModel.EmploymentType,
-                    null));
-                successMessage = "Employee updated successfully.";
+                if (editingEmployeeHasUser)
+                {
+                    // Combined update: employee + linked user
+                    await EmployeeApi.UpdateEmployeeWithUserAsync(editingEmployeeId.Value, new UpdateEmployeeWithUserRequest(
+                        formModel.FirstName,
+                        formModel.LastName,
+                        string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
+                        formModel.Email,
+                        string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
+                        formModel.DateOfBirth,
+                        formModel.HireDate,
+                        formModel.TerminationDate,
+                        string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
+                        string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
+                        null,
+                        formModel.EmploymentStatus,
+                        formModel.EmploymentType,
+                        formModel.UserRole));
+                    successMessage = "Employee and linked user account updated successfully.";
+                }
+                else
+                {
+                    await EmployeeApi.UpdateEmployeeAsync(editingEmployeeId.Value, new UpdateEmployeeRequest(
+                        formModel.FirstName,
+                        formModel.LastName,
+                        string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
+                        formModel.Email,
+                        string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
+                        formModel.DateOfBirth,
+                        formModel.HireDate,
+                        formModel.TerminationDate,
+                        string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
+                        string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
+                        null,
+                        formModel.EmploymentStatus,
+                        formModel.EmploymentType,
+                        null));
+                    successMessage = "Employee updated successfully.";
+                }
             }
             else
             {
-                await EmployeeApi.CreateEmployeeAsync(new CreateEmployeeRequest(
-                    formModel.FirstName,
-                    formModel.LastName,
-                    string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
-                    formModel.Email,
-                    string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
-                    formModel.DateOfBirth,
-                    formModel.HireDate,
-                    string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
-                    string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
-                    null,
-                    formModel.EmploymentStatus,
-                    formModel.EmploymentType,
-                    null));
-                successMessage = "Employee created successfully.";
+                if (formModel.CreateNewUser)
+                {
+                    // Create employee with new user account
+                    await EmployeeApi.CreateEmployeeWithUserAsync(new CreateEmployeeWithUserRequest(
+                        formModel.FirstName,
+                        formModel.LastName,
+                        string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
+                        formModel.Email,
+                        string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
+                        formModel.DateOfBirth,
+                        formModel.HireDate,
+                        string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
+                        string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
+                        null,
+                        formModel.EmploymentStatus,
+                        formModel.EmploymentType,
+                        formModel.UserRole));
+                    successMessage = "Employee created with new user account. A 'set password' email will be sent.";
+                }
+                else
+                {
+                    // Create employee, optionally linked to existing user
+                    await EmployeeApi.CreateEmployeeAsync(new CreateEmployeeRequest(
+                        formModel.FirstName,
+                        formModel.LastName,
+                        string.IsNullOrWhiteSpace(formModel.MiddleName) ? null : formModel.MiddleName,
+                        formModel.Email,
+                        string.IsNullOrWhiteSpace(formModel.Phone) ? null : formModel.Phone,
+                        formModel.DateOfBirth,
+                        formModel.HireDate,
+                        string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
+                        string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
+                        null,
+                        formModel.EmploymentStatus,
+                        formModel.EmploymentType,
+                        formModel.LinkedUserId));
+                    successMessage = formModel.LinkedUserId.HasValue
+                        ? "Employee created and linked to existing user account."
+                        : "Employee created successfully.";
+                }
             }
 
             showForm = false;
             editingEmployeeId = null;
+            editingEmployeeHasUser = false;
             formModel = new EmployeeFormModel();
+            userSearchText = "";
             await LoadEmployees();
         }
         catch (ApiException ex)
@@ -414,6 +638,54 @@
         {
             isSubmitting = false;
         }
+    }
+
+    // User linking helpers
+    private void FilterUnlinkedUsers(ChangeEventArgs e)
+    {
+        userSearchText = e.Value?.ToString() ?? "";
+        filteredUnlinkedUsers = string.IsNullOrWhiteSpace(userSearchText)
+            ? unlinkedUsers
+            : unlinkedUsers.Where(u =>
+                $"{u.FirstName} {u.LastName} {u.Email}".Contains(userSearchText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        showUserDropdown = true;
+        formModel.LinkedUserId = null;
+    }
+
+    private void SelectLinkedUser(UserResponse user)
+    {
+        formModel.LinkedUserId = user.Id;
+        userSearchText = $"{user.FirstName} {user.LastName} ({user.Email})";
+        showUserDropdown = false;
+        // Mutual exclusion: selecting existing user clears create-new
+        formModel.CreateNewUser = false;
+    }
+
+    private void ClearLinkedUser()
+    {
+        formModel.LinkedUserId = null;
+        userSearchText = "";
+        showUserDropdown = false;
+    }
+
+    private void ToggleCreateNewUser()
+    {
+        if (formModel.LinkedUserId.HasValue) return; // disabled when user is selected
+        formModel.CreateNewUser = !formModel.CreateNewUser;
+        if (formModel.CreateNewUser)
+        {
+            // Mutual exclusion: expanding create clears linked user
+            formModel.LinkedUserId = null;
+            userSearchText = "";
+            formModel.UserRole = "User";
+        }
+    }
+
+    private async Task HandleUserSearchBlur()
+    {
+        await Task.Delay(200);
+        showUserDropdown = false;
     }
 
     private void ClearMessages()
@@ -476,5 +748,10 @@
 
         [System.ComponentModel.DataAnnotations.Required]
         public string EmploymentType { get; set; } = "";
+
+        // User account linking fields
+        public Guid? LinkedUserId { get; set; }
+        public bool CreateNewUser { get; set; }
+        public string UserRole { get; set; } = "User";
     }
 }

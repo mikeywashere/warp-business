@@ -22,7 +22,8 @@ public class EmployeeDbContext : DbContext
             entity.HasKey(e => e.Id);
 
             entity.HasIndex(e => new { e.EmployeeNumber, e.TenantId }).IsUnique();
-            entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => new { e.Email, e.TenantId }).IsUnique();
+            entity.HasIndex(e => e.UserId).IsUnique().HasFilter("\"UserId\" IS NOT NULL");
             entity.HasIndex(e => e.TenantId);
 
             entity.Property(e => e.EmployeeNumber).HasMaxLength(50);

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using WarpBusiness.Employees.Data;
 using WarpBusiness.Employees.Models;
+using WarpBusiness.Employees.Services;
 
 namespace WarpBusiness.Employees.Endpoints;
 
@@ -73,6 +74,7 @@ public static class EmployeeEndpoints
         [FromBody] CreateEmployeeRequest request,
         HttpContext httpContext,
         EmployeeDbContext db,
+        IUserValidator userValidator,
         CancellationToken cancellationToken)
     {
         var tenantId = httpContext.Items["TenantId"] as Guid?;
@@ -91,6 +93,19 @@ public static class EmployeeEndpoints
                 e => e.Id == request.ManagerId.Value && e.TenantId == tenantId.Value, cancellationToken);
             if (!managerExists)
                 return Results.BadRequest(new { message = "The specified manager does not exist in this tenant." });
+        }
+
+        // Validate UserId if specified
+        if (request.UserId.HasValue)
+        {
+            if (!await userValidator.UserExistsAsync(request.UserId.Value, cancellationToken))
+                return Results.BadRequest(new { message = "The specified user does not exist." });
+
+            if (!await userValidator.UserBelongsToTenantAsync(request.UserId.Value, tenantId.Value, cancellationToken))
+                return Results.BadRequest(new { message = "The specified user does not belong to this tenant." });
+
+            if (await db.Employees.AnyAsync(e => e.UserId == request.UserId.Value, cancellationToken))
+                return Results.Conflict(new { message = "The specified user is already linked to an employee." });
         }
 
         var employee = new Employee
@@ -171,6 +186,10 @@ public static class EmployeeEndpoints
         employee.ManagerId = request.ManagerId;
         employee.EmploymentStatus = request.EmploymentStatus;
         employee.EmploymentType = request.EmploymentType;
+        // Once linked, UserId cannot be changed
+        if (employee.UserId.HasValue && request.UserId != employee.UserId)
+            return Results.BadRequest(new { message = "This employee is linked to a user account. The link cannot be changed." });
+
         employee.UserId = request.UserId;
         employee.UpdatedAt = DateTime.UtcNow;
 
@@ -194,6 +213,9 @@ public static class EmployeeEndpoints
 
         if (employee is null)
             return Results.NotFound();
+
+        if (employee.UserId.HasValue)
+            return Results.BadRequest(new { message = "This employee is linked to a user account and cannot be deleted." });
 
         db.Employees.Remove(employee);
         await db.SaveChangesAsync(cancellationToken);
