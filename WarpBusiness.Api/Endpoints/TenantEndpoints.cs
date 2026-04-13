@@ -120,6 +120,7 @@ public static class TenantEndpoints
             Id = Guid.NewGuid(),
             Name = request.Name,
             Slug = request.Slug,
+            PreferredCurrencyCode = request.PreferredCurrencyCode,
             IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -150,6 +151,7 @@ public static class TenantEndpoints
         tenant.Name = request.Name;
         tenant.Slug = request.Slug;
         tenant.IsActive = request.IsActive;
+        tenant.PreferredCurrencyCode = request.PreferredCurrencyCode;
         tenant.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -336,7 +338,7 @@ public static class TenantEndpoints
     }
 
     private static TenantResponse ToResponse(Tenant tenant) =>
-        new(tenant.Id, tenant.Name, tenant.Slug, tenant.IsActive, tenant.CreatedAt);
+        new(tenant.Id, tenant.Name, tenant.Slug, tenant.IsActive, tenant.CreatedAt, tenant.PreferredCurrencyCode);
 }
 
 public record SetActiveTenantRequest(Guid TenantId);

@@ -1,0 +1,228 @@
+@page "/currencies"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "SystemAdministrator")]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject CurrencyApiClient CurrencyApi
+
+<PageTitle>Currency Management</PageTitle>
+
+<h1 class="mb-4">Currency Management</h1>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @errorMessage
+        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @successMessage
+        <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+    </div>
+}
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h5 class="mb-0 d-inline">Currencies (@(FilteredCurrencies?.Count() ?? 0) of @(currencies?.Count ?? 0))</h5>
+        </div>
+        <div class="d-flex gap-2">
+            <div class="input-group" style="width: 300px;">
+                <span class="input-group-text">🔍</span>
+                <input type="text" class="form-control" placeholder="Search currencies..."
+                       @bind="searchText" @bind:event="oninput" />
+                @if (!string.IsNullOrEmpty(searchText))
+                {
+                    <button class="btn btn-outline-secondary" @onclick="() => searchText = string.Empty">✕</button>
+                }
+            </div>
+            <select class="form-select" style="width: 150px;" @bind="statusFilter">
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
+            <button class="btn btn-outline-info" @onclick="RefreshFromSource" disabled="@isRefreshing">
+                @if (isRefreshing)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                }
+                ↻ Refresh List
+            </button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Symbol</th>
+                    <th>Numeric</th>
+                    <th>Decimals</th>
+                    <th>Status</th>
+                    <th style="width: 100px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (FilteredCurrencies?.Any() == true)
+                {
+                    @foreach (var currency in FilteredCurrencies)
+                    {
+                        <tr class="@(currency.IsActive ? "" : "table-secondary")">
+                            <td><strong>@currency.Code</strong></td>
+                            <td>@currency.Name</td>
+                            <td>@(currency.Symbol ?? "—")</td>
+                            <td>@(currency.NumericCode ?? "—")</td>
+                            <td>@(currency.MinorUnit?.ToString() ?? "—")</td>
+                            <td>
+                                <span class="badge @(currency.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(currency.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                            <td>
+                                @if (currency.IsActive)
+                                {
+                                    <button class="btn btn-sm btn-outline-warning"
+                                            @onclick="() => ToggleActive(currency.Code, false)"
+                                            disabled="@isSubmitting" title="Deactivate">
+                                        Deactivate
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="btn btn-sm btn-outline-success"
+                                            @onclick="() => ToggleActive(currency.Code, true)"
+                                            disabled="@isSubmitting" title="Activate">
+                                        Activate
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            @if (!string.IsNullOrEmpty(searchText))
+                            {
+                                <span>No currencies match your search.</span>
+                            }
+                            else
+                            {
+                                <span>No currencies found.</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<CurrencyResponse>? currencies;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool isRefreshing;
+    private string? errorMessage;
+    private string? successMessage;
+    private string searchText = "";
+    private string statusFilter = "all";
+
+    private IEnumerable<CurrencyResponse>? FilteredCurrencies => currencies?
+        .Where(c => statusFilter switch
+        {
+            "active" => c.IsActive,
+            "inactive" => !c.IsActive,
+            _ => true
+        })
+        .Where(c => string.IsNullOrEmpty(searchText)
+            || c.Code.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || c.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            || (c.Symbol is not null && c.Symbol.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        await LoadCurrencies();
+    }
+
+    private async Task LoadCurrencies()
+    {
+        isLoading = true;
+        try
+        {
+            currencies = await CurrencyApi.GetAllCurrenciesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load currencies: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ToggleActive(string code, bool active)
+    {
+        isSubmitting = true;
+        ClearMessages();
+
+        try
+        {
+            await CurrencyApi.UpdateCurrencyAsync(code, new UpdateCurrencyRequest(active));
+            successMessage = $"{code} {(active ? "activated" : "deactivated")} successfully.";
+            await LoadCurrencies();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to update {code}: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task RefreshFromSource()
+    {
+        isRefreshing = true;
+        ClearMessages();
+
+        try
+        {
+            var message = await CurrencyApi.RefreshCurrenciesAsync();
+            successMessage = message;
+            await LoadCurrencies();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Refresh failed: {ex.Message}";
+        }
+        finally
+        {
+            isRefreshing = false;
+        }
+    }
+
+    private void ClearMessages()
+    {
+        errorMessage = null;
+        successMessage = null;
+    }
+}

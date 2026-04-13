@@ -8,6 +8,8 @@ public class Tenant
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public string? PreferredCurrencyCode { get; set; } // ISO 4217 3-letter code
 
+    public Currency? PreferredCurrency { get; set; }
     public ICollection<UserTenantMembership> UserMemberships { get; set; } = [];
 }

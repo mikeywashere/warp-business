@@ -24,6 +24,7 @@ public class DbInitializer : IHostedService
         _logger.LogInformation("Database migrations applied.");
 
         await SeedDataAsync(dbContext, cancellationToken);
+        await SeedCurrenciesAsync(dbContext, cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -97,5 +98,21 @@ public class DbInitializer : IHostedService
             });
             await dbContext.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    private async Task SeedCurrenciesAsync(WarpBusinessDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var existingCount = await dbContext.Currencies.CountAsync(cancellationToken);
+        if (existingCount > 0)
+        {
+            _logger.LogInformation("Currencies already seeded ({Count} found), skipping.", existingCount);
+            return;
+        }
+
+        _logger.LogInformation("Seeding ISO 4217 currencies...");
+        var currencies = CurrencySeedData.GetAllCurrencies();
+        dbContext.Currencies.AddRange(currencies);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Seeded {Count} currencies.", currencies.Count);
     }
 }

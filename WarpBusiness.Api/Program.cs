@@ -173,6 +173,7 @@ app.Use(async (context, next) =>
     {
         "/api/users/me",
         "/api/tenants",
+        "/api/currencies",
         "/health",
         "/alive"
     };
@@ -252,6 +253,9 @@ app.MapEmployeeEndpoints();
 
 // Employee-User linking API endpoints
 app.MapEmployeeUserEndpoints();
+
+// Currency management API endpoints
+app.MapCurrencyEndpoints();
 
 var summaries = new[]
 {

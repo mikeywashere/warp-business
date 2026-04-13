@@ -155,7 +155,7 @@ public class TenantEndpointTests
     public async Task CreateTenant_Success()
     {
         await using var db = await CreateCleanContext();
-        var request = new CreateTenantRequest("New Corp", "new-corp");
+        var request = new CreateTenantRequest("New Corp", "new-corp", null);
 
         var result = await CallCreateTenant(db, request);
 
@@ -170,7 +170,7 @@ public class TenantEndpointTests
         await using var db = await CreateCleanContext();
         await SeedTestData(db);
 
-        var request = new CreateTenantRequest("Duplicate", "test-tenant");
+        var request = new CreateTenantRequest("Duplicate", "test-tenant", null);
 
         var result = await CallCreateTenant(db, request);
 
@@ -184,7 +184,7 @@ public class TenantEndpointTests
         await using var db = await CreateCleanContext();
         var (_, _, tenant) = await SeedTestData(db);
 
-        var request = new UpdateTenantRequest("Updated Name", "test-tenant", true);
+        var request = new UpdateTenantRequest("Updated Name", "test-tenant", true, null);
 
         var result = await CallUpdateTenant(db, tenant.Id, request);
 
@@ -202,7 +202,7 @@ public class TenantEndpointTests
         db.Tenants.Add(secondTenant);
         await db.SaveChangesAsync();
 
-        var request = new UpdateTenantRequest("Second", "test-tenant", true);
+        var request = new UpdateTenantRequest("Second", "test-tenant", true, null);
 
         var result = await CallUpdateTenant(db, secondTenant.Id, request);
 
