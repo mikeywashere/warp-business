@@ -40,3 +40,14 @@
 - Tests that need cross-schema data (e.g., DeleteUser_BlockedWhenLinkedToEmployee) seed data in both contexts independently
 - **Key edge case identified**: `UpdateEmployee_CanSetUserIdFromNull` accepts both 200 and 400 because the null→value transition is valid per the immutability rule, but may fail user-existence validation
 - **Status:** ✅ Tests compile. Awaiting Data's backend implementation for runtime verification.
+
+### 2026-04-11: Tenant List UI Regression Tests Added
+
+- Added 4 Playwright tests to `TenantManagementTests.cs` covering the PR #23 colspan/spacing fixes
+- **TenantTable_HasCurrencyColumnHeader**: Verifies 6 column headers exist and "Currency" is among them
+- **TenantTable_ShowsCurrencyDataForTenants**: Checks the 3rd column cell renders currency data or placeholder
+- **TenantTable_ColspanMatchesColumnCount**: Expands members panel, asserts `td[colspan="6"]` matches column count
+- **TenantTable_ActionButtonsHaveConsistentSpacing**: Asserts Members, Edit, and Delete buttons all have `me-1` class
+- Used `Regex(@"\bme-1\b")` with `ToHaveClassAsync` for precise CSS class matching
+- Playwright `Locator` with `:nth-child()` selectors used for column-position assertions
+- **Status:** ✅ Compiles. Requires live Aspire environment for runtime execution.
