@@ -225,3 +225,11 @@
   - `WarpBusiness.Employees/Endpoints/EmployeeEndpoints.cs` — immutability guard on `UserId`, delete blocked if linked
   - `WarpBusiness.Employees/Data/EmployeeDbContext.cs` — new indexes
   - Migration: `AddUserIdUniqueAndTenantScopedEmail`
+
+### Logout Redirect Fix (2026-04-13)
+
+- **Root cause:** `PostLogoutRedirectUri` was set to `"/"` (a relative path) in both the OIDC `OnRedirectToIdentityProviderForSignOut` event and the `/logout` endpoint's `AuthenticationProperties.RedirectUri`. Keycloak interpreted `"/"` as relative to itself, redirecting users to the Keycloak login page instead of back to the Warp web app.
+- **Fix:** Build absolute URLs from `HttpContext.Request` (`{scheme}://{host}/`) in both locations. This works dynamically regardless of the port Aspire assigns.
+- **Cleanup:** Removed all diagnostic `Console.WriteLine` statements from OIDC events, `/logout` endpoint, and startup configuration (7 statements total). Structured `ILogger` logging added previously is sufficient.
+- **Key principle:** When using an external identity provider (Keycloak, Auth0, etc.), always use absolute URIs for redirect parameters. Relative paths are interpreted relative to the IdP, not the app.
+- **Key file:** `WarpBusiness.Web/Program.cs`
