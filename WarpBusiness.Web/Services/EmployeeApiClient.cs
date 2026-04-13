@@ -56,6 +56,21 @@ public record UpdateEmployeeRequest(
     string EmploymentType,
     Guid? UserId);
 
+public record CreateEmployeeWithUserRequest(
+    string FirstName, string LastName, string? MiddleName,
+    string Email, string? Phone, DateOnly? DateOfBirth,
+    DateOnly HireDate, string? Department, string? JobTitle,
+    Guid? ManagerId, string EmploymentStatus, string EmploymentType,
+    string Role);
+
+public record UpdateEmployeeWithUserRequest(
+    string FirstName, string LastName, string? MiddleName,
+    string Email, string? Phone, DateOnly? DateOfBirth,
+    DateOnly HireDate, DateOnly? TerminationDate,
+    string? Department, string? JobTitle, Guid? ManagerId,
+    string EmploymentStatus, string EmploymentType,
+    string? Role);
+
 public class EmployeeApiClient
 {
     private readonly HttpClient _httpClient;
@@ -138,5 +153,53 @@ public class EmployeeApiClient
         using var msg = CreateRequest(HttpMethod.Delete, $"api/employees/{id}");
         var response = await _httpClient.SendAsync(msg);
         response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<List<UserResponse>> GetUnlinkedUsersAsync()
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/users/unlinked");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<UserResponse>>() ?? [];
+    }
+
+    public async Task<EmployeeResponse> CreateEmployeeWithUserAsync(CreateEmployeeWithUserRequest request)
+    {
+        using var msg = CreateRequest(HttpMethod.Post, "api/employees/with-user", JsonContent.Create(request));
+        var response = await _httpClient.SendAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("[EmployeeApiClient] CreateEmployeeWithUser failed with {StatusCode}: {Body}",
+                (int)response.StatusCode, body);
+            throw new ApiException((int)response.StatusCode, body);
+        }
+
+        return (await response.Content.ReadFromJsonAsync<EmployeeResponse>())!;
+    }
+
+    public async Task UpdateEmployeeWithUserAsync(Guid id, UpdateEmployeeWithUserRequest request)
+    {
+        using var msg = CreateRequest(HttpMethod.Put, $"api/employees/{id}/with-user", JsonContent.Create(request));
+        var response = await _httpClient.SendAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("[EmployeeApiClient] UpdateEmployeeWithUser failed with {StatusCode}: {Body}",
+                (int)response.StatusCode, body);
+            throw new ApiException((int)response.StatusCode, body);
+        }
+    }
+
+    public async Task<EmployeeResponse?> GetEmployeeByUserIdAsync(Guid userId)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/employees/by-user/{userId}");
+        var response = await _httpClient.SendAsync(request);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<EmployeeResponse>();
     }
 }

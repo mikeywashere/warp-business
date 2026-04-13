@@ -5,6 +5,7 @@
 @inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject UserApiClient UserApi
 @inject TenantApiClient TenantApi
+@inject NavigationManager Navigation
 
 <PageTitle>User Management</PageTitle>
 
@@ -184,6 +185,7 @@
                             <th>Email</th>
                             <th>Role</th>
                             <th>Tenants</th>
+                            <th>Employee Link</th>
                             <th>Created</th>
                             <th style="width: 150px;">Actions</th>
                         </tr>
@@ -214,11 +216,21 @@
                                             <span class="text-muted">—</span>
                                         }
                                     </td>
+                                    <td>
+                                        @if (user.LinkedEmployeeId.HasValue)
+                                        {
+                                            <span class="badge bg-primary">🔗 Linked</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
                                     <td>@user.CreatedAt.ToString("yyyy-MM-dd")</td>
                                     <td>
                                         <AuthorizeView Roles="SystemAdministrator">
                                             <Authorized>
-                                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(user)" title="Edit">
+                                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => HandleEditUser(user)" title="Edit">
                                                     Edit
                                                 </button>
                                                 <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(user)" title="Delete">
@@ -233,7 +245,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">No users found.</td>
+                                <td colspan="7" class="text-center text-muted py-4">No users found.</td>
                             </tr>
                         }
                     </tbody>
@@ -342,6 +354,19 @@
         };
         showForm = true;
         ClearMessages();
+    }
+
+    private void HandleEditUser(UserResponse user)
+    {
+        if (user.LinkedEmployeeId.HasValue)
+        {
+            // Redirect to combined edit in Employee Management
+            Navigation.NavigateTo($"/employees?edit={user.LinkedEmployeeId.Value}");
+        }
+        else
+        {
+            ShowEditForm(user);
+        }
     }
 
     private void CancelForm()

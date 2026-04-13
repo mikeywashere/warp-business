@@ -71,3 +71,15 @@
 - **PR #16:** Squash-merged to main.
 - **Status:** ✅ Complete and deployed.
 
+### Employee-User Account Linking — Frontend (2026-04-12)
+
+- **EmployeeApiClient**: Added `CreateEmployeeWithUserRequest`, `UpdateEmployeeWithUserRequest` DTOs and 4 new methods: `GetUnlinkedUsersAsync()`, `CreateEmployeeWithUserAsync()`, `UpdateEmployeeWithUserAsync()`, `GetEmployeeByUserIdAsync()`
+- **UserApiClient**: Added `LinkedEmployeeId` to `UserResponse` record
+- **EmployeeManagement.razor**: User Account section with mutual-exclusion UX (link existing user OR create new); combined edit view for linked employees with role field; `?edit={id}` query param deep-link support; "User Account" column with 🔗 badge in table; `EmployeeFormModel` extended with `LinkedUserId`, `CreateNewUser`, `UserRole` fields
+- **UserManagement.razor**: Edit button redirects to `/employees?edit={LinkedEmployeeId}` for linked users; "Employee Link" column with 🔗 badge in table
+- **Pattern**: Type-ahead dropdown for user search reuses same `@oninput` + `@onmousedown:preventDefault` + blur-delay pattern from tenant dropdown
+- **Pattern**: `[SupplyParameterFromQuery]` attribute for reading URL query params in Blazor Server pages
+- **Design**: Mutual exclusion between "Link Existing" and "Create New" — selecting one disables/clears the other
+- **Branch:** `feature/employee-user-linking`
+- **Status:** 🔧 Frontend complete, awaiting backend API endpoints
+

@@ -202,6 +202,77 @@ public class KeycloakAdminService
         return response.IsSuccessStatusCode;
     }
 
+    public async Task<KeycloakOperationResult> CreateUserWithoutPasswordAsync(string firstName, string lastName, string email, CancellationToken cancellationToken = default)
+    {
+        var request = await CreateAuthorizedRequest(HttpMethod.Post, $"/admin/realms/{Realm}/users", cancellationToken);
+
+        var userPayload = new
+        {
+            username = email,
+            firstName,
+            lastName,
+            email,
+            emailVerified = true,
+            enabled = true,
+            requiredActions = new[] { "UPDATE_PASSWORD" }
+        };
+
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(userPayload),
+            Encoding.UTF8,
+            "application/json");
+
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Failed to create Keycloak user (passwordless): {StatusCode} - {Error}", response.StatusCode, errorBody);
+
+            var errorMessage = ParseKeycloakErrorMessage(errorBody) ?? "Failed to create user in identity provider.";
+            return KeycloakOperationResult.Fail(response.StatusCode, errorMessage);
+        }
+
+        var locationHeader = response.Headers.Location?.ToString();
+        if (locationHeader is not null)
+        {
+            return KeycloakOperationResult.Ok(locationHeader.Split('/').Last());
+        }
+
+        var keycloakUser = await GetUserByEmailAsync(email, cancellationToken);
+        return keycloakUser?.Id is not null
+            ? KeycloakOperationResult.Ok(keycloakUser.Id)
+            : KeycloakOperationResult.Fail(HttpStatusCode.InternalServerError, "User was created in Keycloak but could not be located.");
+    }
+
+    public async Task<bool> SendRequiredActionsEmailAsync(string keycloakUserId, string[] actions, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var request = await CreateAuthorizedRequest(HttpMethod.Put, $"/admin/realms/{Realm}/users/{keycloakUserId}/execute-actions-email", cancellationToken);
+
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(actions),
+                Encoding.UTF8,
+                "application/json");
+
+            var response = await _httpClient.SendAsync(request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(cancellationToken);
+                _logger.LogWarning("Failed to send required actions email to Keycloak user {UserId}: {StatusCode} - {Error}", keycloakUserId, response.StatusCode, error);
+            }
+
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Exception sending required actions email to Keycloak user {UserId}", keycloakUserId);
+            return false;
+        }
+    }
+
     public async Task<bool> UpdateUserAsync(string keycloakUserId, string firstName, string lastName, string email, CancellationToken cancellationToken = default)
     {
         var request = await CreateAuthorizedRequest(HttpMethod.Put, $"/admin/realms/{Realm}/users/{keycloakUserId}", cancellationToken);

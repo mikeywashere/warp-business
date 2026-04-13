@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Models;
 using WarpBusiness.Api.Services;
+using WarpBusiness.Employees.Data;
 
 namespace WarpBusiness.Api.Endpoints;
 
@@ -119,6 +120,7 @@ public static class UserEndpoints
 
     private static async Task<IResult> GetAllUsers(
         WarpBusinessDbContext db,
+        EmployeeDbContext employeeDb,
         ClaimsPrincipal principal,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -135,7 +137,14 @@ public static class UserEndpoints
                 .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
                 .ToListAsync(cancellationToken);
 
-            var response = users.Select(u => ToResponseWithTenants(u)).ToList();
+            var userIds = users.Select(u => u.Id).ToList();
+            var linkedEmployees = await employeeDb.Employees
+                .Where(e => e.UserId.HasValue && userIds.Contains(e.UserId.Value))
+                .Select(e => new { e.UserId, e.Id })
+                .ToListAsync(cancellationToken);
+            var linkMap = linkedEmployees.ToDictionary(e => e.UserId!.Value, e => e.Id);
+
+            var response = users.Select(u => ToResponseWithTenants(u, linkMap.GetValueOrDefault(u.Id))).ToList();
             return Results.Ok(response);
         }
 
@@ -143,13 +152,11 @@ public static class UserEndpoints
         if (!isAdmin && tenantId is null)
             return Results.Ok(Array.Empty<UserResponse>());
 
-        // At this point, we either have a tenant context or we need to filter by it
         // With tenant context (admin or regular user): show only tenant members
         if (tenantId.HasValue)
         {
             if (isAdmin)
             {
-                // Admins: load users with full tenant memberships
                 var adminUsers = await db.UserTenantMemberships
                     .Where(m => m.TenantId == tenantId.Value)
                     .Include(m => m.User)
@@ -159,7 +166,14 @@ public static class UserEndpoints
                     .Select(m => m.User)
                     .ToListAsync(cancellationToken);
 
-                var adminResponse = adminUsers.Select(u => ToResponseWithTenants(u)).ToList();
+                var adminUserIds = adminUsers.Select(u => u.Id).ToList();
+                var adminLinked = await employeeDb.Employees
+                    .Where(e => e.UserId.HasValue && adminUserIds.Contains(e.UserId.Value))
+                    .Select(e => new { e.UserId, e.Id })
+                    .ToListAsync(cancellationToken);
+                var adminLinkMap = adminLinked.ToDictionary(e => e.UserId!.Value, e => e.Id);
+
+                var adminResponse = adminUsers.Select(u => ToResponseWithTenants(u, adminLinkMap.GetValueOrDefault(u.Id))).ToList();
                 return Results.Ok(adminResponse);
             }
 
@@ -168,13 +182,20 @@ public static class UserEndpoints
                 .Where(m => m.TenantId == tenantId.Value)
                 .Include(m => m.User)
                 .OrderBy(m => m.User.LastName).ThenBy(m => m.User.FirstName)
-                .Select(m => ToResponse(m.User))
+                .Select(m => m.User)
                 .ToListAsync(cancellationToken);
 
-            return Results.Ok(tenantUsers);
+            var tenantUserIds = tenantUsers.Select(u => u.Id).ToList();
+            var tenantLinked = await employeeDb.Employees
+                .Where(e => e.UserId.HasValue && tenantUserIds.Contains(e.UserId.Value))
+                .Select(e => new { e.UserId, e.Id })
+                .ToListAsync(cancellationToken);
+            var tenantLinkMap = tenantLinked.ToDictionary(e => e.UserId!.Value, e => e.Id);
+
+            var tenantResponse = tenantUsers.Select(u => ToResponse(u, tenantLinkMap.GetValueOrDefault(u.Id))).ToList();
+            return Results.Ok(tenantResponse);
         }
 
-        // This should never be reached, but return empty as fallback
         return Results.Ok(Array.Empty<UserResponse>());
     }
 
@@ -337,12 +358,18 @@ public static class UserEndpoints
     private static async Task<IResult> DeleteUser(
         Guid id,
         WarpBusinessDbContext db,
+        EmployeeDbContext employeeDb,
         KeycloakAdminService keycloakAdmin,
         CancellationToken cancellationToken)
     {
         var user = await db.Users.FindAsync([id], cancellationToken);
         if (user is null)
             return Results.NotFound();
+
+        // Block deletion if linked to an employee
+        var isLinked = await employeeDb.Employees.AnyAsync(e => e.UserId == id, cancellationToken);
+        if (isLinked)
+            return Results.BadRequest(new { message = "This user is linked to an employee record and cannot be deleted." });
 
         // Delete from Keycloak if we have their subject ID
         if (!string.IsNullOrEmpty(user.KeycloakSubjectId))
@@ -356,10 +383,10 @@ public static class UserEndpoints
         return Results.NoContent();
     }
 
-    private static UserResponse ToResponse(ApplicationUser user) =>
-        new(user.Id, user.FirstName, user.LastName, user.Email, user.Role, user.CreatedAt);
+    private static UserResponse ToResponse(ApplicationUser user, Guid? linkedEmployeeId = null) =>
+        new(user.Id, user.FirstName, user.LastName, user.Email, user.Role, user.CreatedAt, linkedEmployeeId);
 
-    private static UserWithTenantsResponse ToResponseWithTenants(ApplicationUser user)
+    private static UserWithTenantsResponse ToResponseWithTenants(ApplicationUser user, Guid? linkedEmployeeId = null)
     {
         var tenants = user.TenantMemberships
             .Select(m => new UserTenantInfo(m.TenantId, m.Tenant.Name))
@@ -372,7 +399,8 @@ public static class UserEndpoints
             user.Email,
             user.Role,
             user.CreatedAt,
-            tenants);
+            tenants,
+            linkedEmployeeId);
     }
 
     private static bool IsSystemAdministrator(ClaimsPrincipal principal)
