@@ -128,3 +128,14 @@
 - **File:** `WarpBusiness.Web/Components/Pages/TenantManagement.razor`
 - **Status:** ✅ Complete
 
+### Login Timeout Field — Tenant Form (2026-04-13)
+
+- **DTOs:** Added `LoginTimeoutMinutes` (int, default 480) to `TenantResponse`, `CreateTenantRequest`, `UpdateTenantRequest` in `TenantApiClient.cs`
+- **Form field:** Numeric input "Login Timeout (minutes)" with min=5 validation, placed in `col-md-6` alongside currency field
+- **Live duration display:** `FormatDuration()` helper renders human-readable text below the input (e.g., "8 hours", "1 1/2 hours", "1 day") — updates as user types via Blazor binding
+- **Table column:** Added "Login Timeout" column to tenant list table (between Currency and Status), displays formatted duration in `text-muted` style
+- **Colspan audit:** Updated outer table colspans from 6 → 7 (members panel + empty state); inner members table colspan unchanged at 6
+- **Pattern:** `FormatDuration` handles minutes, hours, half-hours, days, and compound durations
+- **File:** `WarpBusiness.Web/Components/Pages/TenantManagement.razor`, `WarpBusiness.Web/Services/TenantApiClient.cs`
+- **Status:** ✅ Complete — build passes
+

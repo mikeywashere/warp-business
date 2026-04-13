@@ -16,7 +16,15 @@ builder.Services.AddAuthentication(options =>
     options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
 })
-.AddCookie()
+.AddCookie(options =>
+{
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+    options.Cookie.MaxAge = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.Cookie.IsEssential = true;
+})
 .AddOpenIdConnect(options =>
 {
     var keycloakUrl = builder.Configuration["services:keycloak:https:0"]
@@ -31,7 +39,6 @@ builder.Services.AddAuthentication(options =>
     options.MapInboundClaims = false;
     options.Scope.Add("openid");
     options.Scope.Add("profile");
-
     // In development, Keycloak may use HTTP
     options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
 
