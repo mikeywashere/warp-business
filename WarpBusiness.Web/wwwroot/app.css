@@ -123,6 +123,21 @@ a:hover, .btn-link:hover {
     text-align: start;
 }
 
+/* ── Inline code & muted text ── */
+code {
+    color: var(--clr-accent);
+    background-color: rgba(0, 200, 255, 0.08);
+}
+
+.text-muted {
+    color: var(--clr-text-muted) !important;
+}
+
+.bg-light {
+    background-color: var(--clr-bg-section) !important;
+    color: var(--clr-text) !important;
+}
+
 /* ── Modals ── */
 .modal-content {
     background-color: var(--clr-bg-card);
