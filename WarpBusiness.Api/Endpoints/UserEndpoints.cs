@@ -228,9 +228,19 @@ public static class UserEndpoints
                 return Results.BadRequest(new { message = "The specified tenant does not exist." });
         }
 
+        // Derive username: use provided value, or extract from email local part
+        var username = !string.IsNullOrWhiteSpace(request.Username)
+            ? request.Username
+            : request.Email.Split('@')[0];
+
+        // Keycloak username is prefixed with tenant ID for uniqueness across tenants
+        var keycloakUsername = tenant != null
+            ? $"{tenant.Id}.{username}"
+            : username;
+
         // Create in Keycloak
         var result = await keycloakAdmin.CreateUserAsync(
-            request.FirstName, request.LastName, request.Email, request.Password, cancellationToken);
+            request.FirstName, request.LastName, request.Email, request.Password, keycloakUsername, cancellationToken);
 
         string keycloakUserId;
 
@@ -293,6 +303,7 @@ public static class UserEndpoints
             FirstName = request.FirstName,
             LastName = request.LastName,
             Email = request.Email,
+            Username = username,
             Role = request.Role,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -384,7 +395,7 @@ public static class UserEndpoints
     }
 
     private static UserResponse ToResponse(ApplicationUser user, Guid? linkedEmployeeId = null) =>
-        new(user.Id, user.FirstName, user.LastName, user.Email, user.Role, user.CreatedAt, linkedEmployeeId);
+        new(user.Id, user.FirstName, user.LastName, user.Email, user.Username, user.Role, user.CreatedAt, linkedEmployeeId);
 
     private static UserWithTenantsResponse ToResponseWithTenants(ApplicationUser user, Guid? linkedEmployeeId = null)
     {
@@ -397,6 +408,7 @@ public static class UserEndpoints
             user.FirstName,
             user.LastName,
             user.Email,
+            user.Username,
             user.Role,
             user.CreatedAt,
             tenants,

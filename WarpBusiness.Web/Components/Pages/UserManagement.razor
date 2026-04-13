@@ -64,9 +64,28 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Email</label>
-                                    <InputText @bind-Value="formModel.Email" class="form-control" type="email" />
+                                    <InputText @bind-Value="formModel.Email" class="form-control" type="email"
+                                               @bind-Value:after="OnEmailChanged" />
                                     <ValidationMessage For="() => formModel.Email" class="text-danger" />
                                 </div>
+                                @if (!editingUserId.HasValue)
+                                {
+                                    <div class="col-md-6">
+                                        <label class="form-label">Username</label>
+                                        <InputText @bind-Value="formModel.Username" class="form-control" />
+                                        <small class="text-muted d-block mt-1">
+                                            Defaults to the local part of the email address. Cannot be changed after creation.
+                                        </small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="col-md-6">
+                                        <label class="form-label">Username</label>
+                                        <input type="text" class="form-control" value="@formModel.Username" disabled />
+                                        <small class="text-muted d-block mt-1">Username cannot be changed after creation.</small>
+                                    </div>
+                                }
                                 @if (!editingUserId.HasValue)
                                 {
                                     <div class="col-md-6">
@@ -350,6 +369,7 @@
             FirstName = user.FirstName,
             LastName = user.LastName,
             Email = user.Email,
+            Username = user.Username,
             RoleName = user.RoleName
         };
         showForm = true;
@@ -374,6 +394,7 @@
         showForm = false;
         editingUserId = null;
         formModel = new UserFormModel();
+        usernameManuallyEdited = false;
         tenantSearchText = "";
         showTenantDropdown = false;
     }
@@ -416,6 +437,7 @@
                     formModel.Email,
                     formModel.Password,
                     formModel.RoleName,
+                    formModel.Username,
                     formModel.TenantId));
                 successMessage = "User created successfully.";
                 tenantSearchText = "";
@@ -495,6 +517,18 @@
         successMessage = null;
     }
 
+    private bool usernameManuallyEdited = false;
+
+    private void OnEmailChanged()
+    {
+        // Auto-derive username from email if user hasn't manually edited it
+        if (!usernameManuallyEdited && !editingUserId.HasValue)
+        {
+            var email = formModel.Email;
+            formModel.Username = email.Contains('@') ? email.Split('@')[0] : email;
+        }
+    }
+
     private static string FormatRoleName(string roleName) =>
         roleName == "SystemAdministrator" ? "System Administrator" : roleName;
 
@@ -534,6 +568,8 @@
         [System.ComponentModel.DataAnnotations.Required]
         [System.ComponentModel.DataAnnotations.EmailAddress]
         public string Email { get; set; } = "";
+
+        public string Username { get; set; } = "";
 
         public string Password { get; set; } = "";
 
