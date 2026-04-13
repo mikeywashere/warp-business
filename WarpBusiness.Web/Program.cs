@@ -49,15 +49,15 @@ builder.Services.AddAuthentication(options =>
             // Cache the id_token in a secure HttpOnly cookie so it survives
             // the Blazor Server WebSocket mode where GetTokenAsync returns null
             var idToken = context.TokenEndpointResponse?.IdToken;
+            Console.WriteLine($"[OIDC] OnTokenResponseReceived — id_token present: {!string.IsNullOrEmpty(idToken)} (length: {idToken?.Length ?? 0})");
             if (!string.IsNullOrEmpty(idToken))
             {
                 context.HttpContext.Response.Cookies.Append("X-IdToken-Cache", idToken, new CookieOptions
                 {
                     HttpOnly = true,
-                    Secure = true,
-                    SameSite = SameSiteMode.Strict,
+                    Secure = !context.HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment(),
+                    SameSite = SameSiteMode.Lax,
                     Path = "/",
-                    // Match the auth cookie lifetime (session or sliding)
                     IsEssential = true
                 });
             }
@@ -65,27 +65,30 @@ builder.Services.AddAuthentication(options =>
         },
         OnRedirectToIdentityProviderForSignOut = async context =>
         {
-            // Try getting the id_token from the still-active cookie auth ticket
             var idToken = await context.HttpContext.GetTokenAsync("id_token");
+            Console.WriteLine($"[OIDC Logout] GetTokenAsync: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")}");
 
-            // Fallback: check if it was stashed in the sign-out properties
             if (string.IsNullOrEmpty(idToken))
                 idToken = context.Properties?.GetTokenValue("id_token");
+            Console.WriteLine($"[OIDC Logout] Properties.GetTokenValue: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")}");
 
-            // Fallback: read from the cache cookie (Blazor Server WebSocket mode)
             if (string.IsNullOrEmpty(idToken))
                 idToken = context.HttpContext.Request.Cookies["X-IdToken-Cache"];
+            Console.WriteLine($"[OIDC Logout] Cookie cache: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")}");
 
             if (!string.IsNullOrEmpty(idToken))
             {
                 context.ProtocolMessage.IdTokenHint = idToken;
+                Console.WriteLine($"[OIDC Logout] id_token_hint SET (length: {idToken.Length})");
+            }
+            else
+            {
+                Console.WriteLine("[OIDC Logout] WARNING: No id_token found from any source!");
             }
 
-            // Build post-logout redirect URI
             var lastTenantSlug = context.HttpContext.Request.Cookies["X-Last-Tenant-Slug"];
             if (!string.IsNullOrEmpty(lastTenantSlug))
             {
-                // Use the last known tenant slug for redirect if available
                 context.ProtocolMessage.PostLogoutRedirectUri = "/";
             }
         }
@@ -166,21 +169,38 @@ app.MapGet("/login", (string? returnUrl) =>
 
 app.MapGet("/logout", async (HttpContext context) =>
 {
+    // Grab the id_token NOW — while the auth cookie is still valid and readable.
+    // This must happen BEFORE any SignOutAsync calls.
+    var idToken = await context.GetTokenAsync("id_token");
+
+    // Fallback: read from the cache cookie
+    if (string.IsNullOrEmpty(idToken))
+        idToken = context.Request.Cookies["X-IdToken-Cache"];
+
+    Console.WriteLine($"[Logout] id_token resolved: {(!string.IsNullOrEmpty(idToken) ? "YES" : "NO")} (length: {idToken?.Length ?? 0})");
+
     context.Response.Cookies.Delete("X-Selected-Tenant");
     context.Response.Cookies.Delete("X-Selected-Tenant-Name");
 
-    // Sign out of OIDC FIRST — the handler authenticates via cookie to find the
-    // id_token for Keycloak's logout endpoint.  Cookie must still exist at this point.
-    // The OnRedirectToIdentityProviderForSignOut event sets id_token_hint on the message.
-    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, new AuthenticationProperties
+    // Stash the id_token in sign-out properties so the OIDC handler
+    // finds it via properties.GetTokenValue("id_token") before our event fires
+    var signOutProperties = new AuthenticationProperties
     {
         RedirectUri = "/"
-    });
+    };
 
-    // Then clear the local auth cookie (adds Set-Cookie header to the same response)
+    if (!string.IsNullOrEmpty(idToken))
+    {
+        signOutProperties.Items[".Token.id_token"] = idToken;
+    }
+
+    // Sign out of OIDC — the handler will find id_token in properties
+    await context.SignOutAsync(OpenIdConnectDefaults.AuthenticationScheme, signOutProperties);
+
+    // Then clear the local auth cookie
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
 
-    // Clean up the id_token cache after sign-out handlers have read it
+    // Clean up the cache cookie after sign-out handlers have used it
     context.Response.Cookies.Delete("X-IdToken-Cache");
 });
 
