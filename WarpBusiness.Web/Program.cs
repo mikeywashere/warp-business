@@ -44,6 +44,25 @@ builder.Services.AddAuthentication(options =>
     // Ensure id_token_hint is sent to Keycloak on logout
     options.Events = new OpenIdConnectEvents
     {
+        OnTokenResponseReceived = context =>
+        {
+            // Cache the id_token in a secure HttpOnly cookie so it survives
+            // the Blazor Server WebSocket mode where GetTokenAsync returns null
+            var idToken = context.TokenEndpointResponse?.IdToken;
+            if (!string.IsNullOrEmpty(idToken))
+            {
+                context.HttpContext.Response.Cookies.Append("X-IdToken-Cache", idToken, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.Strict,
+                    Path = "/",
+                    // Match the auth cookie lifetime (session or sliding)
+                    IsEssential = true
+                });
+            }
+            return Task.CompletedTask;
+        },
         OnRedirectToIdentityProviderForSignOut = async context =>
         {
             // Try getting the id_token from the still-active cookie auth ticket
@@ -53,9 +72,21 @@ builder.Services.AddAuthentication(options =>
             if (string.IsNullOrEmpty(idToken))
                 idToken = context.Properties?.GetTokenValue("id_token");
 
+            // Fallback: read from the cache cookie (Blazor Server WebSocket mode)
+            if (string.IsNullOrEmpty(idToken))
+                idToken = context.HttpContext.Request.Cookies["X-IdToken-Cache"];
+
             if (!string.IsNullOrEmpty(idToken))
             {
                 context.ProtocolMessage.IdTokenHint = idToken;
+            }
+
+            // Build post-logout redirect URI
+            var lastTenantSlug = context.HttpContext.Request.Cookies["X-Last-Tenant-Slug"];
+            if (!string.IsNullOrEmpty(lastTenantSlug))
+            {
+                // Use the last known tenant slug for redirect if available
+                context.ProtocolMessage.PostLogoutRedirectUri = "/";
             }
         }
     };
@@ -148,6 +179,9 @@ app.MapGet("/logout", async (HttpContext context) =>
 
     // Then clear the local auth cookie (adds Set-Cookie header to the same response)
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+    // Clean up the id_token cache after sign-out handlers have read it
+    context.Response.Cookies.Delete("X-IdToken-Cache");
 });
 
 // Tenant selection — browser-navigated GET sets cookies then redirects
@@ -163,6 +197,15 @@ app.MapGet("/set-tenant", (HttpContext context, Guid tenantId, string? tenantNam
     context.Response.Cookies.Append("X-Selected-Tenant", tenantId.ToString(), cookieOptions);
     if (!string.IsNullOrEmpty(tenantName))
         context.Response.Cookies.Append("X-Selected-Tenant-Name", tenantName, cookieOptions);
+
+    // Store last tenant slug in a long-lived cookie that survives logout
+    context.Response.Cookies.Append("X-Last-Tenant-Slug", tenantName ?? tenantId.ToString(), new CookieOptions
+    {
+        HttpOnly = true,
+        SameSite = SameSiteMode.Strict,
+        Path = "/",
+        Expires = DateTimeOffset.UtcNow.AddDays(365)  // Long-lived, survives logout
+    });
 
     // Only allow local redirects to prevent open redirect attacks
     var safeUrl = !string.IsNullOrEmpty(returnUrl) && Uri.IsWellFormedUriString(returnUrl, UriKind.Relative)
