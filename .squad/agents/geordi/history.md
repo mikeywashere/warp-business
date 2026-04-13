@@ -97,6 +97,14 @@
 - **Commit:** eb9be53
 - **Status:** ✅ Complete and pushed
 
+### Branding Alignment Audit (2026-04-13)
+
+- **Finding:** Most Warp branding from prior rebrand was already intact (CSS tokens, favicon, fonts, navbar, home dashboard)
+- **Gaps fixed:** ReconnectModal (was white/blue default, now dark theme with cyan accents), Error page (now branded with Orbitron heading), NotFound page (now branded 404 with "Lost in Space" theme)
+- **ReconnectModal.razor.css:** Updated background to `--clr-bg-card`, border to `--clr-border`, buttons to `--clr-accent`, spinner to cyan, backdrop darkened
+- **Error.razor:** Replaced raw text-danger with branded card layout, removed dev environment text (sensitive info exposure risk)
+- **NotFound.razor:** Added 404 heading, description, and "Return to Dashboard" button with Warp styling
+- **Status:** ✅ Complete — build passes
 ### Keycloak Custom Theme — "warp" (2026-04-13)
 
 - **Theme location:** `keycloak/themes/warp/` in repo root — bind-mounted into Keycloak container at `/opt/keycloak/themes/warp/`
