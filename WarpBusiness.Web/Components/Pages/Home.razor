@@ -1,7 +1,43 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Warp Business — Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="container py-4">
+    <div class="text-center mb-5">
+        <h1 class="mb-3" style="color: var(--clr-accent, #00c8ff);">Welcome to Warp Business</h1>
+        <p class="lead" style="color: var(--clr-text-muted, #8899bb); font-size: 1.15rem;">Your business management dashboard</p>
+    </div>
 
-<p>Welcome to WarpBusiness.</p>
+    <div class="row g-4 justify-content-center">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3" style="font-size: 2.5rem; color: var(--clr-accent, #00c8ff);">👥</div>
+                    <h5 class="card-title" style="font-family: var(--font-heading, 'Orbitron', sans-serif); color: var(--clr-accent, #00c8ff);">Employees</h5>
+                    <p class="card-text" style="color: var(--clr-text-muted, #8899bb);">Manage your workforce, roles, and team assignments.</p>
+                    <a href="employees" class="btn btn-primary btn-sm mt-2">Open Module</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3" style="font-size: 2.5rem; color: var(--clr-accent, #00c8ff);">🔑</div>
+                    <h5 class="card-title" style="font-family: var(--font-heading, 'Orbitron', sans-serif); color: var(--clr-accent, #00c8ff);">Users</h5>
+                    <p class="card-text" style="color: var(--clr-text-muted, #8899bb);">Manage user accounts, permissions, and access control.</p>
+                    <a href="users" class="btn btn-primary btn-sm mt-2">Open Module</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-body text-center p-4">
+                    <div class="mb-3" style="font-size: 2.5rem; color: var(--clr-accent, #00c8ff);">🏢</div>
+                    <h5 class="card-title" style="font-family: var(--font-heading, 'Orbitron', sans-serif); color: var(--clr-accent, #00c8ff);">Tenants</h5>
+                    <p class="card-text" style="color: var(--clr-text-muted, #8899bb);">Configure organizations and multi-tenant settings.</p>
+                    <a href="tenants" class="btn btn-primary btn-sm mt-2">Open Module</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
