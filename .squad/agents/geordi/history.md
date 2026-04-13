@@ -61,3 +61,13 @@
 - **PR #12:** Merged with backend API support (Data agent).
 - **Status:** ✅ Complete and deployed.
 
+### Employee Management UI (2026-04-12)
+
+- **EmployeeApiClient** (`WarpBusiness.Web/Services/EmployeeApiClient.cs`): Typed HttpClient with DTOs (EmployeeResponse, CreateEmployeeRequest, UpdateEmployeeRequest), full CRUD methods, same TokenProvider/CreateRequest pattern as UserApiClient and TenantApiClient.
+- **EmployeeManagement.razor** (`/employees`): Full CRUD page inheriting AuthenticatedComponentBase. Table shows Employee #, Name, Email, Department, Job Title, Status (color-coded badges), Type, Hire Date. Add/Edit form with validation. Delete with modal confirmation.
+- **NavMenu.razor**: Replaced static "Modules" link with Bootstrap dropdown containing Employees link, wrapped in AuthorizeView for auth-only access.
+- **Program.cs**: Registered EmployeeApiClient as typed HttpClient with configureApiClient + AuthTokenHandler.
+- **Pattern**: EmploymentStatus/EmploymentType are strings in Web DTOs (API enums serialize to strings). Valid: Active/OnLeave/Terminated/Suspended, FullTime/PartTime/Contract/Intern.
+- **PR #16:** Squash-merged to main.
+- **Status:** ✅ Complete and deployed.
+
