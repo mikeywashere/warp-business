@@ -138,6 +138,259 @@ code {
     color: var(--clr-text) !important;
 }
 
+/* ── Alerts (dark-theme readable) ── */
+.alert-danger {
+    background-color: rgba(255, 77, 106, 0.12);
+    border-color: rgba(255, 77, 106, 0.3);
+    color: #ff8fa5;
+}
+
+.alert-success {
+    background-color: rgba(38, 176, 80, 0.12);
+    border-color: rgba(38, 176, 80, 0.3);
+    color: #5ae08a;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.12);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: #ffd95e;
+}
+
+.alert-dismissible .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* ── Badges ── */
+.badge.bg-success {
+    color: #fff !important;
+}
+
+.badge.bg-secondary {
+    background-color: #3a4560 !important;
+    color: var(--clr-text) !important;
+}
+
+.badge.bg-info {
+    color: #fff !important;
+}
+
+.badge.bg-warning {
+    color: #1a1a1a !important;
+}
+
+.badge.bg-warning.text-dark {
+    color: #1a1a1a !important;
+}
+
+/* ── Buttons (secondary / outline variants) ── */
+.btn-secondary {
+    background-color: #3a4560;
+    border-color: #4a5575;
+    color: var(--clr-text);
+}
+
+.btn-secondary:hover {
+    background-color: #4a5575;
+    border-color: #5a6585;
+    color: #fff;
+}
+
+.btn-outline-secondary {
+    color: var(--clr-text-muted);
+    border-color: var(--clr-text-muted);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--clr-text-muted);
+    border-color: var(--clr-text-muted);
+    color: var(--clr-bg);
+}
+
+.btn-outline-info {
+    color: var(--clr-accent);
+    border-color: var(--clr-accent);
+}
+
+.btn-outline-info:hover {
+    background-color: var(--clr-accent);
+    border-color: var(--clr-accent);
+    color: var(--clr-bg);
+}
+
+.btn-outline-primary {
+    color: var(--clr-accent);
+    border-color: var(--clr-accent);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--clr-accent);
+    border-color: var(--clr-accent);
+    color: var(--clr-bg);
+}
+
+.btn-outline-danger {
+    color: #ff4d6a;
+    border-color: #ff4d6a;
+}
+
+.btn-outline-danger:hover {
+    background-color: #ff4d6a;
+    border-color: #ff4d6a;
+    color: #fff;
+}
+
+.btn-danger {
+    color: #fff;
+}
+
+/* ── Close buttons (light filter for dark bg) ── */
+.btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* ── Table dark header (override Bootstrap table-dark) ── */
+.table thead.table-dark th {
+    background-color: rgba(0, 200, 255, 0.08) !important;
+    color: var(--clr-accent) !important;
+    border-color: var(--clr-border) !important;
+}
+
+/* ── Nested tables and inline panels ── */
+.table .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--clr-text);
+    --bs-table-border-color: var(--clr-border);
+}
+
+/* ── Card variants (border-info panel) ── */
+.card.border-info {
+    border-color: var(--clr-accent) !important;
+    background-color: var(--clr-bg-card);
+}
+
+.bg-info.bg-opacity-10 {
+    background-color: rgba(0, 200, 255, 0.08) !important;
+    color: var(--clr-text) !important;
+}
+
+/* ── Form elements within dark theme ── */
+.form-check-label {
+    color: var(--clr-text);
+}
+
+.form-check-input {
+    background-color: var(--clr-bg-section);
+    border-color: var(--clr-border);
+}
+
+.form-check-input:checked {
+    background-color: var(--clr-accent);
+    border-color: var(--clr-accent);
+}
+
+.form-switch .form-check-input {
+    background-color: var(--clr-bg-section);
+    border-color: var(--clr-text-muted);
+}
+
+.form-switch .form-check-input:checked {
+    background-color: var(--clr-accent);
+    border-color: var(--clr-accent);
+}
+
+/* ── Select option elements (browser-rendered, may need dark bg) ── */
+.form-select option {
+    background-color: var(--clr-bg-card);
+    color: var(--clr-text);
+}
+
+/* ── Text color utilities override ── */
+.text-danger {
+    color: #ff4d6a !important;
+}
+
+/* Note: .text-dark NOT overridden — it's used intentionally on bg-warning badges where dark text is correct */
+
+/* ── Strong / paragraph in modals and cards ── */
+.modal-body p,
+.modal-body strong,
+.card-body p,
+.card-body strong {
+    color: var(--clr-text);
+}
+
+/* ── Dropdown menus (Bootstrap default is white bg) ── */
+.dropdown-menu {
+    background-color: var(--clr-bg-card);
+    border-color: var(--clr-border);
+}
+
+.dropdown-item {
+    color: var(--clr-text);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: rgba(0, 200, 255, 0.1);
+    color: var(--clr-accent);
+}
+
+.dropdown-divider {
+    border-top-color: var(--clr-border);
+}
+
+/* ── Breadcrumbs ── */
+.breadcrumb {
+    background-color: transparent;
+}
+
+.breadcrumb-item,
+.breadcrumb-item a {
+    color: var(--clr-text-muted);
+}
+
+.breadcrumb-item.active {
+    color: var(--clr-text);
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: var(--clr-text-muted);
+}
+
+/* ── List groups ── */
+.list-group-item {
+    background-color: var(--clr-bg-card);
+    border-color: var(--clr-border);
+    color: var(--clr-text);
+}
+
+/* ── Tooltips and popovers ── */
+.tooltip-inner {
+    background-color: var(--clr-bg-card);
+    color: var(--clr-text);
+}
+
+.popover {
+    background-color: var(--clr-bg-card);
+    border-color: var(--clr-border);
+}
+
+.popover-header {
+    background-color: rgba(0, 200, 255, 0.06);
+    color: var(--clr-text);
+    border-bottom-color: var(--clr-border);
+}
+
+.popover-body {
+    color: var(--clr-text);
+}
+
+/* ── Validation summary ── */
+.validation-errors {
+    color: #ff4d6a;
+}
+
 /* ── Modals ── */
 .modal-content {
     background-color: var(--clr-bg-card);
