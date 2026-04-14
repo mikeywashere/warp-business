@@ -252,7 +252,7 @@ code {
 /* ── Table dark header (override Bootstrap table-dark) ── */
 .table thead.table-dark th {
     background-color: rgba(0, 200, 255, 0.08) !important;
-    color: var(--clr-accent) !important;
+    color: var(--clr-text) !important;
     border-color: var(--clr-border) !important;
 }
 
