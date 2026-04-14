@@ -171,3 +171,14 @@
 - **Commit:** 48b534f
 - **Status:** ✅ Complete — ready for backend API endpoints from Data team
 
+### CRM Currency & Billing Fields (2026-04-13)
+
+- **Schema changes:** Customer.Currency (ISO 4217, required, defaults to "USD"), CustomerEmployee.BillingRate (decimal 18,2, nullable), CustomerEmployee.BillingCurrency (ISO 4217, nullable)
+- **Customers.razor:** Added Currency dropdown to customer form (USD/EUR/GBP/CAD/AUD/JPY/CHF/CNY/INR), added Currency column to customer list table (shows ISO code in `<code>` tag), updated CustomerFormModel with Currency field (required, max 3 chars, default "USD"), updated create/update request DTOs to include Currency
+- **CustomerDetail.razor:** Display customer currency in info card, added BillingRate and BillingCurrency columns to employee assignments table, updated Assign Employee modal with BillingRate (decimal input) + BillingCurrency dropdown (defaults to customer's currency), updated Edit Relationship modal with billing fields, added `FormatCurrency()` helper (returns currency symbol + formatted amount, e.g., "$50.00"), updated AssignEmployeeFormModel and RelationshipFormModel with BillingRate/BillingCurrency fields
+- **CrmApiClient.cs:** Updated CustomerResponse/CreateCustomerRequest/UpdateCustomerRequest with Currency field, updated CustomerEmployeeResponse/AssignEmployeeRequest/UpdateRelationshipRequest with BillingRate and BillingCurrency fields
+- **Pattern:** BillingCurrency defaults to customer's currency in assignment modal (UX shortcut for common case)
+- **Validation:** BillingRate has Range(0, 999999.99) validation, BillingCurrency MaxLength(3) for ISO 4217 codes
+- **Commit:** f3966e1
+- **Status:** ✅ Complete — build passes
+
