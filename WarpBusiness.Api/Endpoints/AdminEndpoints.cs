@@ -72,6 +72,7 @@ public static class AdminEndpoints
             ["warp.UserTenantMemberships"] = await warpDb.UserTenantMemberships.CountAsync(),
             ["warp.Currencies"] = await warpDb.Currencies.CountAsync(),
             ["employees.Employees"] = await employeeDb.Employees.CountAsync(),
+            ["crm.Businesses"] = await crmDb.Businesses.CountAsync(),
             ["crm.Customers"] = await crmDb.Customers.CountAsync(),
             ["crm.CustomerEmployees"] = await crmDb.CustomerEmployees.CountAsync(),
         };
@@ -86,7 +87,8 @@ public static class AdminEndpoints
                 warp."Currencies",
                 employees."Employees",
                 crm."CustomerEmployees",
-                crm."Customers"
+                crm."Customers",
+                crm."Businesses"
             CASCADE
             """);
 

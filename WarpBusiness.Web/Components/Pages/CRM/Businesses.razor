@@ -1,0 +1,501 @@
+@page "/crm/businesses"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject CrmApiClient CrmApi
+@inject NavigationManager Navigation
+
+<PageTitle>Business Management</PageTitle>
+
+<h1 class="mb-4">Business Management</h1>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            @* Add / Edit Business Modal *@
+            @if (showFormModal)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">@(editingBusinessId.HasValue ? "Edit Business" : "Add Business")</h5>
+                                <button type="button" class="btn-close" @onclick="CloseFormModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <EditForm Model="formModel" OnValidSubmit="HandleFormSubmit" FormName="businessForm">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary class="text-danger mb-3" />
+
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                                            <InputText @bind-Value="formModel.Name" class="form-control" />
+                                            <ValidationMessage For="() => formModel.Name" class="text-danger" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Industry</label>
+                                            <InputText @bind-Value="formModel.Industry" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Website</label>
+                                            <InputText @bind-Value="formModel.Website" class="form-control" type="url" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Phone</label>
+                                            <InputText @bind-Value="formModel.Phone" class="form-control" type="tel" />
+                                        </div>
+                                        <div class="col-md-12">
+                                            <label class="form-label">Address</label>
+                                            <InputText @bind-Value="formModel.Address" class="form-control" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">City</label>
+                                            <InputText @bind-Value="formModel.City" class="form-control" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">State</label>
+                                            <InputText @bind-Value="formModel.State" class="form-control" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Postal Code</label>
+                                            <InputText @bind-Value="formModel.PostalCode" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Country</label>
+                                            <InputText @bind-Value="formModel.Country" class="form-control" />
+                                        </div>
+                                        @if (editingBusinessId.HasValue)
+                                        {
+                                            <div class="col-md-6">
+                                                <label class="form-label">Status</label>
+                                                <div class="form-check form-switch mt-2">
+                                                    <InputCheckbox @bind-Value="formModel.IsActive" class="form-check-input" id="isActiveSwitch" />
+                                                    <label class="form-check-label" for="isActiveSwitch">
+                                                        @(formModel.IsActive ? "Active" : "Inactive")
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        }
+                                        <div class="col-md-12">
+                                            <label class="form-label">Notes</label>
+                                            <InputTextArea @bind-Value="formModel.Notes" class="form-control" rows="3" />
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                            @if (isSubmitting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            }
+                                            @(editingBusinessId.HasValue ? "Update Business" : "Create Business")
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CloseFormModal">Cancel</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* Business List *@
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Businesses (@(businesses?.Count ?? 0))</h5>
+                <button class="btn btn-primary" @onclick="ShowAddModal">
+                    <span class="bi bi-plus-lg me-1"></span> Add Business
+                </button>
+            </div>
+
+            @* Search/Filter *@
+            <div class="mb-3">
+                <input type="text" class="form-control" placeholder="Search by name..." 
+                       @bind="searchTerm" @bind:event="oninput" />
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Name</th>
+                            <th>Industry</th>
+                            <th>Phone</th>
+                            <th>Website</th>
+                            <th>City / Country</th>
+                            <th>Customer Count</th>
+                            <th>Status</th>
+                            <th style="width: 150px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (FilteredBusinesses is { Count: > 0 })
+                        {
+                            @foreach (var business in FilteredBusinesses)
+                            {
+                                <tr>
+                                    <td>@business.Name</td>
+                                    <td>@(business.Industry ?? "—")</td>
+                                    <td>@(business.Phone ?? "—")</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(business.Website))
+                                        {
+                                            <a href="@business.Website" target="_blank" class="text-decoration-none">🔗</a>
+                                        }
+                                        else
+                                        {
+                                            <span>—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @{
+                                            var location = new[] { business.City, business.Country }.Where(s => !string.IsNullOrEmpty(s));
+                                            @(location.Any() ? string.Join(", ", location) : "—")
+                                        }
+                                    </td>
+                                    <td>@business.CustomerCount</td>
+                                    <td>
+                                        <span class="badge @(business.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(business.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditModal(business)" title="Edit">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(business)" title="Delete">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    @(string.IsNullOrWhiteSpace(searchTerm) ? "No businesses found." : "No businesses match your search.")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Delete Confirmation Modal (Standard) *@
+            @if (showDeleteConfirm && deleteBusinessCandidate != null && deleteBusinessCandidate.CustomerCount == 0)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Confirm Delete</h5>
+                                <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Are you sure you want to delete <strong>@deleteBusinessCandidate.Name</strong>?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                                <button type="button" class="btn btn-danger" @onclick="ExecuteDelete" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* Delete Confirmation Modal (With Linked Customers) *@
+            @if (showDeleteConfirm && deleteBusinessCandidate != null && deleteBusinessCandidate.CustomerCount > 0)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning">
+                                <h5 class="modal-title text-dark">⚠️ Business Has Linked Customers</h5>
+                                <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>@deleteBusinessCandidate.Name</strong> has <strong>@deleteBusinessCandidate.CustomerCount</strong> linked customer(s).</p>
+                                <p>What would you like to do?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                                <button type="button" class="btn btn-danger" @onclick="() => ExecuteDeleteWithUnlink(true)" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    Unlink & Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-warning">
+            <h4>Access Denied</h4>
+            <p>You must be logged in to access business management. <a href="/login">Login</a></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<BusinessResponse>? businesses;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool showFormModal;
+    private bool showDeleteConfirm;
+    private Guid? editingBusinessId;
+    private BusinessResponse? deleteBusinessCandidate;
+    private string? errorMessage;
+    private string? successMessage;
+    private string searchTerm = "";
+    private BusinessFormModel formModel = new();
+
+    private List<BusinessResponse> FilteredBusinesses =>
+        businesses?.Where(b =>
+            string.IsNullOrWhiteSpace(searchTerm) ||
+            b.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+        ).ToList() ?? [];
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        // Ensure user has selected a tenant before loading businesses
+        if (string.IsNullOrEmpty(TokenProvider.SelectedTenantId))
+        {
+            Navigation.NavigateTo("/select-tenant");
+            return;
+        }
+        
+        await LoadBusinesses();
+    }
+
+    private async Task LoadBusinesses()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            businesses = await CrmApi.GetBusinessesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load businesses: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ShowAddModal()
+    {
+        formModel = new BusinessFormModel { IsActive = true };
+        editingBusinessId = null;
+        showFormModal = true;
+    }
+
+    private void ShowEditModal(BusinessResponse business)
+    {
+        formModel = new BusinessFormModel
+        {
+            Name = business.Name,
+            Industry = business.Industry,
+            Website = business.Website,
+            Phone = business.Phone,
+            Address = business.Address,
+            City = business.City,
+            State = business.State,
+            PostalCode = business.PostalCode,
+            Country = business.Country,
+            Notes = business.Notes,
+            IsActive = business.IsActive
+        };
+        editingBusinessId = business.Id;
+        showFormModal = true;
+    }
+
+    private void CloseFormModal()
+    {
+        showFormModal = false;
+        formModel = new BusinessFormModel();
+        editingBusinessId = null;
+    }
+
+    private async Task HandleFormSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            if (editingBusinessId.HasValue)
+            {
+                var updateRequest = new UpdateBusinessRequest(
+                    formModel.Name!,
+                    formModel.Industry,
+                    formModel.Website,
+                    formModel.Phone,
+                    formModel.Address,
+                    formModel.City,
+                    formModel.State,
+                    formModel.PostalCode,
+                    formModel.Country,
+                    formModel.Notes,
+                    formModel.IsActive);
+                await CrmApi.UpdateBusinessAsync(editingBusinessId.Value, updateRequest);
+                successMessage = "Business updated successfully.";
+            }
+            else
+            {
+                var createRequest = new CreateBusinessRequest(
+                    formModel.Name!,
+                    formModel.Industry,
+                    formModel.Website,
+                    formModel.Phone,
+                    formModel.Address,
+                    formModel.City,
+                    formModel.State,
+                    formModel.PostalCode,
+                    formModel.Country,
+                    formModel.Notes);
+                await CrmApi.CreateBusinessAsync(createRequest);
+                successMessage = "Business created successfully.";
+            }
+            CloseFormModal();
+            await LoadBusinesses();
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ConfirmDelete(BusinessResponse business)
+    {
+        deleteBusinessCandidate = business;
+        showDeleteConfirm = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirm = false;
+        deleteBusinessCandidate = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (deleteBusinessCandidate == null) return;
+
+        await ExecuteDeleteWithUnlink(false);
+    }
+
+    private async Task ExecuteDeleteWithUnlink(bool unlinkCustomers)
+    {
+        if (deleteBusinessCandidate == null) return;
+
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            await CrmApi.DeleteBusinessAsync(deleteBusinessCandidate.Id, unlinkCustomers);
+            successMessage = unlinkCustomers 
+                ? "Business deleted and customers unlinked successfully." 
+                : "Business deleted successfully.";
+            CancelDelete();
+            await LoadBusinesses();
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private class BusinessFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string? Name { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Industry { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string? Website { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(50)]
+        public string? Phone { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(500)]
+        public string? Address { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? City { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? State { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(20)]
+        public string? PostalCode { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Country { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(2000)]
+        public string? Notes { get; set; }
+
+        public bool IsActive { get; set; } = true;
+    }
+}

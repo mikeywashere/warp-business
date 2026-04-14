@@ -11,12 +11,33 @@ public class CrmDbContext : DbContext
 
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<CustomerEmployee> CustomerEmployees => Set<CustomerEmployee>();
+    public DbSet<Business> Businesses => Set<Business>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.HasDefaultSchema("crm");
+
+        modelBuilder.Entity<Business>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasIndex(e => new { e.Name, e.TenantId }).IsUnique();
+            entity.HasIndex(e => e.TenantId);
+
+            entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.Industry).HasMaxLength(100);
+            entity.Property(e => e.Website).HasMaxLength(500);
+            entity.Property(e => e.Phone).HasMaxLength(50);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.City).HasMaxLength(100);
+            entity.Property(e => e.State).HasMaxLength(100);
+            entity.Property(e => e.PostalCode).HasMaxLength(20);
+            entity.Property(e => e.Country).HasMaxLength(100);
+            entity.Property(e => e.Notes).HasMaxLength(4000);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
 
         modelBuilder.Entity<Customer>(entity =>
         {
@@ -39,6 +60,11 @@ public class CrmDbContext : DbContext
             entity.Property(e => e.Notes).HasMaxLength(2000);
             entity.Property(e => e.Currency).HasMaxLength(3).IsRequired();
             entity.Property(e => e.LogoMimeType).HasMaxLength(50);
+
+            entity.HasOne(e => e.Business)
+                .WithMany(b => b.Customers)
+                .HasForeignKey(e => e.BusinessId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<CustomerEmployee>(entity =>

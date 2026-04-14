@@ -263,6 +263,9 @@ app.MapCurrencyEndpoints();
 // Customer management API endpoints
 app.MapCustomerEndpoints();
 
+// Business management API endpoints
+app.MapBusinessEndpoints();
+
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();
 

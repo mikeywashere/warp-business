@@ -261,3 +261,28 @@
   - `WarpBusiness.Api/Data/Migrations/20260413203252_AddLoginTimeoutMinutesToTenant.cs` — migration
   - `WarpBusiness.Web/Program.cs` — cookie config, offline_access scope
   - `WarpBusiness.AppHost/KeycloakConfiguration/warpbusiness-realm.json` — session timeouts
+
+### Business Entity in CRM Module (2026-04-16)
+
+- **Feature:** Added Business entity to the CRM module as a parent entity for Customers, enabling businesses to be tracked separately from individual customer contacts.
+- **Entity structure:** Business includes Id, TenantId, Name (required), Industry, Website, Phone, Address, City, State, PostalCode, Country, Notes, IsActive, CreatedAt, UpdatedAt.
+- **Entity relationships:**
+  - Business.Customers → one-to-many (Business has many Customers)
+  - Customer.BusinessId → nullable FK to Business with OnDelete(DeleteBehavior.SetNull) — CRITICAL: not Cascade
+  - Customers can exist without a Business (BusinessId = null)
+- **Database constraints:**
+  - Unique index on Name + TenantId (tenant-scoped uniqueness)
+  - All string fields have explicit HasMaxLength() constraints (Name=255, Industry=100, Website=500, Phone=50, Address=500, City=100, State=100, PostalCode=20, Country=100, Notes=4000)
+  - IsActive defaults to true via HasDefaultValue(true)
+- **API endpoints:** /api/crm/businesses (GET list with customer count per business, GET by ID, POST create, PUT update, DELETE with unlink logic)
+- **Delete behavior:** DELETE endpoint checks for linked customers and returns 409 Conflict unless ?unlinkCustomers=true is provided. When true, sets all linked customers' BusinessId to null before deleting.
+- **DTOs:** BusinessResponse (includes CustomerCount), CreateBusinessRequest, UpdateBusinessRequest
+- **Admin endpoint:** Updated /api/admin/clear truncate statement to include crm."Businesses" BEFORE crm."Customers" (FK constraint order)
+- **Key files:**
+  - WarpBusiness.Crm/Data/Models/Business.cs — new entity
+  - WarpBusiness.Crm/Data/Models/Customer.cs — added BusinessId and Business navigation property
+  - WarpBusiness.Crm/Data/CrmDbContext.cs — DbSet, Business entity config, Customer FK config
+  - WarpBusiness.Api/Endpoints/BusinessEndpoints.cs — full CRUD + delete with unlink logic
+  - WarpBusiness.Api/Program.cs — registered MapBusinessEndpoints()
+  - WarpBusiness.Api/Endpoints/AdminEndpoints.cs — updated truncate order
+  - Migration: AddBusiness

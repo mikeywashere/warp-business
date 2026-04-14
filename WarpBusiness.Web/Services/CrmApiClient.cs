@@ -22,7 +22,9 @@ public record CustomerResponse(
     bool IsActive,
     Guid TenantId,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    Guid? BusinessId,
+    string? BusinessName);
 
 public record CreateCustomerRequest(
     string Name,
@@ -37,7 +39,8 @@ public record CreateCustomerRequest(
     string? Industry,
     string? CompanySize,
     string? Notes,
-    string Currency);
+    string Currency,
+    Guid? BusinessId = null);
 
 public record UpdateCustomerRequest(
     string Name,
@@ -52,7 +55,52 @@ public record UpdateCustomerRequest(
     string? Industry,
     string? CompanySize,
     string? Notes,
-    string Currency);
+    string Currency,
+    Guid? BusinessId = null);
+
+// Business DTOs
+public record BusinessResponse(
+    Guid Id,
+    Guid TenantId,
+    string Name,
+    string? Industry,
+    string? Website,
+    string? Phone,
+    string? Address,
+    string? City,
+    string? State,
+    string? PostalCode,
+    string? Country,
+    string? Notes,
+    bool IsActive,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    int CustomerCount);
+
+public record CreateBusinessRequest(
+    string Name,
+    string? Industry = null,
+    string? Website = null,
+    string? Phone = null,
+    string? Address = null,
+    string? City = null,
+    string? State = null,
+    string? PostalCode = null,
+    string? Country = null,
+    string? Notes = null);
+
+public record UpdateBusinessRequest(
+    string Name,
+    string? Industry = null,
+    string? Website = null,
+    string? Phone = null,
+    string? Address = null,
+    string? City = null,
+    string? State = null,
+    string? PostalCode = null,
+    string? Country = null,
+    string? Notes = null,
+    bool IsActive = true);
 
 // Customer-Employee DTOs
 public record CustomerEmployeeResponse(
@@ -242,5 +290,76 @@ public class CrmApiClient
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<EmployeeResponse>>() ?? [];
+    }
+
+    // Business CRUD operations
+    public async Task<List<BusinessResponse>> GetBusinessesAsync()
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/crm/businesses");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<BusinessResponse>>() ?? [];
+    }
+
+    public async Task<BusinessResponse?> GetBusinessAsync(Guid id)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/crm/businesses/{id}");
+        var response = await _httpClient.SendAsync(request);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<BusinessResponse>();
+    }
+
+    public async Task<BusinessResponse?> CreateBusinessAsync(CreateBusinessRequest businessRequest)
+    {
+        using var msg = CreateRequest(HttpMethod.Post, "api/crm/businesses", JsonContent.Create(businessRequest));
+        var response = await _httpClient.SendAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("[CrmApiClient] CreateBusiness failed with {StatusCode}: {Body}",
+                (int)response.StatusCode, body);
+            throw new ApiException((int)response.StatusCode, body);
+        }
+
+        return await response.Content.ReadFromJsonAsync<BusinessResponse>();
+    }
+
+    public async Task<BusinessResponse?> UpdateBusinessAsync(Guid id, UpdateBusinessRequest businessRequest)
+    {
+        using var msg = CreateRequest(HttpMethod.Put, $"api/crm/businesses/{id}", JsonContent.Create(businessRequest));
+        var response = await _httpClient.SendAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("[CrmApiClient] UpdateBusiness failed with {StatusCode}: {Body}",
+                (int)response.StatusCode, body);
+            throw new ApiException((int)response.StatusCode, body);
+        }
+
+        return await response.Content.ReadFromJsonAsync<BusinessResponse>();
+    }
+
+    public async Task<bool> DeleteBusinessAsync(Guid id, bool unlinkCustomers = false)
+    {
+        var url = $"api/crm/businesses/{id}";
+        if (unlinkCustomers)
+            url += "?unlinkCustomers=true";
+
+        using var msg = CreateRequest(HttpMethod.Delete, url);
+        var response = await _httpClient.SendAsync(msg);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("[CrmApiClient] DeleteBusiness failed with {StatusCode}: {Body}",
+                (int)response.StatusCode, body);
+            throw new ApiException((int)response.StatusCode, body);
+        }
+
+        return true;
     }
 }

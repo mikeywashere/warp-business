@@ -72,3 +72,20 @@
 - **Billing Currency Tests**: Required field validation, max length 3 constraint (ISO 4217), multiple currencies on same customer, defaulting to customer currency pattern, querying by composite index (CustomerId, BillingCurrency) for efficient billing queries
 - **Test Results**: 40 tests passing (25 CustomerEntity including 6 new currency tests + 15 CustomerEmployeeRelationship including 9 new billing tests). All constraints validated against PostgreSQL.
 - **Status:** ✅ All currency and billing field tests passing. Schema fully validated.
+
+### 2026-04-14: Business Endpoint Tests Created
+
+- Created comprehensive test suite for Business CRUD operations at `/api/crm/businesses` in `BusinessEndpointTests.cs`
+- **Test Coverage (8 tests, all passing)**:
+  - **GetBusinesses_ReturnsTenantScopedList**: Multi-tenant isolation — business list properly filtered by tenant
+  - **CreateBusiness_CreatesSuccessfully**: Full field validation (Name, Industry, Website, Phone, Address, City, State, PostalCode, Country, Notes, IsActive, timestamps)
+  - **UpdateBusiness_UpdatesFields**: Update flow with timestamp tracking (UpdatedAt > CreatedAt)
+  - **GetBusiness_Returns404ForWrongTenant**: Cross-tenant access properly denied
+  - **DeleteBusiness_WithNoCustomers_Succeeds**: Unlinked business can be deleted
+  - **DeleteBusiness_WithLinkedCustomers_Returns409**: Deletion blocked when customers reference business (verifies FK constraint enforcement logic for endpoint)
+  - **DeleteBusiness_WithUnlinkCustomers_UnlinksAndDeletes**: ?unlinkCustomers=true behavior — sets Customer.BusinessId to null before deletion
+  - **GetBusiness_IncludesCustomerCount**: Projected customer count query pattern for list views
+- **Test Pattern**: Mirrors `CustomerEndpointTests.cs` exactly — same fixture usage (`[Collection("Database")]`), same helpers (`CreateCleanContext`, `CreateHttpContextWithTenant`), same cleanup order (CustomerEmployees → Customers → Businesses)
+- **Key Design Decisions**: Customer.BusinessId is nullable with SetNull on delete; Business entity has full address fields (Address, City, State, PostalCode, Country); multi-tenant scoping on all queries
+- **Test Results**: ✅ All 8 tests passing against PostgreSQL testcontainer in 15.2s
+- **Status:** ✅ Complete. Business endpoint tests ready for Data's implementation.

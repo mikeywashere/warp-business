@@ -182,3 +182,16 @@
 - **Commit:** f3966e1
 - **Status:** ✅ Complete — build passes
 
+### CRM Business Management UI (2026-04-13)
+
+- **Business DTOs:** Added `BusinessResponse`, `CreateBusinessRequest`, `UpdateBusinessRequest` to `CrmApiClient.cs` with full address fields, IsActive toggle, CustomerCount
+- **Customer-Business Link:** Updated `CustomerResponse` with `BusinessId` and `BusinessName` fields; updated `CreateCustomerRequest` and `UpdateCustomerRequest` with optional `BusinessId` parameter
+- **Businesses.razor** (`/crm/businesses`): Full CRUD page inheriting AuthenticatedComponentBase. Table shows Name, Industry, Phone, Website (clickable link icon), City/Country (formatted), Customer Count, Status (Active/Inactive badges), Actions (Edit, Delete). Add/Edit modal with Name (required), Industry, Website, Phone, full address fields (Address, City, State, PostalCode, Country), Notes, IsActive toggle (edit mode only). Search/filter by name (live filtering).
+- **Delete logic:** Two-modal pattern — standard confirmation for businesses with CustomerCount == 0, special warning modal for businesses with linked customers showing "Unlink & Delete" and "Cancel" buttons. Unlink & Delete calls `DeleteBusinessAsync(id, unlinkCustomers: true)`.
+- **CrmApiClient methods:** `GetBusinessesAsync()`, `GetBusinessAsync(Guid)`, `CreateBusinessAsync(request)`, `UpdateBusinessAsync(Guid, request)`, `DeleteBusinessAsync(Guid, bool unlinkCustomers)` — follows exact same pattern as Customer methods (CreateRequest + Bearer token + error handling)
+- **NavMenu.razor:** Updated Modules dropdown to show "Customers" and "Businesses" separately (was "CRM" link before)
+- **Home.razor:** Split CRM card into "Customers" (🤝) and "Businesses" (🏢) cards with distinct descriptions
+- **Pattern:** Website column uses link icon (🔗) with `target="_blank"` instead of showing full URL
+- **Pattern:** City/Country column uses `string.Join(", ", location)` to format combined location from nullable fields
+- **Status:** ✅ Complete — build passes, ready for backend API endpoints from Data team
+
