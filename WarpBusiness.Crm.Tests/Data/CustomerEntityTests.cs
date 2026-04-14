@@ -49,6 +49,7 @@ public class CustomerEntityTests
             CompanySize = "51-200",
             Website = "https://warpindustries.com",
             Notes = "Premier customer",
+            Currency = "EUR",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -61,6 +62,7 @@ public class CustomerEntityTests
         saved!.Name.Should().Be("Warp Industries");
         saved.Email.Should().Be("contact@warpindustries.com");
         saved.TenantId.Should().Be(tenantId);
+        saved.Currency.Should().Be("EUR");
         saved.IsActive.Should().BeTrue("IsActive defaults to true");
     }
 
@@ -75,6 +77,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             Name = "Minimal Corp",
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -87,6 +90,7 @@ public class CustomerEntityTests
         saved!.Name.Should().Be("Minimal Corp");
         saved.Email.Should().BeNull();
         saved.Phone.Should().BeNull();
+        saved.Currency.Should().Be("USD");
         saved.IsActive.Should().BeTrue();
     }
 
@@ -118,6 +122,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = Guid.NewGuid(),
             Name = null!, // Required field
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -142,6 +147,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = Guid.NewGuid(),
             Name = new string('A', 501), // MaxLength is 500
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -163,6 +169,7 @@ public class CustomerEntityTests
             TenantId = Guid.NewGuid(),
             Name = "Test",
             Email = new string('a', 250) + "@test.com", // MaxLength is 256
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -184,6 +191,7 @@ public class CustomerEntityTests
             TenantId = Guid.NewGuid(),
             Name = "Test",
             Phone = new string('1', 51), // MaxLength is 50
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -205,6 +213,7 @@ public class CustomerEntityTests
             TenantId = Guid.NewGuid(),
             Name = "Test",
             Notes = new string('N', 2001), // MaxLength is 2000
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -231,6 +240,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = tenantA,
             Name = "Customer A1",
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -240,6 +250,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = tenantA,
             Name = "Customer A2",
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -249,6 +260,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = tenantB,
             Name = "Customer B1",
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -283,6 +295,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = Guid.NewGuid(),
             Name = "Active Customer",
+            Currency = "USD",
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
@@ -311,6 +324,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             Name = "Active",
+            Currency = "USD",
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
@@ -321,6 +335,7 @@ public class CustomerEntityTests
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             Name = "Inactive",
+            Currency = "USD",
             IsActive = false,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
@@ -352,6 +367,7 @@ public class CustomerEntityTests
             TenantId = tenantId,
             Name = "Customer 1",
             Email = email,
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -362,6 +378,7 @@ public class CustomerEntityTests
             TenantId = tenantId,
             Name = "Customer 2",
             Email = email,
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -389,6 +406,7 @@ public class CustomerEntityTests
             TenantId = tenantA,
             Name = "Customer A",
             Email = email,
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -399,6 +417,7 @@ public class CustomerEntityTests
             TenantId = tenantB,
             Name = "Customer B",
             Email = email,
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -422,6 +441,7 @@ public class CustomerEntityTests
             TenantId = tenantId,
             Name = "Customer 1",
             Email = null,
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -432,6 +452,7 @@ public class CustomerEntityTests
             TenantId = tenantId,
             Name = "Customer 2",
             Email = null,
+            Currency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -441,6 +462,132 @@ public class CustomerEntityTests
 
         var saved = db.Customers.Where(c => c.TenantId == tenantId && c.Email == null).ToList();
         saved.Should().HaveCount(2, "null emails should be allowed and not trigger uniqueness constraint");
+    }
+
+    #endregion
+
+    #region Currency Field Tests
+
+    [Fact]
+    public async Task CreateCustomer_WithUSDCurrency_Succeeds()
+    {
+        await using var db = await CreateCleanContext();
+
+        var customer = new Customer
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Guid.NewGuid(),
+            Name = "USD Customer",
+            Currency = "USD",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var saved = await db.Customers.FindAsync(customer.Id);
+        saved.Should().NotBeNull();
+        saved!.Currency.Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task CreateCustomer_WithVariousCurrencies_AllSucceed()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+
+        var currencies = new[] { "USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY" };
+
+        foreach (var currency in currencies)
+        {
+            var customer = new Customer
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Name = $"Customer {currency}",
+                Currency = currency,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            db.Customers.Add(customer);
+        }
+
+        await db.SaveChangesAsync();
+
+        var saved = db.Customers.Where(c => c.TenantId == tenantId).ToList();
+        saved.Should().HaveCount(currencies.Length);
+        saved.Select(c => c.Currency).Should().BeEquivalentTo(currencies);
+    }
+
+    [Fact]
+    public async Task CreateCustomer_WithoutCurrency_ThrowsException()
+    {
+        await using var db = await CreateCleanContext();
+
+        var customer = new Customer
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Guid.NewGuid(),
+            Name = "No Currency",
+            Currency = null!, // Required field
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.Customers.Add(customer);
+
+        var act = async () => await db.SaveChangesAsync();
+        await act.Should().ThrowAsync<Exception>("Currency is required");
+    }
+
+    [Fact]
+    public async Task CreateCustomer_CurrencyExceedsMaxLength_ThrowsException()
+    {
+        await using var db = await CreateCleanContext();
+
+        var customer = new Customer
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Guid.NewGuid(),
+            Name = "Invalid Currency",
+            Currency = "USDD", // MaxLength is 3 (ISO 4217)
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.Customers.Add(customer);
+
+        var act = async () => await db.SaveChangesAsync();
+        await act.Should().ThrowAsync<Exception>("Currency exceeds max length of 3");
+    }
+
+    [Fact]
+    public async Task UpdateCustomer_Currency_UpdatesSuccessfully()
+    {
+        await using var db = await CreateCleanContext();
+
+        var customer = new Customer
+        {
+            Id = Guid.NewGuid(),
+            TenantId = Guid.NewGuid(),
+            Name = "Currency Change Test",
+            Currency = "USD",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        customer.Currency = "EUR";
+        customer.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync();
+
+        var saved = await db.Customers.FindAsync(customer.Id);
+        saved.Should().NotBeNull();
+        saved!.Currency.Should().Be("EUR");
     }
 
     #endregion

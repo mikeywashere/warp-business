@@ -26,13 +26,14 @@ public class CustomerEmployeeRelationshipTests
         return db;
     }
 
-    private Customer CreateTestCustomer(Guid tenantId, string name = "Test Customer")
+    private Customer CreateTestCustomer(Guid tenantId, string name = "Test Customer", string currency = "USD")
     {
         return new Customer
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
             Name = name,
+            Currency = currency,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -57,6 +58,8 @@ public class CustomerEmployeeRelationshipTests
             CustomerId = customer.Id,
             EmployeeId = employeeId,
             Relationship = "Account Manager",
+            BillingRate = 150.00m,
+            BillingCurrency = "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -69,6 +72,8 @@ public class CustomerEmployeeRelationshipTests
         saved!.CustomerId.Should().Be(customer.Id);
         saved.EmployeeId.Should().Be(employeeId);
         saved.Relationship.Should().Be("Account Manager");
+        saved.BillingRate.Should().Be(150.00m);
+        saved.BillingCurrency.Should().Be("USD");
     }
 
     [Fact]
@@ -526,6 +531,273 @@ public class CustomerEmployeeRelationshipTests
 
         tenantBRelationships.Should().HaveCount(1);
         tenantBRelationships.First().CustomerId.Should().Be(customerB.Id);
+    }
+
+    #endregion
+
+    #region Billing Rate and Currency Tests
+
+    [Fact]
+    public async Task CreateRelationship_WithBillingRate_SavesCorrectly()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var relationship = new CustomerEmployee
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            EmployeeId = Guid.NewGuid(),
+            Relationship = "Account Manager",
+            BillingRate = 175.50m,
+            BillingCurrency = "USD",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.CustomerEmployees.Add(relationship);
+        await db.SaveChangesAsync();
+
+        var saved = await db.CustomerEmployees.FindAsync(relationship.Id);
+        saved.Should().NotBeNull();
+        saved!.BillingRate.Should().Be(175.50m);
+        saved.BillingCurrency.Should().Be("USD");
+    }
+
+    [Fact]
+    public async Task CreateRelationship_WithoutBillingRate_AllowsNull()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var relationship = new CustomerEmployee
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            EmployeeId = Guid.NewGuid(),
+            Relationship = "Consultant",
+            BillingRate = null,
+            BillingCurrency = "USD",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.CustomerEmployees.Add(relationship);
+        await db.SaveChangesAsync();
+
+        var saved = await db.CustomerEmployees.FindAsync(relationship.Id);
+        saved.Should().NotBeNull();
+        saved!.BillingRate.Should().BeNull("BillingRate is optional");
+    }
+
+    [Fact]
+    public async Task CreateRelationship_BillingRatePrecision_StoresCorrectly()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var testRates = new[] { 99.99m, 100.00m, 1000.50m, 9999999999999999.99m };
+
+        foreach (var rate in testRates)
+        {
+            var relationship = new CustomerEmployee
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customer.Id,
+                EmployeeId = Guid.NewGuid(),
+                Relationship = "Consultant",
+                BillingRate = rate,
+                BillingCurrency = "USD",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            db.CustomerEmployees.Add(relationship);
+        }
+
+        await db.SaveChangesAsync();
+
+        var saved = await db.CustomerEmployees
+            .Where(ce => ce.CustomerId == customer.Id)
+            .ToListAsync();
+
+        saved.Should().HaveCount(testRates.Length);
+        saved.Select(ce => ce.BillingRate).Should().BeEquivalentTo(testRates);
+    }
+
+    [Fact]
+    public async Task CreateRelationship_BillingCurrencyRequired_ThrowsWhenNull()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var relationship = new CustomerEmployee
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            EmployeeId = Guid.NewGuid(),
+            Relationship = "Consultant",
+            BillingRate = 100.00m,
+            BillingCurrency = null!, // Required field
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.CustomerEmployees.Add(relationship);
+
+        var act = async () => await db.SaveChangesAsync();
+        await act.Should().ThrowAsync<Exception>("BillingCurrency is required");
+    }
+
+    [Fact]
+    public async Task CreateRelationship_WithDifferentCurrencies_AllSucceed()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var currencies = new[] { "USD", "EUR", "GBP", "JPY" };
+
+        foreach (var currency in currencies)
+        {
+            var relationship = new CustomerEmployee
+            {
+                Id = Guid.NewGuid(),
+                CustomerId = customer.Id,
+                EmployeeId = Guid.NewGuid(),
+                Relationship = "Consultant",
+                BillingRate = 100.00m,
+                BillingCurrency = currency,
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            db.CustomerEmployees.Add(relationship);
+        }
+
+        await db.SaveChangesAsync();
+
+        var saved = await db.CustomerEmployees
+            .Where(ce => ce.CustomerId == customer.Id)
+            .ToListAsync();
+
+        saved.Should().HaveCount(currencies.Length);
+        saved.Select(ce => ce.BillingCurrency).Should().BeEquivalentTo(currencies);
+    }
+
+    [Fact]
+    public async Task CreateRelationship_BillingCurrencyExceedsMaxLength_ThrowsException()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var relationship = new CustomerEmployee
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            EmployeeId = Guid.NewGuid(),
+            Relationship = "Consultant",
+            BillingRate = 100.00m,
+            BillingCurrency = "USDD", // MaxLength is 3 (ISO 4217)
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.CustomerEmployees.Add(relationship);
+
+        var act = async () => await db.SaveChangesAsync();
+        await act.Should().ThrowAsync<Exception>("BillingCurrency exceeds max length of 3");
+    }
+
+    [Fact]
+    public async Task CreateRelationship_BillingCurrencyDefaultsToCustomerCurrency()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId, "Test Customer", "EUR");
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var relationship = new CustomerEmployee
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            EmployeeId = Guid.NewGuid(),
+            Relationship = "Account Manager",
+            BillingRate = 150.00m,
+            BillingCurrency = customer.Currency, // Should default to customer currency
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.CustomerEmployees.Add(relationship);
+        await db.SaveChangesAsync();
+
+        var saved = await db.CustomerEmployees.FindAsync(relationship.Id);
+        saved.Should().NotBeNull();
+        saved!.BillingCurrency.Should().Be("EUR", "should match customer currency");
+    }
+
+    [Fact]
+    public async Task QueryRelationshipsByBillingCurrency_UsesBillingIndex()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var customer = CreateTestCustomer(tenantId);
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync();
+
+        var usdRelationship = new CustomerEmployee
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            EmployeeId = Guid.NewGuid(),
+            Relationship = "Account Manager",
+            BillingRate = 150.00m,
+            BillingCurrency = "USD",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        var eurRelationship = new CustomerEmployee
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = customer.Id,
+            EmployeeId = Guid.NewGuid(),
+            Relationship = "Technical Contact",
+            BillingRate = 120.00m,
+            BillingCurrency = "EUR",
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.CustomerEmployees.AddRange(usdRelationship, eurRelationship);
+        await db.SaveChangesAsync();
+
+        // Query using the composite index (CustomerId, BillingCurrency)
+        var usdRelationships = await db.CustomerEmployees
+            .Where(ce => ce.CustomerId == customer.Id && ce.BillingCurrency == "USD")
+            .ToListAsync();
+
+        usdRelationships.Should().HaveCount(1);
+        usdRelationships.First().BillingRate.Should().Be(150.00m);
     }
 
     #endregion
