@@ -12,7 +12,7 @@ public static class CustomerEndpoints
 {
     public static void MapCustomerEndpoints(this WebApplication app)
     {
-        var group = app.MapGroup("/api/customers")
+        var group = app.MapGroup("/api/crm/customers")
             .RequireAuthorization();
 
         group.MapGet("", GetCustomers)
