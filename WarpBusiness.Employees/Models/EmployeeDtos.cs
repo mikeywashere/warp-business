@@ -13,7 +13,10 @@ public record CreateEmployeeRequest(
     Guid? ManagerId,
     EmploymentStatus EmploymentStatus,
     EmploymentType EmploymentType,
-    Guid? UserId);
+    Guid? UserId,
+    decimal PayAmount,
+    PayType PayType,
+    string? Currency = null);
 
 public record UpdateEmployeeRequest(
     string FirstName,
@@ -29,7 +32,10 @@ public record UpdateEmployeeRequest(
     Guid? ManagerId,
     EmploymentStatus EmploymentStatus,
     EmploymentType EmploymentType,
-    Guid? UserId);
+    Guid? UserId,
+    decimal PayAmount,
+    PayType PayType,
+    string Currency);
 
 public record EmployeeResponse(
     Guid Id,
@@ -49,5 +55,8 @@ public record EmployeeResponse(
     EmploymentType EmploymentType,
     Guid? UserId,
     Guid TenantId,
+    decimal PayAmount,
+    PayType PayType,
+    string Currency,
     DateTime CreatedAt,
     DateTime UpdatedAt);

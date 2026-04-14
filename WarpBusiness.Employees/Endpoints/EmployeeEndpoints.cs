@@ -126,6 +126,9 @@ public static class EmployeeEndpoints
             EmploymentType = request.EmploymentType,
             UserId = request.UserId,
             TenantId = tenantId.Value,
+            PayAmount = request.PayAmount,
+            PayType = request.PayType,
+            Currency = request.Currency ?? string.Empty,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -191,6 +194,9 @@ public static class EmployeeEndpoints
             return Results.BadRequest(new { message = "This employee is linked to a user account. The link cannot be changed." });
 
         employee.UserId = request.UserId;
+        employee.PayAmount = request.PayAmount;
+        employee.PayType = request.PayType;
+        employee.Currency = request.Currency;
         employee.UpdatedAt = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
@@ -259,6 +265,9 @@ public static class EmployeeEndpoints
             employee.EmploymentType,
             employee.UserId,
             employee.TenantId,
+            employee.PayAmount,
+            employee.PayType,
+            employee.Currency,
             employee.CreatedAt,
             employee.UpdatedAt);
 }

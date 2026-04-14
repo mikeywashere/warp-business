@@ -23,6 +23,9 @@ public class Employee
     public EmploymentType EmploymentType { get; set; } = EmploymentType.FullTime;
     public Guid? UserId { get; set; }
     public Guid TenantId { get; set; }
+    public decimal PayAmount { get; set; }
+    public PayType PayType { get; set; }
+    public string Currency { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
@@ -43,4 +46,11 @@ public enum EmploymentType
     PartTime,
     Contract,
     Intern
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum PayType
+{
+    Hourly,
+    Salary
 }

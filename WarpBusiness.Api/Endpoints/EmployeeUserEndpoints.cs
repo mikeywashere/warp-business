@@ -402,6 +402,9 @@ public static class EmployeeUserEndpoints
             employee.EmploymentType,
             employee.UserId,
             employee.TenantId,
+            employee.PayAmount,
+            employee.PayType,
+            employee.Currency,
             employee.CreatedAt,
             employee.UpdatedAt);
 

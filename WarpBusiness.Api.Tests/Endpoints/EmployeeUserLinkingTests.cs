@@ -70,18 +70,24 @@ public class EmployeeUserLinkingTests
         string email = "picard@enterprise.com",
         Guid? userId = null,
         EmploymentStatus status = EmploymentStatus.Active,
-        EmploymentType type = EmploymentType.FullTime) =>
+        EmploymentType type = EmploymentType.FullTime,
+        decimal payAmount = 100000m,
+        PayType payType = PayType.Salary,
+        string currency = "USD") =>
         new(firstName, lastName, null, email, "555-1701", new DateOnly(2305, 7, 13),
-            new DateOnly(2364, 1, 1), "Command", "Captain", null, status, type, userId);
+            new DateOnly(2364, 1, 1), "Command", "Captain", null, status, type, userId, payAmount, payType, currency);
 
     private static UpdateEmployeeRequest MakeUpdateRequest(
         string firstName = "Jean-Luc",
         string lastName = "Picard",
         string email = "picard@enterprise.com",
-        Guid? userId = null) =>
+        Guid? userId = null,
+        decimal payAmount = 100000m,
+        PayType payType = PayType.Salary,
+        string currency = "USD") =>
         new(firstName, lastName, null, email, "555-1701", new DateOnly(2305, 7, 13),
             new DateOnly(2364, 1, 1), null, "Command", "Captain", null,
-            EmploymentStatus.Active, EmploymentType.FullTime, userId);
+            EmploymentStatus.Active, EmploymentType.FullTime, userId, payAmount, payType, currency);
 
     /// <summary>
     /// Seeds an ApplicationUser in the warp schema and adds tenant membership.

@@ -43,6 +43,19 @@ public class EmployeeDbContext : DbContext
                 .HasConversion<string>()
                 .HasMaxLength(50);
 
+            entity.Property(e => e.PayAmount)
+                .HasPrecision(18, 2)
+                .IsRequired();
+
+            entity.Property(e => e.PayType)
+                .HasConversion<string>()
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.Currency)
+                .HasMaxLength(3)
+                .IsRequired();
+
             // Self-referencing FK for org hierarchy
             entity.HasOne(e => e.Manager)
                 .WithMany(e => e.DirectReports)
