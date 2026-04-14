@@ -1,0 +1,165 @@
+@using WarpBusiness.Api.Models
+@using System.ComponentModel.DataAnnotations
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Edit Profile</h5>
+    </div>
+    <div class="card-body">
+        <EditForm Model="model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="mb-3">
+                <label for="name" class="form-label">Name *</label>
+                <InputText id="name" @bind-value="model.Name" class="form-control" maxlength="100" />
+                <ValidationMessage For="@(() => model.Name)" class="text-danger" />
+            </div>
+
+            <div class="mb-3">
+                <label for="email" class="form-label">Email *</label>
+                <InputText id="email" type="email" @bind-value="model.Email" class="form-control" maxlength="255" />
+                <ValidationMessage For="@(() => model.Email)" class="text-danger" />
+            </div>
+
+            <div class="mb-3">
+                <label for="phone" class="form-label">Phone</label>
+                <InputText id="phone" type="tel" @bind-value="model.Phone" class="form-control" maxlength="20" />
+                <ValidationMessage For="@(() => model.Phone)" class="text-danger" />
+            </div>
+
+            <div class="mb-3">
+                <label for="address" class="form-label">Address</label>
+                <InputText id="address" @bind-value="model.Address" class="form-control" maxlength="255" />
+                <ValidationMessage For="@(() => model.Address)" class="text-danger" />
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="city" class="form-label">City</label>
+                    <InputText id="city" @bind-value="model.City" class="form-control" maxlength="100" />
+                    <ValidationMessage For="@(() => model.City)" class="text-danger" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="state" class="form-label">State/Province</label>
+                    <InputText id="state" @bind-value="model.State" class="form-control" maxlength="50" />
+                    <ValidationMessage For="@(() => model.State)" class="text-danger" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="postalCode" class="form-label">Postal Code</label>
+                    <InputText id="postalCode" @bind-value="model.PostalCode" class="form-control" maxlength="20" />
+                    <ValidationMessage For="@(() => model.PostalCode)" class="text-danger" />
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="country" class="form-label">Country</label>
+                    <InputText id="country" @bind-value="model.Country" class="form-control" maxlength="100" />
+                    <ValidationMessage For="@(() => model.Country)" class="text-danger" />
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    }
+                    Save Changes
+                </button>
+                <button type="button" class="btn btn-outline-light" @onclick="HandleCancel" disabled="@isLoading">
+                    Cancel
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public CustomerDto? Customer { get; set; }
+
+    [Parameter]
+    public EventCallback<CustomerUpdateDto> OnSaveAsync { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelAsync { get; set; }
+
+    private ProfileFormModel model = new();
+    private bool isLoading;
+
+    protected override void OnParametersSet()
+    {
+        if (Customer != null)
+        {
+            model = new ProfileFormModel
+            {
+                Name = Customer.Name,
+                Email = Customer.Email,
+                Phone = Customer.Phone,
+                Address = Customer.Address,
+                City = Customer.City,
+                State = Customer.State,
+                PostalCode = Customer.PostalCode,
+                Country = Customer.Country
+            };
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        try
+        {
+            var dto = new CustomerUpdateDto(
+                model.Name ?? "",
+                model.Email,
+                model.Phone,
+                model.Address,
+                model.City,
+                model.State,
+                model.PostalCode,
+                model.Country);
+
+            await OnSaveAsync.InvokeAsync(dto);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        await OnCancelAsync.InvokeAsync();
+    }
+
+    private class ProfileFormModel
+    {
+        [Required]
+        [StringLength(100)]
+        public string? Name { get; set; }
+
+        [EmailAddress]
+        [StringLength(255)]
+        public string? Email { get; set; }
+
+        [StringLength(20)]
+        public string? Phone { get; set; }
+
+        [StringLength(255)]
+        public string? Address { get; set; }
+
+        [StringLength(100)]
+        public string? City { get; set; }
+
+        [StringLength(50)]
+        public string? State { get; set; }
+
+        [StringLength(20)]
+        public string? PostalCode { get; set; }
+
+        [StringLength(100)]
+        public string? Country { get; set; }
+    }
+}

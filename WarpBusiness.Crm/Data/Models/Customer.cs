@@ -18,6 +18,7 @@ public class Customer
     public string? Notes { get; set; }
     public bool IsActive { get; set; } = true;
     public string Currency { get; set; } = string.Empty;
+    public byte[]? Logo { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     

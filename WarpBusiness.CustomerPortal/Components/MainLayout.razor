@@ -1,0 +1,53 @@
+@inherits LayoutComponentBase
+@inject AuthService AuthService
+@using WarpBusiness.CustomerPortal.Services
+
+<div class="layout">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom" style="border-bottom-color: var(--clr-border) !important;">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <span style="color: var(--clr-accent); font-weight: bold; font-family: var(--font-heading);">⚡ PORTAL</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/profile">Profile</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/assignments">Assignments</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logo">Logo</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mt-4">
+        @Body
+    </main>
+</div>
+
+<style>
+    .layout {
+        min-height: 100vh;
+        background-color: var(--clr-bg);
+        color: var(--clr-text);
+    }
+
+    .navbar {
+        background-color: var(--clr-bg-section) !important;
+    }
+
+    main {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+</style>

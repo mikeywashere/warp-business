@@ -1,0 +1,68 @@
+@using WarpBusiness.Api.Models
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Assigned Employees</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Employee Name</th>
+                    <th>Email</th>
+                    <th>Relationship</th>
+                    <th>Billing Rate</th>
+                    <th>Currency</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (IsLoading)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <span class="spinner-border" role="status"></span>
+                        </td>
+                    </tr>
+                }
+                else if (Assignments == null || Assignments.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-center py-4" style="color: var(--clr-text-muted);">
+                            No employees assigned
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var assignment in Assignments)
+                    {
+                        <tr>
+                            <td>@assignment.EmployeeName</td>
+                            <td>@assignment.EmployeeEmail</td>
+                            <td>@assignment.Relationship</td>
+                            <td>
+                                @if (assignment.BillingRate.HasValue)
+                                {
+                                    <span>@assignment.BillingRate.Value.ToString("F2")</span>
+                                }
+                                else
+                                {
+                                    <span style="color: var(--clr-text-muted);">—</span>
+                                }
+                            </td>
+                            <td>@assignment.BillingCurrency</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public List<CustomerEmployeeDto>? Assignments { get; set; }
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+}

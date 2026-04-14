@@ -262,6 +262,9 @@ app.MapCurrencyEndpoints();
 // Customer management API endpoints
 app.MapCustomerEndpoints();
 
+// Portal customer API endpoints (customer-scoped)
+app.MapPortalCustomerEndpoints();
+
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"

@@ -18,7 +18,9 @@ public record CustomerDto(
     bool IsActive,
     string Currency,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt);
+    DateTimeOffset UpdatedAt,
+    byte[]? Logo = null,
+    string? LogoMimeType = null);
 
 public record CustomerCreateDto(
     string Name,

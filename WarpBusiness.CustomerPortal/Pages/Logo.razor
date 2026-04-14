@@ -1,0 +1,81 @@
+@page "/logo"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.CustomerPortal.Services
+@using WarpBusiness.CustomerPortal.Components
+@inject CustomerPortalApiClient ApiClient
+@inject AuthService AuthService
+@inject LogoService LogoService
+@inject NavigationManager Nav
+
+<PageTitle>Logo - Customer Portal</PageTitle>
+
+<h1 style="color: var(--clr-accent); font-family: var(--font-heading);">Manage Your Logo</h1>
+<hr style="border-color: var(--clr-border);" />
+
+<div class="row">
+    <div class="col-lg-6">
+        <LogoDisplay Logo="logoBytes" LogoMimeType="logoMimeType" CustomerName="customer?.Name ?? 'Customer'" />
+    </div>
+    <div class="col-lg-6">
+        <LogoUploadForm CustomerId="customerId" OnUploadSuccessAsync="HandleUploadSuccess" OnDeleteAsync="HandleDelete" />
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success mt-3">@successMessage</div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@code {
+    private Guid customerId;
+    private CustomerDto? customer;
+    private byte[]? logoBytes;
+    private string? logoMimeType;
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        customerId = AuthService.GetCustomerIdFromJwt();
+        if (customerId == Guid.Empty)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            customer = await ApiClient.GetProfileAsync(customerId);
+            logoBytes = customer?.Logo;
+            logoMimeType = customer?.LogoMimeType;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load profile: {ex.Message}";
+        }
+    }
+
+    private async Task HandleUploadSuccess()
+    {
+        successMessage = "Logo uploaded successfully!";
+        errorMessage = null;
+        await LoadData();
+    }
+
+    private async Task HandleDelete()
+    {
+        successMessage = "Logo deleted successfully!";
+        errorMessage = null;
+        await LoadData();
+    }
+}

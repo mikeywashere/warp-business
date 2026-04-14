@@ -1,0 +1,61 @@
+@page "/assignments"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.CustomerPortal.Services
+@using WarpBusiness.CustomerPortal.Components
+@inject CustomerPortalApiClient ApiClient
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Assignments - Customer Portal</PageTitle>
+
+<h1 style="color: var(--clr-accent); font-family: var(--font-heading);">Employee Assignments</h1>
+<hr style="border-color: var(--clr-border);" />
+
+@if (isLoading)
+{
+    <div class="alert alert-info">Loading assignments...</div>
+}
+else if (assignments == null || assignments.Count == 0)
+{
+    <div class="alert alert-warning">No employees assigned to your account</div>
+}
+else
+{
+    <EmployeeAssignmentTable Assignments="assignments" IsLoading="false" />
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@code {
+    private Guid customerId;
+    private List<CustomerEmployeeDto>? assignments;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        customerId = AuthService.GetCustomerIdFromJwt();
+        if (customerId == Guid.Empty)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try
+        {
+            assignments = await ApiClient.GetAssignmentsAsync(customerId);
+            assignments = assignments.OrderBy(a => a.EmployeeName).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load assignments: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

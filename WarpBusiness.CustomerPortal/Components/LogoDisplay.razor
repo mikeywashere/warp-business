@@ -1,0 +1,56 @@
+@using WarpBusiness.CustomerPortal.Services
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Your Logo</h5>
+    </div>
+    <div class="card-body text-center">
+        @if (Logo != null && !string.IsNullOrEmpty(LogoMimeType))
+        {
+            <img src="@LogoService.ToBase64DataUri(Logo, LogoMimeType)" 
+                 alt="@CustomerName logo" 
+                 class="logo-display" />
+        }
+        else
+        {
+            <div class="logo-placeholder">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🖼️</div>
+                <p style="color: var(--clr-text-muted);">No logo uploaded yet</p>
+                <p style="font-size: 0.9rem; color: var(--clr-text-muted);">
+                    Upload a PNG, JPG, WEBP, or SVG file (max 2MB)
+                </p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public byte[]? Logo { get; set; }
+
+    [Parameter]
+    public string? LogoMimeType { get; set; }
+
+    [Parameter]
+    public string CustomerName { get; set; } = "Customer";
+
+    [Inject]
+    public LogoService LogoService { get; set; } = null!;
+}
+
+<style>
+    .logo-display {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: 8px;
+        border: 2px solid var(--clr-border);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .logo-placeholder {
+        padding: 3rem 1rem;
+        border: 2px dashed var(--clr-border);
+        border-radius: 8px;
+        background-color: rgba(0, 200, 255, 0.02);
+    }
+</style>

@@ -1,0 +1,105 @@
+@page "/profile"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.CustomerPortal.Services
+@using WarpBusiness.CustomerPortal.Components
+@inject CustomerPortalApiClient ApiClient
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Profile - Customer Portal</PageTitle>
+
+<h1 style="color: var(--clr-accent); font-family: var(--font-heading);">Customer Profile</h1>
+<hr style="border-color: var(--clr-border);" />
+
+@if (customer == null)
+{
+    <div class="alert alert-info">Loading profile...</div>
+}
+else
+{
+    <div class="row">
+        <div class="col-lg-8">
+            <ProfileForm Customer="customer" OnSaveAsync="HandleSave" OnCancelAsync="HandleCancel" />
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Name:</strong> @customer.Name</p>
+                    <p><strong>Email:</strong> @customer.Email</p>
+                    <p><strong>Phone:</strong> @(customer.Phone ?? "Not provided")</p>
+                    <p><strong>City:</strong> @(customer.City ?? "Not provided")</p>
+                    <p><strong>Country:</strong> @(customer.Country ?? "Not provided")</p>
+                    <p><strong>Currency:</strong> @customer.Currency</p>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success mt-3">@successMessage</div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger mt-3">@errorMessage</div>
+}
+
+@code {
+    private CustomerDto? customer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var customerId = AuthService.GetCustomerIdFromJwt();
+        if (customerId == Guid.Empty)
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try
+        {
+            customer = await ApiClient.GetProfileAsync(customerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load profile: {ex.Message}";
+        }
+    }
+
+    private string? successMessage;
+    private string? errorMessage;
+
+    private async Task HandleSave(CustomerUpdateDto dto)
+    {
+        successMessage = null;
+        errorMessage = null;
+
+        var customerId = AuthService.GetCustomerIdFromJwt();
+        if (customerId == Guid.Empty)
+        {
+            errorMessage = "User not authenticated";
+            return;
+        }
+
+        try
+        {
+            customer = await ApiClient.UpdateProfileAsync(customerId, dto);
+            successMessage = "Profile updated successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to update profile: {ex.Message}";
+        }
+    }
+
+    private Task HandleCancel()
+    {
+        Nav.NavigateTo("/");
+        return Task.CompletedTask;
+    }
+}

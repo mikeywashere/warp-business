@@ -428,5 +428,7 @@ public static class CustomerEndpoints
             customer.IsActive,
             customer.Currency,
             customer.CreatedAt,
-            customer.UpdatedAt);
+            customer.UpdatedAt,
+            Logo: null,
+            LogoMimeType: null);
 }

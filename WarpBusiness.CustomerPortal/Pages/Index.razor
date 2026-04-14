@@ -1,0 +1,79 @@
+@page "/"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.CustomerPortal.Services
+@inject CustomerPortalApiClient ApiClient
+@inject AuthService AuthService
+@inject NavigationManager Nav
+
+<PageTitle>Dashboard - Customer Portal</PageTitle>
+
+<div class="hero-section mb-5">
+    <h1 class="display-4">Welcome to Your Portal</h1>
+    <p class="lead" style="color: var(--clr-text-muted);">Manage your profile, view assignments, and upload your logo</p>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+        <a href="/profile" class="card card-link text-decoration-none" style="cursor: pointer;">
+            <div class="card-body text-center">
+                <div class="icon-large mb-3">👤</div>
+                <h5 class="card-title">Profile</h5>
+                <p class="card-text" style="color: var(--clr-text-muted); font-size: 0.9rem;">Manage your account information</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a href="/assignments" class="card card-link text-decoration-none" style="cursor: pointer;">
+            <div class="card-body text-center">
+                <div class="icon-large mb-3">👥</div>
+                <h5 class="card-title">Assignments</h5>
+                <p class="card-text" style="color: var(--clr-text-muted); font-size: 0.9rem;">View employee assignments & billing</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a href="/logo" class="card card-link text-decoration-none" style="cursor: pointer;">
+            <div class="card-body text-center">
+                <div class="icon-large mb-3">🖼️</div>
+                <h5 class="card-title">Logo</h5>
+                <p class="card-text" style="color: var(--clr-text-muted); font-size: 0.9rem;">Upload and manage your logo</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+        <a href="/help" class="card card-link text-decoration-none" style="cursor: pointer;">
+            <div class="card-body text-center">
+                <div class="icon-large mb-3">❓</div>
+                <h5 class="card-title">Help</h5>
+                <p class="card-text" style="color: var(--clr-text-muted); font-size: 0.9rem;">Get support and documentation</p>
+            </div>
+        </a>
+    </div>
+</div>
+
+<style>
+    .hero-section h1 {
+        color: var(--clr-accent);
+        font-family: var(--font-heading);
+        letter-spacing: 0.05em;
+    }
+
+    .card-link {
+        transition: all 0.3s ease;
+        border: 1px solid var(--clr-border);
+        background-color: var(--clr-bg-card);
+    }
+
+    .card-link:hover {
+        border-color: var(--clr-accent);
+        background-color: rgba(0, 200, 255, 0.05);
+        box-shadow: 0 0 20px rgba(0, 200, 255, 0.15);
+    }
+
+    .icon-large {
+        font-size: 2.5rem;
+    }
+</style>

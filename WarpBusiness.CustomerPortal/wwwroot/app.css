@@ -1,0 +1,230 @@
+/* ── Warp Business Design Tokens ── */
+:root {
+    --clr-bg:          #050b18;
+    --clr-bg-section:  #070e20;
+    --clr-bg-card:     #0b1628;
+    --clr-accent:      #00c8ff;
+    --clr-accent-2:    #0055ff;
+    --clr-accent-glow: rgba(0, 200, 255, 0.25);
+    --clr-text:        #e8f0fe;
+    --clr-text-muted:  #8899bb;
+    --clr-border:      rgba(0, 200, 255, 0.18);
+    --font-heading:    'Orbitron', sans-serif;
+    --font-body:       'Inter', sans-serif;
+}
+
+/* ── Base ── */
+html, body {
+    font-family: var(--font-body);
+    background-color: var(--clr-bg);
+    color: var(--clr-text);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    color: var(--clr-text);
+}
+
+a, .btn-link {
+    color: var(--clr-accent);
+}
+
+a:hover, .btn-link:hover {
+    color: #5de0ff;
+}
+
+/* ── Buttons ── */
+.btn-primary {
+    color: #fff;
+    background-color: var(--clr-accent);
+    border-color: var(--clr-accent);
+}
+
+.btn-primary:hover {
+    background-color: #00a8d6;
+    border-color: #0099c4;
+}
+
+.btn-outline-light {
+    color: var(--clr-accent);
+    border-color: var(--clr-accent);
+}
+
+.btn-outline-light:hover {
+    background-color: var(--clr-accent);
+    border-color: var(--clr-accent);
+    color: var(--clr-bg);
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem var(--clr-bg), 0 0 0 0.25rem var(--clr-accent-glow);
+}
+
+/* ── Cards ── */
+.card {
+    background-color: var(--clr-bg-card);
+    border: 1px solid var(--clr-border);
+    color: var(--clr-text);
+}
+
+.card-header {
+    background-color: rgba(0, 200, 255, 0.06);
+    border-bottom: 1px solid var(--clr-border);
+    color: var(--clr-text);
+}
+
+/* ── Tables ── */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--clr-text);
+    --bs-table-border-color: var(--clr-border);
+    --bs-table-striped-bg: rgba(0, 200, 255, 0.04);
+    --bs-table-hover-bg: rgba(0, 200, 255, 0.08);
+    color: var(--clr-text);
+}
+
+.table thead th {
+    background-color: rgba(0, 200, 255, 0.06);
+    color: var(--clr-text) !important;
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.table tbody td {
+    color: var(--clr-text) !important;
+}
+
+.table tbody tr {
+    color: var(--clr-text) !important;
+}
+
+/* ── Forms ── */
+.form-control, .form-select {
+    background-color: var(--clr-bg-section);
+    border-color: var(--clr-border);
+    color: var(--clr-text);
+}
+
+.form-control:focus, .form-select:focus {
+    background-color: var(--clr-bg);
+    border-color: var(--clr-accent);
+    color: var(--clr-text);
+    box-shadow: 0 0 0 0.25rem var(--clr-accent-glow);
+}
+
+.form-control::placeholder {
+    color: var(--clr-text-muted);
+}
+
+.form-label {
+    color: var(--clr-text-muted);
+}
+
+/* ── Inline code & muted text ── */
+code {
+    color: var(--clr-accent);
+    background-color: rgba(0, 200, 255, 0.08);
+}
+
+.text-muted {
+    color: var(--clr-text-muted) !important;
+}
+
+.bg-light {
+    background-color: var(--clr-bg-section) !important;
+    color: var(--clr-text) !important;
+}
+
+/* ── Alerts (dark-theme readable) ── */
+.alert-danger {
+    background-color: rgba(220, 53, 69, 0.15);
+    border-color: rgba(220, 53, 69, 0.5);
+    color: #ff6b7a;
+}
+
+.alert-warning {
+    background-color: rgba(255, 193, 7, 0.15);
+    border-color: rgba(255, 193, 7, 0.5);
+    color: #ffca2c;
+}
+
+.alert-info {
+    background-color: rgba(13, 202, 240, 0.15);
+    border-color: var(--clr-border);
+    color: var(--clr-accent);
+}
+
+.alert-success {
+    background-color: rgba(25, 135, 84, 0.15);
+    border-color: rgba(25, 135, 84, 0.5);
+    color: #6dd58d;
+}
+
+/* ── Validation messages ── */
+.text-danger {
+    color: #ff6b7a !important;
+}
+
+.invalid-feedback {
+    color: #ff6b7a;
+}
+
+/* ── Progress bars ── */
+.progress {
+    background-color: var(--clr-bg-section);
+    border: 1px solid var(--clr-border);
+    border-radius: 0.25rem;
+}
+
+.progress-bar {
+    background-color: var(--clr-accent);
+}
+
+/* ── Navbar ── */
+.navbar {
+    border-bottom: 1px solid var(--clr-border);
+}
+
+.navbar-dark .navbar-nav .nav-link {
+    color: var(--clr-text-muted);
+    transition: color 0.3s ease;
+}
+
+.navbar-dark .navbar-nav .nav-link:hover,
+.navbar-dark .navbar-nav .nav-link.active {
+    color: var(--clr-accent);
+}
+
+/* ── Spinner & loading states ── */
+.spinner-border {
+    border-color: var(--clr-border);
+    border-right-color: var(--clr-accent);
+}
+
+/* ── Validation states ── */
+.was-validated .form-control:invalid,
+.form-control.is-invalid {
+    border-color: #ff6b7a;
+}
+
+.was-validated .form-control:invalid:focus,
+.form-control.is-invalid:focus {
+    border-color: #ff6b7a;
+    box-shadow: 0 0 0 0.25rem rgba(255, 107, 122, 0.25);
+}
+
+/* ── HR ── */
+hr {
+    border-color: var(--clr-border);
+}
+
+/* ── Logo specific ── */
+.logo-display {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+    border: 2px solid var(--clr-border);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}

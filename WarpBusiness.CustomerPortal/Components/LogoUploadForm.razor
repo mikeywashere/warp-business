@@ -1,0 +1,203 @@
+@using WarpBusiness.CustomerPortal.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject LogoService LogoService
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Upload Logo</h5>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <label for="logoFile" class="form-label">Select Logo File</label>
+            <div class="upload-zone" @ondrop="HandleDrop" @ondragover="HandleDragOver" @ondragleave="HandleDragLeave">
+                <InputFile id="logoFile" @onchange="HandleFileSelected" accept="image/png,image/jpeg,image/webp,image/svg+xml" class="form-control" />
+                <p class="text-center mb-0" style="color: var(--clr-text-muted);">
+                    Drag & drop your logo here or click to select
+                </p>
+                @if (!string.IsNullOrEmpty(selectedFileName))
+                {
+                    <p class="text-center mt-2" style="color: var(--clr-accent);">
+                        Selected: <strong>@selectedFileName</strong>
+                    </p>
+                }
+            </div>
+            @if (!string.IsNullOrEmpty(validationError))
+            {
+                <div class="alert alert-danger mt-2">@validationError</div>
+            }
+        </div>
+
+        @if (uploadProgress > 0 && uploadProgress < 100)
+        {
+            <div class="progress mb-3">
+                <div class="progress-bar" role="progressbar" style="width: @uploadProgress%" 
+                     aria-valuenow="@uploadProgress" aria-valuemin="0" aria-valuemax="100">
+                    @uploadProgress%
+                </div>
+            </div>
+        }
+
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-primary" @onclick="HandleUpload" disabled="@(isLoading || selectedFile == null)">
+                @if (isLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                }
+                Upload
+            </button>
+            <button type="button" class="btn btn-outline-light" @onclick="HandleClear" disabled="@isLoading">
+                Clear
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid CustomerId { get; set; }
+
+    [Parameter]
+    public EventCallback OnUploadSuccessAsync { get; set; }
+
+    [Parameter]
+    public EventCallback OnDeleteAsync { get; set; }
+
+    private IBrowserFile? selectedFile;
+    private string? selectedFileName;
+    private string? validationError;
+    private bool isLoading;
+    private int uploadProgress;
+    private bool isDragOver;
+
+    private void HandleDragOver(DragEventArgs e)
+    {
+        isDragOver = true;
+        e.DataTransfer.DropEffect = "copy";
+    }
+
+    private void HandleDragLeave(DragEventArgs e)
+    {
+        isDragOver = false;
+    }
+
+    private async Task HandleDrop(DragEventArgs e)
+    {
+        isDragOver = false;
+        var files = e.DataTransfer.Files;
+        if (files.Count > 0)
+        {
+            selectedFile = files[0];
+            selectedFileName = selectedFile.Name;
+            validationError = null;
+            
+            if (!LogoService.IsValidFileSize(selectedFile.Size))
+            {
+                validationError = "File too large (max 2MB)";
+                selectedFile = null;
+                selectedFileName = null;
+                return;
+            }
+
+            if (!LogoService.IsValidMimeType(selectedFile.ContentType))
+            {
+                validationError = "Unsupported file type (PNG, JPG, WEBP, SVG only)";
+                selectedFile = null;
+                selectedFileName = null;
+                return;
+            }
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        selectedFileName = selectedFile.Name;
+        validationError = null;
+
+        if (!LogoService.IsValidFileSize(selectedFile.Size))
+        {
+            validationError = "File too large (max 2MB)";
+            selectedFile = null;
+            selectedFileName = null;
+            return;
+        }
+
+        if (!LogoService.IsValidMimeType(selectedFile.ContentType))
+        {
+            validationError = "Unsupported file type (PNG, JPG, WEBP, SVG only)";
+            selectedFile = null;
+            selectedFileName = null;
+            return;
+        }
+    }
+
+    private async Task HandleUpload()
+    {
+        if (selectedFile == null)
+            return;
+
+        isLoading = true;
+        uploadProgress = 0;
+        validationError = null;
+
+        try
+        {
+            var (bytes, mimeType) = (await LogoService.ValidateAndReadAsync(selectedFile))
+                ?? throw new InvalidOperationException("File validation failed");
+
+            uploadProgress = 50;
+            
+            await ApiClient.UploadLogoAsync(CustomerId, bytes, mimeType);
+            uploadProgress = 100;
+
+            selectedFile = null;
+            selectedFileName = null;
+            await OnUploadSuccessAsync.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            validationError = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            uploadProgress = 0;
+        }
+    }
+
+    private void HandleClear()
+    {
+        selectedFile = null;
+        selectedFileName = null;
+        validationError = null;
+    }
+
+    [Inject]
+    public CustomerPortalApiClient ApiClient { get; set; } = null!;
+}
+
+<style>
+    .upload-zone {
+        border: 2px dashed var(--clr-border);
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        background-color: rgba(0, 200, 255, 0.02);
+        cursor: pointer;
+    }
+
+    .upload-zone:hover {
+        border-color: var(--clr-accent);
+        background-color: rgba(0, 200, 255, 0.05);
+    }
+
+    .upload-zone.drag-over {
+        border-color: var(--clr-accent);
+        background-color: rgba(0, 200, 255, 0.1);
+    }
+
+    .form-control {
+        display: none;
+    }
+</style>
