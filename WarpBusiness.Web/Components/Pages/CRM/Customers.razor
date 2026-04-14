@@ -107,6 +107,21 @@
                                                 <option value="501+">501+</option>
                                             </InputSelect>
                                         </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Currency <span class="text-danger">*</span></label>
+                                            <InputSelect @bind-Value="formModel.Currency" class="form-select">
+                                                <option value="USD">USD - US Dollar</option>
+                                                <option value="EUR">EUR - Euro</option>
+                                                <option value="GBP">GBP - British Pound</option>
+                                                <option value="CAD">CAD - Canadian Dollar</option>
+                                                <option value="AUD">AUD - Australian Dollar</option>
+                                                <option value="JPY">JPY - Japanese Yen</option>
+                                                <option value="CHF">CHF - Swiss Franc</option>
+                                                <option value="CNY">CNY - Chinese Yuan</option>
+                                                <option value="INR">INR - Indian Rupee</option>
+                                            </InputSelect>
+                                            <ValidationMessage For="() => formModel.Currency" class="text-danger" />
+                                        </div>
                                         <div class="col-md-12">
                                             <label class="form-label">Notes</label>
                                             <InputTextArea @bind-Value="formModel.Notes" class="form-control" rows="3" />
@@ -153,6 +168,7 @@
                             <th>Phone</th>
                             <th>Industry</th>
                             <th>Company Size</th>
+                            <th>Currency</th>
                             <th>Status</th>
                             <th style="width: 200px;">Actions</th>
                         </tr>
@@ -168,6 +184,7 @@
                                     <td>@(customer.Phone ?? "—")</td>
                                     <td>@(customer.Industry ?? "—")</td>
                                     <td>@(customer.CompanySize ?? "—")</td>
+                                    <td><code>@customer.Currency</code></td>
                                     <td>
                                         <span class="badge @(customer.IsActive ? "bg-success" : "bg-secondary")">
                                             @(customer.IsActive ? "Active" : "Inactive")
@@ -199,7 +216,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="7" class="text-center text-muted py-4">
+                                <td colspan="8" class="text-center text-muted py-4">
                                     @(string.IsNullOrWhiteSpace(searchTerm) ? "No customers found." : "No customers match your search.")
                                 </td>
                             </tr>
@@ -291,7 +308,7 @@
 
     private void ShowAddModal()
     {
-        formModel = new CustomerFormModel();
+        formModel = new CustomerFormModel { Currency = "USD" }; // Default to USD
         editingCustomerId = null;
         showFormModal = true;
     }
@@ -311,7 +328,8 @@
             Website = customer.Website,
             Industry = customer.Industry,
             CompanySize = customer.CompanySize,
-            Notes = customer.Notes
+            Notes = customer.Notes,
+            Currency = customer.Currency
         };
         editingCustomerId = customer.Id;
         showFormModal = true;
@@ -345,7 +363,8 @@
                     formModel.Website,
                     formModel.Industry,
                     formModel.CompanySize,
-                    formModel.Notes);
+                    formModel.Notes,
+                    formModel.Currency!);
                 await CrmApi.UpdateCustomerAsync(editingCustomerId.Value, updateRequest);
                 successMessage = "Customer updated successfully.";
             }
@@ -363,7 +382,8 @@
                     formModel.Website,
                     formModel.Industry,
                     formModel.CompanySize,
-                    formModel.Notes);
+                    formModel.Notes,
+                    formModel.Currency!);
                 await CrmApi.CreateCustomerAsync(createRequest);
                 successMessage = "Customer created successfully.";
             }
@@ -480,6 +500,10 @@
 
         [System.ComponentModel.DataAnnotations.MaxLength(20)]
         public string? CompanySize { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(3)]
+        public string? Currency { get; set; } = "USD";
 
         [System.ComponentModel.DataAnnotations.MaxLength(2000)]
         public string? Notes { get; set; }

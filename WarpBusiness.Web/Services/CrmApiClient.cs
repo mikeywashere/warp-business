@@ -18,6 +18,7 @@ public record CustomerResponse(
     string? Industry,
     string? CompanySize,
     string? Notes,
+    string Currency,
     bool IsActive,
     Guid TenantId,
     DateTime CreatedAt,
@@ -35,7 +36,8 @@ public record CreateCustomerRequest(
     string? Website,
     string? Industry,
     string? CompanySize,
-    string? Notes);
+    string? Notes,
+    string Currency);
 
 public record UpdateCustomerRequest(
     string Name,
@@ -49,13 +51,16 @@ public record UpdateCustomerRequest(
     string? Website,
     string? Industry,
     string? CompanySize,
-    string? Notes);
+    string? Notes,
+    string Currency);
 
 // Customer-Employee DTOs
 public record CustomerEmployeeResponse(
     Guid CustomerId,
     Guid EmployeeId,
     string Relationship,
+    decimal? BillingRate,
+    string? BillingCurrency,
     string EmployeeFirstName,
     string EmployeeLastName,
     string EmployeeEmail,
@@ -63,10 +68,14 @@ public record CustomerEmployeeResponse(
 
 public record AssignEmployeeRequest(
     Guid EmployeeId,
-    string Relationship);
+    string Relationship,
+    decimal? BillingRate,
+    string? BillingCurrency);
 
 public record UpdateRelationshipRequest(
-    string Relationship);
+    string Relationship,
+    decimal? BillingRate,
+    string? BillingCurrency);
 
 public class CrmApiClient
 {

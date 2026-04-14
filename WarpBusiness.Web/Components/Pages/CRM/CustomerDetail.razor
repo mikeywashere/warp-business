@@ -82,6 +82,7 @@
                         <div class="col-md-6">
                             <p><strong>Industry:</strong> @(customer.Industry ?? "—")</p>
                             <p><strong>Company Size:</strong> @(customer.CompanySize ?? "—")</p>
+                            <p><strong>Currency:</strong> <code>@customer.Currency</code></p>
                             <p><strong>Status:</strong> 
                                 <span class="badge @(customer.IsActive ? "bg-success" : "bg-secondary")">
                                     @(customer.IsActive ? "Active" : "Inactive")
@@ -138,6 +139,8 @@
                                         <th>Employee Name</th>
                                         <th>Email</th>
                                         <th>Relationship</th>
+                                        <th>Billing Rate</th>
+                                        <th>Billing Currency</th>
                                         <th style="width: 150px;">Actions</th>
                                     </tr>
                                 </thead>
@@ -148,6 +151,26 @@
                                             <td>@emp.EmployeeFirstName @emp.EmployeeLastName</td>
                                             <td>@emp.EmployeeEmail</td>
                                             <td>@emp.Relationship</td>
+                                            <td>
+                                                @if (emp.BillingRate.HasValue)
+                                                {
+                                                    <text>@FormatCurrency(emp.BillingRate.Value, emp.BillingCurrency ?? "USD")</text>
+                                                }
+                                                else
+                                                {
+                                                    <text>—</text>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(emp.BillingCurrency))
+                                                {
+                                                    <code>@emp.BillingCurrency</code>
+                                                }
+                                                else
+                                                {
+                                                    <text>—</text>
+                                                }
+                                            </td>
                                             <td>
                                                 <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditRelationshipModal(emp)" title="Edit Relationship">
                                                     Edit
@@ -221,6 +244,30 @@
                                         <ValidationMessage For="() => assignModel.Relationship" class="text-danger" />
                                     </div>
 
+                                    <div class="mb-3">
+                                        <label class="form-label">Billing Rate</label>
+                                        <InputNumber @bind-Value="assignModel.BillingRate" class="form-control" 
+                                                     placeholder="0.00" step="0.01" />
+                                        <small class="text-muted">Optional: Hourly or daily rate for this customer engagement</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Billing Currency</label>
+                                        <InputSelect @bind-Value="assignModel.BillingCurrency" class="form-select">
+                                            <option value="">-- Select Currency --</option>
+                                            <option value="USD">USD - US Dollar</option>
+                                            <option value="EUR">EUR - Euro</option>
+                                            <option value="GBP">GBP - British Pound</option>
+                                            <option value="CAD">CAD - Canadian Dollar</option>
+                                            <option value="AUD">AUD - Australian Dollar</option>
+                                            <option value="JPY">JPY - Japanese Yen</option>
+                                            <option value="CHF">CHF - Swiss Franc</option>
+                                            <option value="CNY">CNY - Chinese Yuan</option>
+                                            <option value="INR">INR - Indian Rupee</option>
+                                        </InputSelect>
+                                        <small class="text-muted">Defaults to customer's currency (@(customer?.Currency ?? "USD"))</small>
+                                    </div>
+
                                     <div>
                                         <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
                                             @if (isSubmitting)
@@ -263,6 +310,28 @@
                                         <label class="form-label">Relationship <span class="text-danger">*</span></label>
                                         <InputText @bind-Value="relationshipModel.Relationship" class="form-control" maxlength="100" />
                                         <ValidationMessage For="() => relationshipModel.Relationship" class="text-danger" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Billing Rate</label>
+                                        <InputNumber @bind-Value="relationshipModel.BillingRate" class="form-control" 
+                                                     placeholder="0.00" step="0.01" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Billing Currency</label>
+                                        <InputSelect @bind-Value="relationshipModel.BillingCurrency" class="form-select">
+                                            <option value="">-- Select Currency --</option>
+                                            <option value="USD">USD - US Dollar</option>
+                                            <option value="EUR">EUR - Euro</option>
+                                            <option value="GBP">GBP - British Pound</option>
+                                            <option value="CAD">CAD - Canadian Dollar</option>
+                                            <option value="AUD">AUD - Australian Dollar</option>
+                                            <option value="JPY">JPY - Japanese Yen</option>
+                                            <option value="CHF">CHF - Swiss Franc</option>
+                                            <option value="CNY">CNY - Chinese Yuan</option>
+                                            <option value="INR">INR - Indian Rupee</option>
+                                        </InputSelect>
                                     </div>
 
                                     <div>
@@ -388,7 +457,10 @@
 
     private async Task ShowAssignEmployeeModal()
     {
-        assignModel = new AssignEmployeeFormModel();
+        assignModel = new AssignEmployeeFormModel 
+        { 
+            BillingCurrency = customer?.Currency ?? "USD" // Default to customer's currency
+        };
         employeeSearchText = "";
         showEmployeeDropdown = false;
         
@@ -453,7 +525,11 @@
         successMessage = null;
         try
         {
-            var request = new AssignEmployeeRequest(assignModel.EmployeeId.Value, assignModel.Relationship!);
+            var request = new AssignEmployeeRequest(
+                assignModel.EmployeeId.Value, 
+                assignModel.Relationship!,
+                assignModel.BillingRate,
+                assignModel.BillingCurrency);
             await CrmApi.AssignEmployeeAsync(CustomerId, request);
             successMessage = "Employee assigned successfully.";
             CloseAssignModal();
@@ -476,7 +552,12 @@
     private void ShowEditRelationshipModal(CustomerEmployeeResponse emp)
     {
         editingRelationship = emp;
-        relationshipModel = new RelationshipFormModel { Relationship = emp.Relationship };
+        relationshipModel = new RelationshipFormModel 
+        { 
+            Relationship = emp.Relationship,
+            BillingRate = emp.BillingRate,
+            BillingCurrency = emp.BillingCurrency
+        };
         showEditRelationshipModal = true;
     }
 
@@ -496,7 +577,10 @@
         successMessage = null;
         try
         {
-            var request = new UpdateRelationshipRequest(relationshipModel.Relationship!);
+            var request = new UpdateRelationshipRequest(
+                relationshipModel.Relationship!,
+                relationshipModel.BillingRate,
+                relationshipModel.BillingCurrency);
             await CrmApi.UpdateRelationshipAsync(CustomerId, editingRelationship.EmployeeId, request);
             successMessage = "Relationship updated successfully.";
             CloseEditRelationshipModal();
@@ -556,6 +640,24 @@
         }
     }
 
+    private string FormatCurrency(decimal amount, string currencyCode)
+    {
+        var symbol = currencyCode switch
+        {
+            "USD" => "$",
+            "EUR" => "€",
+            "GBP" => "£",
+            "CAD" => "C$",
+            "AUD" => "A$",
+            "JPY" => "¥",
+            "CHF" => "CHF ",
+            "CNY" => "¥",
+            "INR" => "₹",
+            _ => currencyCode + " "
+        };
+        return $"{symbol}{amount:N2}";
+    }
+
     private class AssignEmployeeFormModel
     {
         [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Please select an employee.")]
@@ -564,6 +666,12 @@
         [System.ComponentModel.DataAnnotations.Required]
         [System.ComponentModel.DataAnnotations.MaxLength(100)]
         public string? Relationship { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Range(0, 999999.99)]
+        public decimal? BillingRate { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(3)]
+        public string? BillingCurrency { get; set; }
     }
 
     private class RelationshipFormModel
@@ -571,5 +679,11 @@
         [System.ComponentModel.DataAnnotations.Required]
         [System.ComponentModel.DataAnnotations.MaxLength(100)]
         public string? Relationship { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Range(0, 999999.99)]
+        public decimal? BillingRate { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(3)]
+        public string? BillingCurrency { get; set; }
     }
 }
