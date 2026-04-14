@@ -108,6 +108,10 @@ public static class EmployeeEndpoints
                 return Results.Conflict(new { message = "The specified user is already linked to an employee." });
         }
 
+        // Determine currency: use provided value or default to USD
+        // TODO: In future, default to Tenant.PreferredCurrencyCode
+        string employeeCurrency = string.IsNullOrEmpty(request.Currency) ? "USD" : request.Currency;
+
         var employee = new Employee
         {
             Id = Guid.NewGuid(),
@@ -128,7 +132,7 @@ public static class EmployeeEndpoints
             TenantId = tenantId.Value,
             PayAmount = request.PayAmount,
             PayType = request.PayType,
-            Currency = request.Currency ?? string.Empty,
+            Currency = employeeCurrency,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };

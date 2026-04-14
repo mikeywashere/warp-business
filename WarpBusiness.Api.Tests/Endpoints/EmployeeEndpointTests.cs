@@ -433,6 +433,8 @@ public class EmployeeEndpointTests
     [Theory]
     [InlineData(PayType.Hourly)]
     [InlineData(PayType.Salary)]
+    [InlineData(PayType.Commission)]
+    [InlineData(PayType.Contract)]
     public async Task CreateEmployee_WithValidPayType_Accepted(PayType validPayType)
     {
         await using var db = await CreateCleanContext();
