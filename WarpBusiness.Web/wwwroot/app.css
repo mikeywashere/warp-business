@@ -85,7 +85,7 @@ a:hover, .btn-link:hover {
 
 .table thead th {
     background-color: rgba(0, 200, 255, 0.06);
-    color: var(--clr-accent);
+    color: var(--clr-text) !important;
     font-family: var(--font-heading);
     font-size: 0.75rem;
     letter-spacing: 0.05em;
