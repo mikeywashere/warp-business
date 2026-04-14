@@ -63,3 +63,12 @@
 - **Key Validations Tested**: Email uniqueness constraint with partial index (`WHERE "Email" IS NOT NULL`), null emails allowed without triggering uniqueness, cascade delete from Customer to CustomerEmployee, unique index on `(CustomerId, EmployeeId)` prevents duplicate assignments
 - **Test Results**: All 27 active tests passing (20 CustomerEntity + 7 CustomerEmployeeRelationship core tests). 38 endpoint tests skipped awaiting implementation.
 - **Status:** ✅ Model and relationship tests complete and passing. Endpoint tests ready for Data's implementation.
+
+### 2026-04-14: CRM Currency and Billing Field Tests Added
+
+- **Schema Changes**: Customer.Currency (non-nullable, ISO 4217, max 3, defaults USD), CustomerEmployee.BillingRate (decimal(18,2), nullable), CustomerEmployee.BillingCurrency (non-nullable, max 3, defaults to Customer.Currency), billing query index on (CustomerId, BillingCurrency)
+- **Customer Currency Tests (6 new)**: Default USD value, creating with various ISO currencies (USD/EUR/GBP/JPY/CAD/AUD/CHF/CNY), required field validation, max length 3 constraint, updating currency
+- **Billing Rate Tests (9 new)**: Creating with billing rate, nullable BillingRate for non-billable assignments, decimal(18,2) precision testing with values from 99.99 to 9999999999999999.99, multiple rates per customer
+- **Billing Currency Tests**: Required field validation, max length 3 constraint (ISO 4217), multiple currencies on same customer, defaulting to customer currency pattern, querying by composite index (CustomerId, BillingCurrency) for efficient billing queries
+- **Test Results**: 40 tests passing (25 CustomerEntity including 6 new currency tests + 15 CustomerEmployeeRelationship including 9 new billing tests). All constraints validated against PostgreSQL.
+- **Status:** ✅ All currency and billing field tests passing. Schema fully validated.
