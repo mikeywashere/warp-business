@@ -37,27 +37,23 @@ public static class BusinessEndpoints
 
         var businesses = await crmDb.Businesses
             .Where(b => b.TenantId == tenantId)
-            .GroupJoin(
-                crmDb.Customers,
-                b => b.Id,
-                c => c.BusinessId,
-                (b, customers) => new BusinessResponse(
-                    b.Id,
-                    b.TenantId,
-                    b.Name,
-                    b.Industry,
-                    b.Website,
-                    b.Phone,
-                    b.Address,
-                    b.City,
-                    b.State,
-                    b.PostalCode,
-                    b.Country,
-                    b.Notes,
-                    b.IsActive,
-                    b.CreatedAt,
-                    b.UpdatedAt,
-                    customers.Count()))
+            .Select(b => new BusinessResponse(
+                b.Id,
+                b.TenantId,
+                b.Name,
+                b.Industry,
+                b.Website,
+                b.Phone,
+                b.Address,
+                b.City,
+                b.State,
+                b.PostalCode,
+                b.Country,
+                b.Notes,
+                b.IsActive,
+                b.CreatedAt,
+                b.UpdatedAt,
+                b.Customers.Count()))
             .OrderBy(b => b.Name)
             .ToListAsync(cancellationToken);
 
@@ -74,27 +70,23 @@ public static class BusinessEndpoints
 
         var business = await crmDb.Businesses
             .Where(b => b.Id == id && b.TenantId == tenantId)
-            .GroupJoin(
-                crmDb.Customers,
-                b => b.Id,
-                c => c.BusinessId,
-                (b, customers) => new BusinessResponse(
-                    b.Id,
-                    b.TenantId,
-                    b.Name,
-                    b.Industry,
-                    b.Website,
-                    b.Phone,
-                    b.Address,
-                    b.City,
-                    b.State,
-                    b.PostalCode,
-                    b.Country,
-                    b.Notes,
-                    b.IsActive,
-                    b.CreatedAt,
-                    b.UpdatedAt,
-                    customers.Count()))
+            .Select(b => new BusinessResponse(
+                b.Id,
+                b.TenantId,
+                b.Name,
+                b.Industry,
+                b.Website,
+                b.Phone,
+                b.Address,
+                b.City,
+                b.State,
+                b.PostalCode,
+                b.Country,
+                b.Notes,
+                b.IsActive,
+                b.CreatedAt,
+                b.UpdatedAt,
+                b.Customers.Count()))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (business is null)
