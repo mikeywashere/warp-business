@@ -11,7 +11,7 @@ public static class LoginCommand
 {
     private static readonly Option<string> ApiUrlOption = new(
         "--api-url",
-        () => "https://localhost:7021",
+        () => "https://localhost:7116",
         "WarpBusiness API URL");
 
     private static readonly Option<string> KeycloakUrlOption = new(
