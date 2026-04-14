@@ -39,6 +39,7 @@ public static class BusinessEndpoints
 
         var businesses = await crmDb.Businesses
             .Where(b => b.TenantId == tenantId.Value)
+            .OrderBy(b => b.Name)
             .Select(b => new BusinessResponse(
                 b.Id,
                 b.TenantId,
@@ -56,7 +57,6 @@ public static class BusinessEndpoints
                 b.CreatedAt,
                 b.UpdatedAt,
                 b.Customers.Count()))
-            .OrderBy(b => b.Name)
             .ToListAsync(cancellationToken);
 
         return Results.Ok(businesses);
