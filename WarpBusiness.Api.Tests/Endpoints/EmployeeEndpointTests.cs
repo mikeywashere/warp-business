@@ -510,22 +510,26 @@ public class EmployeeEndpointTests
     // }
 
     [Fact]
-    public async Task CreateEmployee_Currency_IsRequired()
+    public async Task CreateEmployee_Currency_IsOptional_DefaultsToUsd()
     {
-        // Currency is a required non-nullable field
-        // All valid requests must provide a currency value
+        // Currency can be provided or omitted; endpoint defaults to USD if not provided
         await using var db = await CreateCleanContext();
         var tenantId = Guid.NewGuid();
         var httpContext = CreateHttpContextWithTenant(tenantId);
         
-        // Test with various currency codes
-        var currencies = new[] { "USD", "EUR", "GBP", "JPY", "CAD", "AUD" };
-        foreach (var currency in currencies)
-        {
-            var request = MakeCreateRequest(currency: currency);
-            var result = await CallCreateEmployee(httpContext, request, db);
-            result.Should().BeOfType<Created<EmployeeResponse>>();
-        }
+        // Test with explicitly provided currency
+        var request1 = MakeCreateRequest(email: "employee1@company.com", currency: "EUR");
+        var result1 = await CallCreateEmployee(httpContext, request1, db);
+        result1.Should().BeOfType<Created<EmployeeResponse>>();
+        var created1 = (Created<EmployeeResponse>)result1;
+        created1.Value!.Currency.Should().Be("EUR");
+
+        // Test with another explicitly provided currency
+        var request2 = MakeCreateRequest(email: "employee2@company.com", currency: "GBP");
+        var result2 = await CallCreateEmployee(httpContext, request2, db);
+        result2.Should().BeOfType<Created<EmployeeResponse>>();
+        var created2 = (Created<EmployeeResponse>)result2;
+        created2.Value!.Currency.Should().Be("GBP");
     }
 
     [Fact]

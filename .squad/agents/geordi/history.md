@@ -158,3 +158,16 @@
 - **PR:** #28
 - **Status:** ✅ Complete — build passes
 
+### CRM Customer Management UI (2026-04-13)
+
+- **CrmApiClient** (`WarpBusiness.Web/Services/CrmApiClient.cs`): Full-featured typed HttpClient with DTOs (CustomerResponse, CreateCustomerRequest, UpdateCustomerRequest, CustomerEmployeeResponse, AssignEmployeeRequest, UpdateRelationshipRequest), CRUD operations for customers (Get, Create, Update, Activate, Deactivate), customer-employee relationship operations (GetCustomerEmployees, AssignEmployee, UpdateRelationship, UnassignEmployee), GetAvailableEmployees endpoint
+- **Customers.razor** (`/crm/customers`): Customer list page inheriting AuthenticatedComponentBase. Table shows Name, Email, Phone, Industry, Company Size, Status (Active/Inactive badges), Actions (Edit, Details, Activate/Deactivate toggle). Add/Edit modal with full form (name, email, phone, address, city, state, postal code, country, website, industry, company size dropdown [1-10, 11-50, 51-200, 201-500, 501+], notes textarea). Search/filter by name or email (live filtering). Activate/Deactivate with confirmation modal.
+- **CustomerDetail.razor** (`/crm/customers/{customerId:guid}`): Customer detail page with read-only info card (contact info, address, notes) + employee assignments section. Table shows assigned employees with Name, Email, Relationship, Actions (Edit relationship, Remove). "Assign Employee" button launches modal with type-ahead employee search + relationship text field. Edit Relationship modal with prefilled text field. Unassign confirmation modal. All modals use dark theme styling.
+- **NavMenu.razor**: Added "CRM" link to Modules dropdown (alongside Employees)
+- **Program.cs**: Registered CrmApiClient as typed HttpClient with configureApiClient + AuthTokenHandler (same pattern as EmployeeApiClient, TenantApiClient, etc.)
+- **Pattern**: Employee dropdown reuses same type-ahead pattern from EmployeeManagement.razor (@oninput + @onmousedown:preventDefault + blur-delay)
+- **Pattern**: All DTOs mirror backend schema expectations (CustomerResponse includes IsActive bool, CustomerEmployeeResponse includes employee first/last name + email for display)
+- **Design**: Dark theme with Warp design tokens (--clr-bg-card, --clr-accent, --clr-border), Bootstrap modals/forms/tables with existing dark overrides
+- **Commit:** 48b534f
+- **Status:** ✅ Complete — ready for backend API endpoints from Data team
+
