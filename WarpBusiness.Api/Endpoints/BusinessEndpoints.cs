@@ -33,10 +33,12 @@ public static class BusinessEndpoints
         CrmDbContext crmDb,
         CancellationToken cancellationToken)
     {
-        var tenantId = (Guid)httpContext.Items["TenantId"]!;
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
 
         var businesses = await crmDb.Businesses
-            .Where(b => b.TenantId == tenantId)
+            .Where(b => b.TenantId == tenantId.Value)
             .Select(b => new BusinessResponse(
                 b.Id,
                 b.TenantId,
@@ -66,10 +68,12 @@ public static class BusinessEndpoints
         CrmDbContext crmDb,
         CancellationToken cancellationToken)
     {
-        var tenantId = (Guid)httpContext.Items["TenantId"]!;
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
 
         var business = await crmDb.Businesses
-            .Where(b => b.Id == id && b.TenantId == tenantId)
+            .Where(b => b.Id == id && b.TenantId == tenantId.Value)
             .Select(b => new BusinessResponse(
                 b.Id,
                 b.TenantId,
@@ -101,20 +105,22 @@ public static class BusinessEndpoints
         CrmDbContext crmDb,
         CancellationToken cancellationToken)
     {
-        var tenantId = (Guid)httpContext.Items["TenantId"]!;
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
 
         if (string.IsNullOrWhiteSpace(request.Name))
             return Results.BadRequest(new { message = "Business name is required." });
 
         // Check name uniqueness within tenant
         if (await crmDb.Businesses.AnyAsync(
-            b => b.Name == request.Name && b.TenantId == tenantId, cancellationToken))
+            b => b.Name == request.Name && b.TenantId == tenantId.Value, cancellationToken))
             return Results.Conflict(new { message = "A business with this name already exists in this tenant." });
 
         var business = new Business
         {
             Id = Guid.NewGuid(),
-            TenantId = tenantId,
+            TenantId = tenantId.Value,
             Name = request.Name,
             Industry = request.Industry,
             Website = request.Website,
@@ -161,10 +167,12 @@ public static class BusinessEndpoints
         CrmDbContext crmDb,
         CancellationToken cancellationToken)
     {
-        var tenantId = (Guid)httpContext.Items["TenantId"]!;
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
 
         var business = await crmDb.Businesses
-            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId, cancellationToken);
+            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId.Value, cancellationToken);
 
         if (business is null)
             return Results.NotFound();
@@ -176,7 +184,7 @@ public static class BusinessEndpoints
         if (!string.Equals(business.Name, request.Name, StringComparison.OrdinalIgnoreCase))
         {
             if (await crmDb.Businesses.AnyAsync(
-                b => b.Name == request.Name && b.TenantId == tenantId && b.Id != id, cancellationToken))
+                b => b.Name == request.Name && b.TenantId == tenantId.Value && b.Id != id, cancellationToken))
                 return Results.Conflict(new { message = "A business with this name already exists in this tenant." });
         }
 
@@ -223,10 +231,12 @@ public static class BusinessEndpoints
         CrmDbContext crmDb,
         CancellationToken cancellationToken)
     {
-        var tenantId = (Guid)httpContext.Items["TenantId"]!;
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
 
         var business = await crmDb.Businesses
-            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId, cancellationToken);
+            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId.Value, cancellationToken);
 
         if (business is null)
             return Results.NotFound();
