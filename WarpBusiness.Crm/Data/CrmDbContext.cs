@@ -38,6 +38,7 @@ public class CrmDbContext : DbContext
             entity.Property(e => e.Website).HasMaxLength(500);
             entity.Property(e => e.Notes).HasMaxLength(2000);
             entity.Property(e => e.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(e => e.LogoMimeType).HasMaxLength(50);
         });
 
         modelBuilder.Entity<CustomerEmployee>(entity =>

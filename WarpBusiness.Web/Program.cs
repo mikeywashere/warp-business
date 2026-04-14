@@ -24,6 +24,7 @@ builder.Services.AddAuthentication(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.Cookie.IsEssential = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
 })
 .AddOpenIdConnect(options =>
 {
@@ -214,6 +215,7 @@ app.MapGet("/set-tenant", (HttpContext context, Guid tenantId, string? tenantNam
     {
         HttpOnly = true,
         SameSite = SameSiteMode.Strict,
+        Secure = context.Request.IsHttps,
         Path = "/",
         Expires = DateTimeOffset.UtcNow.AddDays(30)
     };
@@ -226,6 +228,7 @@ app.MapGet("/set-tenant", (HttpContext context, Guid tenantId, string? tenantNam
     {
         HttpOnly = true,
         SameSite = SameSiteMode.Strict,
+        Secure = context.Request.IsHttps,
         Path = "/",
         Expires = DateTimeOffset.UtcNow.AddDays(365)  // Long-lived, survives logout
     });

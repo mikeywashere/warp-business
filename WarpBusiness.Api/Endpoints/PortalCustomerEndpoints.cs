@@ -13,7 +13,7 @@ public static class PortalCustomerEndpoints
 {
     private const long MaxLogoSizeBytes = 2_097_152; // 2MB
     private static readonly HashSet<string> AllowedMimeTypes = 
-        new() { "image/png", "image/jpeg", "image/webp", "image/svg+xml" };
+        new() { "image/png", "image/jpeg", "image/webp" };
 
     public static void MapPortalCustomerEndpoints(this WebApplication app)
     {
@@ -149,16 +149,7 @@ public static class PortalCustomerEndpoints
 
         var mimeType = logo.ContentType?.ToLowerInvariant();
         if (string.IsNullOrEmpty(mimeType) || !AllowedMimeTypes.Contains(mimeType))
-            return Results.BadRequest(new { message = "Logo must be PNG, JPG, WEBP, or SVG format." });
-
-        // Basic XSS validation for SVG
-        if (mimeType == "image/svg+xml")
-        {
-            using var reader = new StreamReader(logo.OpenReadStream());
-            var svgContent = await reader.ReadToEndAsync();
-            if (svgContent.Contains("<script", StringComparison.OrdinalIgnoreCase))
-                return Results.BadRequest(new { message = "SVG files containing scripts are not allowed." });
-        }
+            return Results.BadRequest(new { message = "Logo must be PNG, JPG, or WEBP format." });
 
         var customer = await crmDb.Customers
             .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId.Value && c.IsActive, cancellationToken);
@@ -169,6 +160,7 @@ public static class PortalCustomerEndpoints
         using var memoryStream = new MemoryStream();
         await logo.CopyToAsync(memoryStream, cancellationToken);
         customer.Logo = memoryStream.ToArray();
+        customer.LogoMimeType = mimeType;
         customer.UpdatedAt = DateTimeOffset.UtcNow;
 
         await crmDb.SaveChangesAsync(cancellationToken);
@@ -203,10 +195,9 @@ public static class PortalCustomerEndpoints
         if (customer.Logo is null || customer.Logo.Length == 0)
             return Results.NoContent();
 
-        // Detect MIME type from logo content (basic detection by magic bytes)
-        var mimeType = DetectMimeType(customer.Logo);
+        var mimeType = customer.LogoMimeType ?? DetectMimeType(customer.Logo) ?? "image/png";
 
-        return Results.File(customer.Logo, mimeType ?? "image/png", fileDownloadName: "logo.bin");
+        return Results.File(customer.Logo, mimeType, fileDownloadName: "logo.bin");
     }
 
     private static async Task<IResult> DeleteLogo(
@@ -234,6 +225,7 @@ public static class PortalCustomerEndpoints
             return Results.NotFound();
 
         customer.Logo = null;
+        customer.LogoMimeType = null;
         customer.UpdatedAt = DateTimeOffset.UtcNow;
 
         await crmDb.SaveChangesAsync(cancellationToken);

@@ -19,6 +19,7 @@ public class Customer
     public bool IsActive { get; set; } = true;
     public string Currency { get; set; } = string.Empty;
     public byte[]? Logo { get; set; }
+    public string? LogoMimeType { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     
