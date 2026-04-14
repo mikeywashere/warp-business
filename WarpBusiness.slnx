@@ -10,4 +10,5 @@
   <Project Path="WarpBusiness.Crm.Tests/WarpBusiness.Crm.Tests.csproj" />
   <Project Path="WarpBusiness.Crm/WarpBusiness.Crm.csproj" />
   <Project Path="WarpBusiness.CustomerPortal/WarpBusiness.CustomerPortal.csproj" />
+  <Project Path="WarpBusiness.Cli/WarpBusiness.Cli.csproj" />
 </Solution>

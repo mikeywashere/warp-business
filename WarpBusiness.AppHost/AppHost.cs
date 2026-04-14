@@ -1,6 +1,7 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume("warpdb-data")
     .WithPgAdmin()
     .AddDatabase("warpdb");
 
@@ -10,6 +11,7 @@ var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithBindMount("../keycloak/themes/warp", "/opt/keycloak/themes/warp");
 
 var api = builder.AddProject<Projects.WarpBusiness_Api>("api")
+    .WithExternalHttpEndpoints()
     .WithReference(postgres)
     .WaitFor(postgres)
     .WithReference(keycloak)
