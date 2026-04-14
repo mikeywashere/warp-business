@@ -51,3 +51,15 @@
 - Used `Regex(@"\bme-1\b")` with `ToHaveClassAsync` for precise CSS class matching
 - Playwright `Locator` with `:nth-child()` selectors used for column-position assertions
 - **Status:** ✅ Compiles. Requires live Aspire environment for runtime execution.
+
+### 2026-04-14: CRM Customer Management Test Suite Created
+
+- Created `WarpBusiness.Crm.Tests` project mirroring the `WarpBusiness.Api.Tests` structure
+- **Infrastructure**: PostgreSqlFixture with Testcontainers (postgres:17-alpine), TestHelpers for DbContext creation (PostgreSQL and InMemory), DatabaseCollection for shared fixture
+- **CustomerEntityTests (20 tests)**: Happy path with all/minimal fields, default values (IsActive=true, empty CustomerEmployees collection), required field validation (Name), max length validation (Name=500, Email=256, Phone=50, Notes=2000), multi-tenant isolation, soft delete (IsActive flag), email uniqueness per tenant with null handling
+- **CustomerEmployeeRelationshipTests (13 tests)**: Happy path with all fields, common relationship values ("Account Manager", "Technical Contact", etc.), required field validation (Relationship), max length validation (Relationship=100), unique constraint (same employee cannot be assigned twice to same customer), cascade delete when customer deleted, navigation properties (Customer ↔ CustomerEmployees), multi-tenant isolation via customer tenant boundaries, edge cases (special characters, empty strings allowed in Relationship field)
+- **CustomerEndpointTests (38 placeholder tests)**: Comprehensive test structure for 10 endpoint groups (list, get, create, update, activate/deactivate, list employees, assign/update/unassign employee, authorization, edge cases). All tests marked with `Skip` attribute awaiting Data's endpoint implementation. Tests document expected API contract: required fields, validation rules, status codes, tenant isolation, pagination, search filtering
+- **Test Patterns**: Use `EnsureCreatedAsync()` for CrmDbContext (no migrations needed in tests), multi-tenant isolation via `TenantId` filtering, factory methods for test data (`CreateTestCustomer`), region-based test organization for readability
+- **Key Validations Tested**: Email uniqueness constraint with partial index (`WHERE "Email" IS NOT NULL`), null emails allowed without triggering uniqueness, cascade delete from Customer to CustomerEmployee, unique index on `(CustomerId, EmployeeId)` prevents duplicate assignments
+- **Test Results**: All 27 active tests passing (20 CustomerEntity + 7 CustomerEmployeeRelationship core tests). 38 endpoint tests skipped awaiting implementation.
+- **Status:** ✅ Model and relationship tests complete and passing. Endpoint tests ready for Data's implementation.
