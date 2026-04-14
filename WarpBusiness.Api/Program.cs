@@ -26,6 +26,17 @@ builder.Services.AddAuthentication()
         options.Audience = "warpbusiness-api";
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.TokenValidationParameters.RoleClaimType = "roles";
+
+        if (builder.Environment.IsDevelopment())
+        {
+            // Keycloak stamps tokens with its external URL (port 8080), but Aspire routes
+            // service discovery through a different port — causing issuer mismatch.
+            // Explicitly accept the external-facing Keycloak issuer in development.
+            options.TokenValidationParameters.ValidIssuers =
+            [
+                "http://localhost:8080/realms/warpbusiness"
+            ];
+        }
     });
 
 // Diagnostic logging for JWT authentication failures
