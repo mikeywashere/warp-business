@@ -415,6 +415,13 @@
 
     protected override async Task OnAuthenticatedInitializedAsync()
     {
+        // Ensure user has selected a tenant before loading customer details
+        if (string.IsNullOrEmpty(TokenProvider.SelectedTenantId))
+        {
+            Navigation.NavigateTo("/select-tenant");
+            return;
+        }
+        
         await LoadCustomer();
         await LoadCustomerEmployees();
     }
