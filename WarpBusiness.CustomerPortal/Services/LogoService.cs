@@ -21,30 +21,6 @@ public class LogoService
         return sizeBytes <= MaxFileSize;
     }
 
-    public async Task<(byte[] bytes, string mimeType)?> ValidateAndReadAsync(IFormFile file)
-    {
-        if (file == null)
-            return null;
-
-        if (!IsValidFileSize(file.Length))
-        {
-            _logger.LogWarning("[LogoService] File too large: {Size} bytes (max {Max})",
-                file.Length, MaxFileSize);
-            return null;
-        }
-
-        var mimeType = file.ContentType?.ToLowerInvariant() ?? "application/octet-stream";
-        if (!IsValidMimeType(mimeType))
-        {
-            _logger.LogWarning("[LogoService] Invalid MIME type: {MimeType}", mimeType);
-            return null;
-        }
-
-        using var ms = new MemoryStream();
-        await file.CopyToAsync(ms);
-        return (ms.ToArray(), mimeType);
-    }
-
     public string ToBase64DataUri(byte[] logoBytes, string mimeType)
     {
         var base64 = Convert.ToBase64String(logoBytes);

@@ -9,4 +9,5 @@
   <Project Path="WarpBusiness.Employees/WarpBusiness.Employees.csproj" />
   <Project Path="WarpBusiness.Crm.Tests/WarpBusiness.Crm.Tests.csproj" />
   <Project Path="WarpBusiness.Crm/WarpBusiness.Crm.csproj" />
+  <Project Path="WarpBusiness.CustomerPortal/WarpBusiness.CustomerPortal.csproj" />
 </Solution>
