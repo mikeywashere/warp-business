@@ -17,6 +17,7 @@ public class Customer
     public string? Website { get; set; }
     public string? Notes { get; set; }
     public bool IsActive { get; set; } = true;
+    public string Currency { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     

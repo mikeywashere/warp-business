@@ -16,6 +16,7 @@ public record CustomerDto(
     string? Website,
     string? Notes,
     bool IsActive,
+    string Currency,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
@@ -31,7 +32,8 @@ public record CustomerCreateDto(
     string? Industry = null,
     string? CompanySize = null,
     string? Website = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? Currency = null);
 
 public record CustomerUpdateDto(
     string Name,
@@ -45,7 +47,8 @@ public record CustomerUpdateDto(
     string? Industry = null,
     string? CompanySize = null,
     string? Website = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? Currency = null);
 
 public record CustomerEmployeeDto(
     Guid CustomerId,
@@ -53,8 +56,12 @@ public record CustomerEmployeeDto(
     string EmployeeName,
     string EmployeeEmail,
     string Relationship,
+    decimal? BillingRate,
+    string BillingCurrency,
     DateTimeOffset CreatedAt);
 
 public record EmployeeAssignmentDto(
     Guid EmployeeId,
-    string Relationship);
+    string Relationship,
+    decimal? BillingRate = null,
+    string? BillingCurrency = null);

@@ -37,6 +37,7 @@ public class CrmDbContext : DbContext
             entity.Property(e => e.CompanySize).HasMaxLength(50);
             entity.Property(e => e.Website).HasMaxLength(500);
             entity.Property(e => e.Notes).HasMaxLength(2000);
+            entity.Property(e => e.Currency).HasMaxLength(3).IsRequired();
         });
 
         modelBuilder.Entity<CustomerEmployee>(entity =>
@@ -49,8 +50,11 @@ public class CrmDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => new { e.CustomerId, e.EmployeeId }).IsUnique();
+            entity.HasIndex(e => new { e.CustomerId, e.BillingCurrency });
 
             entity.Property(e => e.Relationship).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.BillingRate).HasPrecision(18, 2);
+            entity.Property(e => e.BillingCurrency).HasMaxLength(3).IsRequired();
         });
     }
 }

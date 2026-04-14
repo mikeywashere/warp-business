@@ -121,6 +121,7 @@ public static class CustomerEndpoints
             Website = request.Website,
             Notes = request.Notes,
             IsActive = true,
+            Currency = request.Currency ?? "USD",
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -171,6 +172,8 @@ public static class CustomerEndpoints
         customer.CompanySize = request.CompanySize ?? customer.CompanySize;
         customer.Website = request.Website ?? customer.Website;
         customer.Notes = request.Notes ?? customer.Notes;
+        if (!string.IsNullOrWhiteSpace(request.Currency))
+            customer.Currency = request.Currency;
         customer.UpdatedAt = DateTimeOffset.UtcNow;
 
         await crmDb.SaveChangesAsync(cancellationToken);
@@ -255,6 +258,8 @@ public static class CustomerEndpoints
                     $"{e.FirstName} {e.LastName}",
                     e.Email,
                     ce.Relationship,
+                    ce.BillingRate,
+                    ce.BillingCurrency,
                     ce.CreatedAt))
             .ToListAsync(cancellationToken);
 
@@ -294,12 +299,16 @@ public static class CustomerEndpoints
             ce => ce.CustomerId == id && ce.EmployeeId == employeeId, cancellationToken))
             return Results.Conflict(new { message = "Employee is already assigned to this customer." });
 
+        var billingCurrency = request.BillingCurrency ?? customer.Currency;
+        
         var assignment = new CustomerEmployee
         {
             Id = Guid.NewGuid(),
             CustomerId = id,
             EmployeeId = employeeId,
             Relationship = request.Relationship,
+            BillingRate = request.BillingRate,
+            BillingCurrency = billingCurrency,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
@@ -315,6 +324,8 @@ public static class CustomerEndpoints
                 $"{employee.FirstName} {employee.LastName}",
                 employee.Email,
                 request.Relationship,
+                request.BillingRate,
+                billingCurrency,
                 assignment.CreatedAt));
     }
 
@@ -347,6 +358,10 @@ public static class CustomerEndpoints
             return Results.NotFound(new { message = "Employee is not assigned to this customer." });
 
         assignment.Relationship = request.Relationship;
+        if (request.BillingRate.HasValue)
+            assignment.BillingRate = request.BillingRate.Value;
+        if (!string.IsNullOrWhiteSpace(request.BillingCurrency))
+            assignment.BillingCurrency = request.BillingCurrency;
         assignment.UpdatedAt = DateTimeOffset.UtcNow;
 
         await crmDb.SaveChangesAsync(cancellationToken);
@@ -360,6 +375,8 @@ public static class CustomerEndpoints
             employee is not null ? $"{employee.FirstName} {employee.LastName}" : "Unknown",
             employee?.Email ?? "",
             request.Relationship,
+            assignment.BillingRate,
+            assignment.BillingCurrency,
             assignment.CreatedAt));
     }
 
@@ -409,6 +426,7 @@ public static class CustomerEndpoints
             customer.Website,
             customer.Notes,
             customer.IsActive,
+            customer.Currency,
             customer.CreatedAt,
             customer.UpdatedAt);
 }
