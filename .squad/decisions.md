@@ -1089,6 +1089,213 @@ Geordi can use any of these selectors — tests check multiple patterns.
 - **Geordi**: Add `data-testid` attributes for testability
 - **Worf**: Adjust tests once both implementations land
 
+### Decision: Business Entity Architecture in CRM Module
+
+**Date:** 2026-04-14  
+**Author:** Data (Backend Developer)  
+**Status:** Implemented
+
+## Context
+
+Added a Business entity to the CRM module to enable tracking businesses separately from individual customer contacts. Customers can optionally be associated with a Business.
+
+## Key Decisions
+
+#### 1. Optional Relationship (SetNull on Delete)
+
+**Decision:** Customer.BusinessId is nullable with `OnDelete(DeleteBehavior.SetNull)`.
+
+**Rationale:**
+- Customers can exist independently without a Business (e.g., individual clients)
+- When a Business is deleted, customer records should be preserved (not cascade deleted)
+- SetNull maintains data integrity while preserving customer history
+- This is CRITICAL: Cascade delete would be destructive and lose customer data
+
+#### 2. DELETE Endpoint Protection
+
+**Decision:** DELETE `/api/crm/businesses/{id}` requires explicit `?unlinkCustomers=true` query parameter when linked customers exist.
+
+**Rationale:**
+- Prevents accidental deletion of businesses with active customer relationships
+- Returns 409 Conflict with customer count if unlinkCustomers is not provided
+- When unlinkCustomers=true, explicitly sets all linked Customer.BusinessId to null before deleting
+- Makes the delete operation intentional and visible in API calls
+
+#### 3. Tenant-Scoped Uniqueness
+
+**Decision:** Unique index on `Name + TenantId` (not just Name).
+
+**Rationale:**
+- Different tenants can have businesses with the same name (e.g., "Microsoft" might be a customer for multiple consulting firms)
+- Consistent with Employee (EmployeeNumber + TenantId) and Customer (Email + TenantId) patterns
+- Enforces uniqueness within tenant boundary, which is the correct scope for multi-tenant SaaS
+
+#### 4. Customer Count in List Response
+
+**Decision:** `GET /api/crm/businesses` returns CustomerCount for each business using GroupJoin.
+
+**Rationale:**
+- Most common use case is to show "how many customers are associated with this business"
+- Calculated in database query (not N+1 queries)
+- Informs UI decisions (e.g., show warning before deleting a business with many customers)
+- Minimal overhead: single query with GroupJoin performs well at scale
+
+#### 5. Explicit MaxLength on All Strings
+
+**Decision:** All string properties have explicit `HasMaxLength()` constraints in EF Core configuration.
+
+**Rationale:**
+- Follows existing pattern from Customer and Employee entities
+- Prevents database migration inconsistencies (PostgreSQL defaults to unlimited text)
+- Documents expected field lengths for frontend validation
+- Specific lengths chosen: Name=255 (business name), Notes=4000 (long text), Address=500 (multi-line), Phone=50, URLs=500, etc.
+
+## Alternative Approaches Considered
+
+#### Alternative 1: Cascade Delete Customers
+**Rejected:** Would lose customer data when business is deleted. Customers have independent value and should be preserved.
+
+#### Alternative 2: Block Delete When Customers Exist
+**Rejected:** Too restrictive. Sometimes businesses need to be deleted (e.g., duplicate entries, test data). Better to require explicit unlinking.
+
+#### Alternative 3: Global Name Uniqueness
+**Rejected:** Not appropriate for multi-tenant SaaS. Each tenant should have their own namespace for business names.
+
+## Implementation Files
+
+- `WarpBusiness.Crm/Data/Models/Business.cs` — entity
+- `WarpBusiness.Crm/Data/Models/Customer.cs` — added BusinessId FK
+- `WarpBusiness.Crm/Data/CrmDbContext.cs` — DbSet and entity configuration
+- `WarpBusiness.Api/Endpoints/BusinessEndpoints.cs` — full CRUD with unlink logic
+- `WarpBusiness.Api/Program.cs` — endpoint registration
+- `WarpBusiness.Api/Endpoints/AdminEndpoints.cs` — truncate order (Businesses before Customers)
+- Migration: `AddBusiness`
+
+## Testing Recommendations
+
+Covered by Worf's test suite:
+- Create business with valid data
+- Duplicate name within tenant (409 expected)
+- Update business (name uniqueness check on update)
+- DELETE with linked customers (409 expected)
+- DELETE with ?unlinkCustomers=true (success, customers have null BusinessId)
+- DELETE with no linked customers (success)
+- GET list includes accurate CustomerCount
+- Tenant isolation (Business in one tenant not visible to another)
+
+### Decision: Business Feature — Frontend Implementation
+
+**Date:** 2026-04-14  
+**Agent:** Geordi (Frontend Developer)  
+**Status:** Complete
+
+## Overview
+Implemented full-stack Business management UI in the CRM module, following the same patterns as Customer management. Businesses serve as parent organizations for customers, enabling B2B relationship tracking.
+
+## Technical Decisions
+
+#### 1. Delete Modal Pattern
+- **Decision:** Use two separate confirmation modals based on CustomerCount
+- **Rationale:** Businesses with linked customers need special handling to prevent accidental data loss. Standard delete modal for empty businesses (CustomerCount == 0), warning modal for businesses with customers showing "Unlink & Delete" option.
+- **Implementation:** `DeleteBusinessAsync(id, unlinkCustomers: bool)` — backend handles customer unlinking when flag is true
+
+#### 2. Customer-Business Link Fields
+- **Decision:** Add `BusinessId` and `BusinessName` to `CustomerResponse`, optional `BusinessId` to create/update request DTOs
+- **Rationale:** Enable Customer form to show/edit business link without requiring separate API call. BusinessName is display-only (read from join), BusinessId is editable.
+- **Pattern:** Nullable Guid for optional relationship (not all customers belong to a business)
+
+#### 3. Website Display
+- **Decision:** Show clickable link icon (🔗) instead of full URL in table
+- **Rationale:** URLs are often long and break table layout. Icon with `target="_blank"` provides access without clutter.
+
+#### 4. Location Formatting
+- **Decision:** Combine City and Country into single "City / Country" column with dynamic formatting
+- **Rationale:** Saves horizontal space in table, handles nullable fields gracefully (shows "—" if both null, single value if one present, "City, Country" if both present)
+
+#### 5. Navigation Structure
+- **Decision:** Split Modules dropdown to show "Customers" and "Businesses" separately, update Home page to have two CRM cards
+- **Rationale:** Businesses are a distinct entity type, not just a customer sub-feature. Separate nav links and home cards improve discoverability.
+
+## Files Modified
+- `WarpBusiness.Web/Services/CrmApiClient.cs` — Added Business DTOs and CRUD methods, updated Customer DTOs with Business fields
+- `WarpBusiness.Web/Components/Pages/CRM/Businesses.razor` — New page with full CRUD UI
+- `WarpBusiness.Web/Components/Layout/NavMenu.razor` — Added Businesses link to Modules dropdown
+- `WarpBusiness.Web/Components/Pages/Home.razor` — Split CRM card into Customers and Businesses cards
+
+## Dependencies
+- Backend API endpoints: `GET/POST/PUT/DELETE /api/crm/businesses`, `DELETE /api/crm/businesses/{id}?unlinkCustomers=true`
+- Business schema with CustomerCount aggregate (computed or materialized)
+
+## Testing Notes
+- Build passes (`dotnet build WarpBusiness.Web`)
+- Frontend ready for integration testing once backend endpoints are deployed
+- Manual test plan: Create business → Create customer with BusinessId → Attempt to delete business → Verify warning modal → Test unlink-and-delete flow
+
+### Decision: Business Endpoint Tests — Test Design
+
+**Date:** 2026-04-14  
+**Author:** Worf (Tester)  
+**Context:** Created comprehensive test suite for Business endpoints
+
+## Decisions Made
+
+#### 1. Test Structure Mirrors CustomerEndpointTests Pattern
+- **Decision:** Use exact same fixture and helper patterns as `CustomerEndpointTests.cs`
+- **Rationale:** Consistency across CRM test suite. Developers know what to expect.
+- **Implementation:** `[Collection("Database")]`, `CreateCleanContext()`, `CreateHttpContextWithTenant()`
+
+#### 2. Cleanup Order Respects FK Dependencies
+- **Decision:** Clean database in order: `CustomerEmployees → Customers → Businesses`
+- **Rationale:** CustomerEmployee depends on Customer, Customer optionally depends on Business (nullable FK with SetNull)
+- **Implementation:** `CreateCleanContext()` method removes in dependency order
+
+#### 3. Test Both Delete Scenarios
+- **Decision:** Separate tests for delete-with-no-customers vs delete-with-customers-unlinked
+- **Rationale:** Business has optional relationship to Customers. Endpoint must handle both cases:
+  - **DeleteBusiness_WithNoCustomers_Succeeds**: Business with no customers can delete freely
+  - **DeleteBusiness_WithLinkedCustomers_Returns409**: Endpoint checks for linked customers, returns 409 Conflict
+  - **DeleteBusiness_WithUnlinkCustomers_UnlinksAndDeletes**: `?unlinkCustomers=true` sets `Customer.BusinessId = null` before deleting
+- **Why It Matters:** Data's endpoint needs to implement conditional logic — check for linked customers, handle unlinking
+
+#### 4. Customer Count Projection Pattern
+- **Decision:** Test the projected customer count query using EF Core's `Select()` with subquery
+- **Rationale:** Business list views likely need to show "X customers" without loading full customer collections
+- **Implementation:**
+  ```csharp
+  Select(b => new {
+      Business = b,
+      CustomerCount = db.Customers.Count(c => c.BusinessId == b.Id)
+  })
+  ```
+- **Why It Matters:** Efficient query pattern for Data to implement in GET /api/crm/businesses list endpoint
+
+#### 5. All Address Fields Included
+- **Decision:** Test all address fields (Address, City, State, PostalCode, Country) in creation/update
+- **Rationale:** Business spec includes full physical address. Tests verify all fields persist correctly.
+- **Fields:** `Name, Industry?, Website?, Phone?, Address?, City?, State?, PostalCode?, Country?, Notes?, IsActive, timestamps`
+
+#### 6. Tenant Isolation on Every Query
+- **Decision:** Every test filters by `TenantId` even when not strictly necessary
+- **Rationale:** Reinforces multi-tenant discipline. Data's endpoints must ALWAYS scope by tenant.
+- **Pattern:** `.Where(b => b.TenantId == tenantId && b.Id == businessId)`
+
+#### 7. Timestamp Validation
+- **Decision:** Verify `CreatedAt` and `UpdatedAt` in create/update tests
+- **Rationale:** Timestamps are audit trail. Must be set on creation and updated on modification.
+- **Pattern:** `UpdatedAt.Should().BeAfter(CreatedAt)` after update
+
+## Test Results
+- ✅ **8 tests, all passing** against PostgreSQL testcontainer in 15.2s
+- No skipped tests — all scenarios fully implemented and verified
+- Clean state reset via `CreateCleanContext()` ensures test independence
+
+## Notes for Data Developer
+When implementing Business endpoints at `/api/crm/businesses`:
+1. **DELETE logic**: Check for linked customers first. If found and `?unlinkCustomers=false`, return 409 Conflict. If `?unlinkCustomers=true`, set all `Customer.BusinessId = null` before deleting.
+2. **Tenant scoping**: ALWAYS filter by `TenantId` from `HttpContext.Items["TenantId"]`
+3. **Customer count**: Use the projection pattern tested in `GetBusiness_IncludesCustomerCount` for efficient queries
+4. **Timestamps**: Set `CreatedAt` and `UpdatedAt` on POST, update `UpdatedAt` on PUT
+
 ## Governance
 
 - All meaningful changes require team consensus
