@@ -3,6 +3,7 @@ using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Endpoints;
 using WarpBusiness.Api.Models;
 using WarpBusiness.Api.Services;
+using WarpBusiness.Crm.Data;
 using WarpBusiness.Employees.Data;
 using WarpBusiness.Employees.Endpoints;
 using WarpBusiness.Employees.Services;
@@ -14,6 +15,7 @@ builder.AddServiceDefaults();
 // PostgreSQL + Entity Framework Core
 builder.AddNpgsqlDbContext<WarpBusinessDbContext>("warpdb");
 builder.AddNpgsqlDbContext<EmployeeDbContext>("warpdb");
+builder.AddNpgsqlDbContext<CrmDbContext>("warpdb");
 
 builder.Services.AddScoped<IUserValidator, UserValidator>();
 
@@ -256,6 +258,9 @@ app.MapEmployeeUserEndpoints();
 
 // Currency management API endpoints
 app.MapCurrencyEndpoints();
+
+// Customer management API endpoints
+app.MapCustomerEndpoints();
 
 var summaries = new[]
 {

@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\WarpBusiness.ServiceDefaults\WarpBusiness.ServiceDefaults.csproj" />
     <ProjectReference Include="..\WarpBusiness.Employees\WarpBusiness.Employees.csproj" />
+    <ProjectReference Include="..\WarpBusiness.Crm\WarpBusiness.Crm.csproj" />
   </ItemGroup>
 
 </Project>
