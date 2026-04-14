@@ -263,13 +263,19 @@
 
             @* Employees Table *@
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">Employees (@(employees?.Count ?? 0))</h5>
+                <h5 class="mb-0">Employees (@(FilteredEmployees.Count)@(!string.IsNullOrWhiteSpace(employeeSearchTerm) ? $" of {employees?.Count ?? 0}" : ""))</h5>
                 @if (!showForm)
                 {
                     <button class="btn btn-primary" @onclick="ShowAddForm">
                         <span class="bi bi-plus-lg me-1"></span> Add Employee
                     </button>
                 }
+            </div>
+
+            @* Search/Filter *@
+            <div class="mb-3">
+                <input type="text" class="form-control" placeholder="Search by name, email, employee #, department, or job title..."
+                       @bind="employeeSearchTerm" @bind:event="oninput" />
             </div>
 
             <div class="table-responsive">
@@ -289,9 +295,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @if (employees is { Count: > 0 })
+                        @if (FilteredEmployees is { Count: > 0 })
                         {
-                            @foreach (var emp in employees)
+                            @foreach (var emp in FilteredEmployees)
                             {
                                 <tr>
                                     <td><code>@emp.EmployeeNumber</code></td>
@@ -334,7 +340,9 @@
                         else
                         {
                             <tr>
-                                <td colspan="10" class="text-center text-muted py-4">No employees found.</td>
+                                <td colspan="10" class="text-center text-muted py-4">
+                                    @(string.IsNullOrWhiteSpace(employeeSearchTerm) ? "No employees found." : "No employees match your search.")
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -390,7 +398,19 @@
     private EmployeeResponse? deletingEmployee;
     private string? errorMessage;
     private string? successMessage;
+    private string employeeSearchTerm = "";
     private EmployeeFormModel formModel = new();
+
+    private List<EmployeeResponse> FilteredEmployees =>
+        employees?.Where(e =>
+            string.IsNullOrWhiteSpace(employeeSearchTerm) ||
+            e.EmployeeNumber.Contains(employeeSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+            e.FirstName.Contains(employeeSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+            e.LastName.Contains(employeeSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+            e.Email.Contains(employeeSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+            (e.Department ?? "").Contains(employeeSearchTerm, StringComparison.OrdinalIgnoreCase) ||
+            (e.JobTitle ?? "").Contains(employeeSearchTerm, StringComparison.OrdinalIgnoreCase)
+        ).ToList() ?? [];
 
     // User linking state
     private List<UserResponse> unlinkedUsers = [];
