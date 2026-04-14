@@ -113,6 +113,7 @@ builder.Services.AddHttpClient<KeycloakAdminService>(client =>
 // Database initialization (migrations + seed)
 builder.Services.AddHostedService<DbInitializer>();
 builder.Services.AddHostedService<EmployeeDbInitializer>();
+builder.Services.AddHostedService<CrmDbInitializer>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
