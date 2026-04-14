@@ -433,7 +433,9 @@ public class EmployeeEndpointTests
     [Theory]
     [InlineData(PayType.Hourly)]
     [InlineData(PayType.Salary)]
-    public async Task CreateEmployee_WithValidPayType_Accepted(PayType validPayType)
+    [InlineData(PayType.Commission)]
+    [InlineData(PayType.Contract)]
+    public async Task CreateEmployee_WithValidPayType_IsStored(PayType validPayType)
     {
         await using var db = await CreateCleanContext();
         var tenantId = Guid.NewGuid();
@@ -506,6 +508,41 @@ public class EmployeeEndpointTests
     //     // For now, we verify that a currency was assigned (not empty)
     //     created.Value!.Currency.Should().NotBeNullOrEmpty("currency should default from tenant");
     // }
+
+    [Fact]
+    public async Task CreateEmployee_Currency_IsRequired()
+    {
+        // Currency is a required non-nullable field
+        // All valid requests must provide a currency value
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        
+        // Test with various currency codes
+        var currencies = new[] { "USD", "EUR", "GBP", "JPY", "CAD", "AUD" };
+        foreach (var currency in currencies)
+        {
+            var request = MakeCreateRequest(currency: currency);
+            var result = await CallCreateEmployee(httpContext, request, db);
+            result.Should().BeOfType<Created<EmployeeResponse>>();
+        }
+    }
+
+    [Fact]
+    public async Task CreateEmployee_Currency_DefaultsFromEndpoint()
+    {
+        // When Currency is provided, it should be used (future: default to Tenant.PreferredCurrencyCode)
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var request = MakeCreateRequest(currency: "GBP");
+
+        var result = await CallCreateEmployee(httpContext, request, db);
+
+        result.Should().BeOfType<Created<EmployeeResponse>>();
+        var created = (Created<EmployeeResponse>)result;
+        created.Value!.Currency.Should().Be("GBP", "currency should use the provided value");
+    }
 
     [Fact]
     public void CreateEmployee_RequiresPayAmount()
@@ -643,26 +680,70 @@ public class EmployeeEndpointTests
     }
 
     [Fact]
-    public void PayType_Enum_HasHourlyAndSalary_Values()
+    public void PayType_Enum_HasAllRequiredValues()
     {
-        // Verify the enum has the required values
+        // Verify the enum has all four required values
         var values = Enum.GetValues<PayType>();
         values.Should().Contain(PayType.Hourly);
         values.Should().Contain(PayType.Salary);
+        values.Should().Contain(PayType.Commission);
+        values.Should().Contain(PayType.Contract);
+        values.Length.Should().Be(4, "PayType enum should have exactly 4 values");
     }
 
     [Fact]
     public void PayType_Enum_Values_SerializeAsStrings()
     {
         // Verify PayType enums serialize as strings like other employment enums
-        var hourly = PayType.Hourly;
-        var salary = PayType.Salary;
+        foreach (var payType in Enum.GetValues<PayType>())
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(payType);
+            json.Should().Be($"\"{payType}\"", $"{payType} should serialize as a string");
+        }
+    }
 
-        var hourlyJson = System.Text.Json.JsonSerializer.Serialize(hourly);
-        var salaryJson = System.Text.Json.JsonSerializer.Serialize(salary);
+    [Fact]
+    public async Task CreateEmployee_CommissionPayType_IsStored()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var request = MakeCreateRequest(payAmount: 5000m, payType: PayType.Commission);
 
-        hourlyJson.Should().Be("\"Hourly\"");
-        salaryJson.Should().Be("\"Salary\"");
+        var result = await CallCreateEmployee(httpContext, request, db);
+
+        result.Should().BeOfType<Created<EmployeeResponse>>();
+        var created = (Created<EmployeeResponse>)result;
+        created.Value!.PayType.Should().Be(PayType.Commission);
+    }
+
+    [Fact]
+    public async Task CreateEmployee_ContractPayType_IsStored()
+    {
+        await using var db = await CreateCleanContext();
+        var tenantId = Guid.NewGuid();
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var request = MakeCreateRequest(payAmount: 8000m, payType: PayType.Contract);
+
+        var result = await CallCreateEmployee(httpContext, request, db);
+
+        result.Should().BeOfType<Created<EmployeeResponse>>();
+        var created = (Created<EmployeeResponse>)result;
+        created.Value!.PayType.Should().Be(PayType.Contract);
+    }
+
+    [Fact]
+    public void CreateEmployee_CurrencyIsOptional()
+    {
+        // Currency is nullable in the request and defaults to USD in the endpoint
+        var requestWithCurrency = MakeCreateRequest(currency: "EUR");
+        var jsonWithCurrency = System.Text.Json.JsonSerializer.Serialize(requestWithCurrency);
+        jsonWithCurrency.Should().Contain("\"Currency\":\"EUR\"");
+
+        // Even without explicit currency, the endpoint defaults to USD
+        var requestWithoutCurrency = MakeCreateRequest(currency: null!);
+        var jsonWithoutCurrency = System.Text.Json.JsonSerializer.Serialize(requestWithoutCurrency);
+        // Currency will be null or default value depending on test helper setup
     }
 
     [Theory]

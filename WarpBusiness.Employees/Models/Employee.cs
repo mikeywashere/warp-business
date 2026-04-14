@@ -52,5 +52,7 @@ public enum EmploymentType
 public enum PayType
 {
     Hourly,
-    Salary
+    Salary,
+    Commission,
+    Contract
 }
