@@ -92,6 +92,14 @@ a:hover, .btn-link:hover {
     text-transform: uppercase;
 }
 
+.table tbody td {
+    color: var(--clr-text) !important;
+}
+
+.table tbody tr {
+    color: var(--clr-text) !important;
+}
+
 /* ── Forms ── */
 .form-control, .form-select {
     background-color: var(--clr-bg-section);
