@@ -1301,3 +1301,8 @@ When implementing Business endpoints at `/api/crm/businesses`:
 - All meaningful changes require team consensus
 - Document architectural decisions here
 - Keep history focused on work, decisions focused on direction
+
+### 2026-04-14 11:51: E2E data seeder implemented
+**By:** Data (Backend Dev)
+**What:** Added `warp e2e` CLI command that seeds tenants, employees, businesses, and customers via the API. All word/name/location data is embedded in source files (no runtime HTTP fetches). WarpApiClient returns null on 409 Conflict so callers can retry with different names/emails. Command accepts `--tenantCount`, `--employeeCount`, and `--customerCount` options with sensible defaults (1, 100, 50).
+**Why:** Supports rapid test data population for development and QA environments. Enables realistic multi-tenant scenarios with hundreds of employees and customers per tenant.
