@@ -1,0 +1,575 @@
+@page "/crm/customers/{customerId:guid}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject CrmApiClient CrmApi
+@inject NavigationManager Navigation
+
+<PageTitle>Customer Details</PageTitle>
+
+<style>
+    .employee-dropdown-list {
+        z-index: 1050;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+</style>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else if (customer == null)
+        {
+            <div class="alert alert-warning">
+                <h4>Customer Not Found</h4>
+                <p>The customer you are looking for does not exist.</p>
+                <a href="/crm/customers" class="btn btn-outline-primary">Back to Customer List</a>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>@customer.Name</h1>
+                <a href="/crm/customers" class="btn btn-outline-secondary">← Back to List</a>
+            </div>
+
+            @* Customer Information Card *@
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Customer Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Name:</strong> @customer.Name</p>
+                            <p><strong>Email:</strong> <a href="mailto:@customer.Email">@customer.Email</a></p>
+                            <p><strong>Phone:</strong> @(customer.Phone ?? "—")</p>
+                            <p><strong>Website:</strong> 
+                                @if (!string.IsNullOrEmpty(customer.Website))
+                                {
+                                    <a href="@customer.Website" target="_blank">@customer.Website</a>
+                                }
+                                else
+                                {
+                                    <text>—</text>
+                                }
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Industry:</strong> @(customer.Industry ?? "—")</p>
+                            <p><strong>Company Size:</strong> @(customer.CompanySize ?? "—")</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge @(customer.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(customer.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(customer.Address))
+                    {
+                        <hr />
+                        <p><strong>Address:</strong></p>
+                        <p class="mb-0">
+                            @customer.Address<br />
+                            @if (!string.IsNullOrEmpty(customer.City) || !string.IsNullOrEmpty(customer.State) || !string.IsNullOrEmpty(customer.PostalCode))
+                            {
+                                <text>@customer.City@(string.IsNullOrEmpty(customer.City) ? "" : ", ")@customer.State @customer.PostalCode</text>
+                                <br />
+                            }
+                            @customer.Country
+                        </p>
+                    }
+                    @if (!string.IsNullOrEmpty(customer.Notes))
+                    {
+                        <hr />
+                        <p><strong>Notes:</strong></p>
+                        <p class="mb-0">@customer.Notes</p>
+                    }
+                </div>
+            </div>
+
+            @* Employee Assignments Card *@
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Assigned Employees (@(customerEmployees?.Count ?? 0))</h5>
+                    <button class="btn btn-sm btn-primary" @onclick="ShowAssignEmployeeModal">
+                        <span class="bi bi-plus-lg me-1"></span> Assign Employee
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (isLoadingEmployees)
+                    {
+                        <div class="d-flex justify-content-center my-3">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading employees...</span>
+                            </div>
+                        </div>
+                    }
+                    else if (customerEmployees is { Count: > 0 })
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Employee Name</th>
+                                        <th>Email</th>
+                                        <th>Relationship</th>
+                                        <th style="width: 150px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var emp in customerEmployees)
+                                    {
+                                        <tr>
+                                            <td>@emp.EmployeeFirstName @emp.EmployeeLastName</td>
+                                            <td>@emp.EmployeeEmail</td>
+                                            <td>@emp.Relationship</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditRelationshipModal(emp)" title="Edit Relationship">
+                                                    Edit
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmUnassign(emp)" title="Unassign">
+                                                    Remove
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No employees assigned to this customer.</p>
+                    }
+                </div>
+            </div>
+
+            @* Assign Employee Modal *@
+            @if (showAssignModal)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Assign Employee</h5>
+                                <button type="button" class="btn-close" @onclick="CloseAssignModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <EditForm Model="assignModel" OnValidSubmit="HandleAssignEmployee" FormName="assignEmployeeForm">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary class="text-danger mb-3" />
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Select Employee <span class="text-danger">*</span></label>
+                                        <div class="position-relative">
+                                            <input type="text" class="form-control"
+                                                   placeholder="Search employees..."
+                                                   value="@employeeSearchText"
+                                                   @onfocus="() => showEmployeeDropdown = true"
+                                                   @onblur="HandleEmployeeSearchBlur"
+                                                   @oninput="FilterEmployees" />
+                                            @if (showEmployeeDropdown && filteredEmployees.Count > 0 && !assignModel.EmployeeId.HasValue)
+                                            {
+                                                <ul class="list-group position-absolute w-100 shadow employee-dropdown-list">
+                                                    @foreach (var emp in filteredEmployees)
+                                                    {
+                                                        <li class="list-group-item list-group-item-action"
+                                                            @onmousedown="() => SelectEmployee(emp)"
+                                                            @onmousedown:preventDefault>
+                                                            @emp.FirstName @emp.LastName (@emp.Email)
+                                                        </li>
+                                                    }
+                                                </ul>
+                                            }
+                                            @if (assignModel.EmployeeId.HasValue)
+                                            {
+                                                <small class="text-success">✓ Employee selected</small>
+                                            }
+                                        </div>
+                                        <ValidationMessage For="() => assignModel.EmployeeId" class="text-danger" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Relationship <span class="text-danger">*</span></label>
+                                        <InputText @bind-Value="assignModel.Relationship" class="form-control" 
+                                                   placeholder="e.g., Account Manager, Technical Lead" maxlength="100" />
+                                        <ValidationMessage For="() => assignModel.Relationship" class="text-danger" />
+                                    </div>
+
+                                    <div>
+                                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                            @if (isSubmitting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            }
+                                            Assign Employee
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CloseAssignModal">Cancel</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* Edit Relationship Modal *@
+            @if (showEditRelationshipModal && editingRelationship != null)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Relationship</h5>
+                                <button type="button" class="btn-close" @onclick="CloseEditRelationshipModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <EditForm Model="relationshipModel" OnValidSubmit="HandleUpdateRelationship" FormName="editRelationshipForm">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary class="text-danger mb-3" />
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Employee</label>
+                                        <input type="text" class="form-control" readonly 
+                                               value="@($"{editingRelationship.EmployeeFirstName} {editingRelationship.EmployeeLastName}")" />
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Relationship <span class="text-danger">*</span></label>
+                                        <InputText @bind-Value="relationshipModel.Relationship" class="form-control" maxlength="100" />
+                                        <ValidationMessage For="() => relationshipModel.Relationship" class="text-danger" />
+                                    </div>
+
+                                    <div>
+                                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                            @if (isSubmitting)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                            }
+                                            Save Changes
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CloseEditRelationshipModal">Cancel</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* Unassign Confirmation Modal *@
+            @if (showUnassignConfirm && unassigningEmployee != null)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Confirm Remove</h5>
+                                <button type="button" class="btn-close" @onclick="CancelUnassign"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Are you sure you want to remove <strong>@unassigningEmployee.EmployeeFirstName @unassigningEmployee.EmployeeLastName</strong> from this customer?</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CancelUnassign">Cancel</button>
+                                <button type="button" class="btn btn-danger" @onclick="ExecuteUnassign" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    }
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-warning">
+            <h4>Access Denied</h4>
+            <p>You must be logged in to access customer details. <a href="/login">Login</a></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public Guid CustomerId { get; set; }
+
+    private CustomerResponse? customer;
+    private List<CustomerEmployeeResponse>? customerEmployees;
+    private List<EmployeeResponse> availableEmployees = [];
+    private List<EmployeeResponse> filteredEmployees = [];
+    private string employeeSearchText = "";
+    private bool showEmployeeDropdown;
+
+    private bool isLoading = true;
+    private bool isLoadingEmployees = true;
+    private bool isSubmitting;
+    private bool showAssignModal;
+    private bool showEditRelationshipModal;
+    private bool showUnassignConfirm;
+    private CustomerEmployeeResponse? editingRelationship;
+    private CustomerEmployeeResponse? unassigningEmployee;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private AssignEmployeeFormModel assignModel = new();
+    private RelationshipFormModel relationshipModel = new();
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        await LoadCustomer();
+        await LoadCustomerEmployees();
+    }
+
+    private async Task LoadCustomer()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            customer = await CrmApi.GetCustomerAsync(CustomerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load customer: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadCustomerEmployees()
+    {
+        isLoadingEmployees = true;
+        errorMessage = null;
+        try
+        {
+            customerEmployees = await CrmApi.GetCustomerEmployeesAsync(CustomerId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load assigned employees: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingEmployees = false;
+        }
+    }
+
+    private async Task ShowAssignEmployeeModal()
+    {
+        assignModel = new AssignEmployeeFormModel();
+        employeeSearchText = "";
+        showEmployeeDropdown = false;
+        
+        try
+        {
+            availableEmployees = await CrmApi.GetAvailableEmployeesAsync();
+            filteredEmployees = availableEmployees;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load employees: {ex.Message}";
+            return;
+        }
+        
+        showAssignModal = true;
+    }
+
+    private void CloseAssignModal()
+    {
+        showAssignModal = false;
+        assignModel = new AssignEmployeeFormModel();
+        employeeSearchText = "";
+    }
+
+    private void FilterEmployees(ChangeEventArgs e)
+    {
+        employeeSearchText = e.Value?.ToString() ?? "";
+        if (string.IsNullOrWhiteSpace(employeeSearchText))
+        {
+            filteredEmployees = availableEmployees;
+        }
+        else
+        {
+            filteredEmployees = availableEmployees.Where(emp =>
+                emp.FirstName.Contains(employeeSearchText, StringComparison.OrdinalIgnoreCase) ||
+                emp.LastName.Contains(employeeSearchText, StringComparison.OrdinalIgnoreCase) ||
+                emp.Email.Contains(employeeSearchText, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+        showEmployeeDropdown = true;
+    }
+
+    private void SelectEmployee(EmployeeResponse employee)
+    {
+        assignModel.EmployeeId = employee.Id;
+        employeeSearchText = $"{employee.FirstName} {employee.LastName}";
+        showEmployeeDropdown = false;
+    }
+
+    private async Task HandleEmployeeSearchBlur()
+    {
+        await Task.Delay(200);
+        showEmployeeDropdown = false;
+    }
+
+    private async Task HandleAssignEmployee()
+    {
+        if (!assignModel.EmployeeId.HasValue) return;
+
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            var request = new AssignEmployeeRequest(assignModel.EmployeeId.Value, assignModel.Relationship!);
+            await CrmApi.AssignEmployeeAsync(CustomerId, request);
+            successMessage = "Employee assigned successfully.";
+            CloseAssignModal();
+            await LoadCustomerEmployees();
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ShowEditRelationshipModal(CustomerEmployeeResponse emp)
+    {
+        editingRelationship = emp;
+        relationshipModel = new RelationshipFormModel { Relationship = emp.Relationship };
+        showEditRelationshipModal = true;
+    }
+
+    private void CloseEditRelationshipModal()
+    {
+        showEditRelationshipModal = false;
+        editingRelationship = null;
+        relationshipModel = new RelationshipFormModel();
+    }
+
+    private async Task HandleUpdateRelationship()
+    {
+        if (editingRelationship == null) return;
+
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            var request = new UpdateRelationshipRequest(relationshipModel.Relationship!);
+            await CrmApi.UpdateRelationshipAsync(CustomerId, editingRelationship.EmployeeId, request);
+            successMessage = "Relationship updated successfully.";
+            CloseEditRelationshipModal();
+            await LoadCustomerEmployees();
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ConfirmUnassign(CustomerEmployeeResponse emp)
+    {
+        unassigningEmployee = emp;
+        showUnassignConfirm = true;
+    }
+
+    private void CancelUnassign()
+    {
+        showUnassignConfirm = false;
+        unassigningEmployee = null;
+    }
+
+    private async Task ExecuteUnassign()
+    {
+        if (unassigningEmployee == null) return;
+
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            await CrmApi.UnassignEmployeeAsync(CustomerId, unassigningEmployee.EmployeeId);
+            successMessage = "Employee removed successfully.";
+            CancelUnassign();
+            await LoadCustomerEmployees();
+        }
+        catch (ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private class AssignEmployeeFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Please select an employee.")]
+        public Guid? EmployeeId { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Relationship { get; set; }
+    }
+
+    private class RelationshipFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? Relationship { get; set; }
+    }
+}

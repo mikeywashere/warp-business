@@ -137,6 +137,9 @@ builder.Services.AddHttpClient<EmployeeApiClient>(configureApiClient)
 builder.Services.AddHttpClient<CurrencyApiClient>(configureApiClient)
     .AddHttpMessageHandler<AuthTokenHandler>();
 
+builder.Services.AddHttpClient<CrmApiClient>(configureApiClient)
+    .AddHttpMessageHandler<AuthTokenHandler>();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
