@@ -9,6 +9,19 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Employee-User Data Synchronization (2026-04-11)
+
+- **Feature:** When linking an existing user account to an employee record, automatically populate empty employee fields from matching user record data.
+- **Scope of sync:** Three core fields are copied (FirstName, LastName, Email) — only into empty employee fields; existing employee values are never overwritten.
+- **New endpoint:** `PUT /api/employees/{id}/link-user/{userId}` — links an unlinked employee to an existing tenant user with automatic data sync.
+- **Validation:** Employee must be unlinked (no existing UserId), user must exist, user must be in same tenant, user cannot already be linked to another employee.
+- **Helper method:** `SyncMissingDataFromUserToEmployee(ApplicationUser, Employee)` — encapsulates the conditional-copy logic for reuse.
+- **Tested thoroughly:** 8 comprehensive tests (data sync happy path, preservation of existing data, all error cases: 400/404/409 validation errors).
+- **Key files modified:**
+  - `WarpBusiness.Api/Endpoints/EmployeeUserEndpoints.cs` — new LinkUserToEmployee endpoint + SyncMissingDataFromUserToEmployee helper
+  - `WarpBusiness.Api.Tests/Endpoints/EmployeeUserLinkingTests.cs` — 8 new tests for the link-user-to-employee flow, all passing
+- **Test results:** All 30 EmployeeUserLinking tests pass (includes 8 new LinkUserToEmployee tests), feature is production-ready.
+
 ### Automatic Token Refresh (2026-04-11)
 
 - **Root cause:** OIDC `SaveTokens = true` stores the access token in the auth cookie at login time. The token is never refreshed automatically — after expiry (typically hours later), every API call returns 401.

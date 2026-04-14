@@ -749,6 +749,182 @@ public class EmployeeUserLinkingTests
 
     #endregion
 
+    #region Link User to Employee Tests
+
+    [Fact]
+    public async Task LinkUserToEmployee_LinksExistingUserAndSyncsData()
+    {
+        // PUT /api/employees/{id}/link-user/{userId} — link an existing user to an unlinked employee.
+        // Should sync missing data from user to employee.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantId = Guid.NewGuid();
+
+        // Create a user with rich data
+        var user = await SeedUser(warpDb, tenantId, "linked@enterprise.com", "Jean-Luc", "Picard");
+
+        // Create an employee with minimal data
+        var emp = await SeedEmployee(empDb, tenantId, "",
+            userId: null, firstName: "", lastName: "", employeeNumber: "EMP90001");
+
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var result = await CallLinkUserToEmployee(emp.Id, user.Id, httpContext, warpDb, empDb);
+
+        var statusCode = GetStatusCode(result);
+        statusCode.Should().Be(200, "linking should succeed");
+
+        // Verify employee was linked
+        await empDb.Entry(emp).ReloadAsync();
+        emp.UserId.Should().Be(user.Id, "employee should be linked to user");
+
+        // Verify data was synced
+        emp.FirstName.Should().Be("Jean-Luc", "first name should be synced from user");
+        emp.LastName.Should().Be("Picard", "last name should be synced from user");
+        emp.Email.Should().Be("linked@enterprise.com", "email should be synced from user");
+    }
+
+    [Fact]
+    public async Task LinkUserToEmployee_PreservesExistingEmployeeData()
+    {
+        // When employee has some data, syncing should NOT overwrite existing values.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantId = Guid.NewGuid();
+
+        var user = await SeedUser(warpDb, tenantId, "user@enterprise.com", "User", "First");
+        var emp = await SeedEmployee(empDb, tenantId, "emp@enterprise.com",
+            userId: null, firstName: "Employee", lastName: "Last", employeeNumber: "EMP90002");
+
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var result = await CallLinkUserToEmployee(emp.Id, user.Id, httpContext, warpDb, empDb);
+
+        GetStatusCode(result).Should().Be(200);
+
+        // Employee's existing values should be preserved
+        await empDb.Entry(emp).ReloadAsync();
+        emp.FirstName.Should().Be("Employee", "existing first name should not be overwritten");
+        emp.LastName.Should().Be("Last", "existing last name should not be overwritten");
+        emp.Email.Should().Be("emp@enterprise.com", "existing email should not be overwritten");
+    }
+
+    [Fact]
+    public async Task LinkUserToEmployee_Returns400WhenEmployeeAlreadyLinked()
+    {
+        // Cannot link a user to an employee that already has a UserId.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantId = Guid.NewGuid();
+
+        var user1 = await SeedUser(warpDb, tenantId, "user1@enterprise.com", "User", "One");
+        var user2 = await SeedUser(warpDb, tenantId, "user2@enterprise.com", "User", "Two");
+        var emp = await SeedEmployee(empDb, tenantId, "emp@enterprise.com",
+            userId: user1.Id, firstName: "Linked", lastName: "Emp", employeeNumber: "EMP90003");
+
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var result = await CallLinkUserToEmployee(emp.Id, user2.Id, httpContext, warpDb, empDb);
+
+        var statusCode = GetStatusCode(result);
+        statusCode.Should().Be(400, "cannot link a second user to an already-linked employee");
+    }
+
+    [Fact]
+    public async Task LinkUserToEmployee_Returns400WhenUserNotFound()
+    {
+        // Cannot link a non-existent user.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantId = Guid.NewGuid();
+
+        var emp = await SeedEmployee(empDb, tenantId, "emp@enterprise.com",
+            userId: null, firstName: "Test", lastName: "Emp", employeeNumber: "EMP90004");
+
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var result = await CallLinkUserToEmployee(emp.Id, Guid.NewGuid(), httpContext, warpDb, empDb);
+
+        GetStatusCode(result).Should().Be(400, "cannot link a non-existent user");
+    }
+
+    [Fact]
+    public async Task LinkUserToEmployee_Returns400WhenUserNotInTenant()
+    {
+        // Cannot link a user from a different tenant.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        var userInTenantB = await SeedUser(warpDb, tenantB, "user@other.com", "Other", "Tenant");
+        var emp = await SeedEmployee(empDb, tenantA, "emp@enterprise.com",
+            userId: null, firstName: "Test", lastName: "Emp", employeeNumber: "EMP90005");
+
+        var httpContext = CreateHttpContextWithTenant(tenantA);
+        var result = await CallLinkUserToEmployee(emp.Id, userInTenantB.Id, httpContext, warpDb, empDb);
+
+        GetStatusCode(result).Should().Be(400, "cannot link a user from a different tenant");
+    }
+
+    [Fact]
+    public async Task LinkUserToEmployee_Returns409WhenUserAlreadyLinked()
+    {
+        // Cannot link a user that is already linked to another employee.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantId = Guid.NewGuid();
+
+        var user = await SeedUser(warpDb, tenantId, "shared@enterprise.com", "Shared", "User");
+        var emp1 = await SeedEmployee(empDb, tenantId, "emp1@enterprise.com",
+            userId: user.Id, firstName: "First", lastName: "Emp", employeeNumber: "EMP90006");
+        var emp2 = await SeedEmployee(empDb, tenantId, "emp2@enterprise.com",
+            userId: null, firstName: "Second", lastName: "Emp", employeeNumber: "EMP90007");
+
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var result = await CallLinkUserToEmployee(emp2.Id, user.Id, httpContext, warpDb, empDb);
+
+        GetStatusCode(result).Should().Be(409, "cannot link a user already linked to another employee");
+    }
+
+    [Fact]
+    public async Task LinkUserToEmployee_Returns404WhenEmployeeNotFound()
+    {
+        // Cannot link to a non-existent employee.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantId = Guid.NewGuid();
+
+        var user = await SeedUser(warpDb, tenantId, "user@enterprise.com", "Test", "User");
+
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var result = await CallLinkUserToEmployee(Guid.NewGuid(), user.Id, httpContext, warpDb, empDb);
+
+        GetStatusCode(result).Should().Be(404, "cannot link to a non-existent employee");
+    }
+
+    [Fact]
+    public async Task LinkUserToEmployee_SyncsOnlyMissingFields()
+    {
+        // Only fields that are null/empty in employee should be synced.
+        await using var empDb = await CreateCleanEmployeeContext();
+        await using var warpDb = await CreateCleanWarpContext();
+        var tenantId = Guid.NewGuid();
+
+        var user = await SeedUser(warpDb, tenantId, "sync@enterprise.com", "User", "Name");
+        // Employee has FirstName but not LastName or Email
+        var emp = await SeedEmployee(empDb, tenantId, "",
+            userId: null, firstName: "EmployeeFirst", lastName: "", employeeNumber: "EMP90008");
+
+        var httpContext = CreateHttpContextWithTenant(tenantId);
+        var result = await CallLinkUserToEmployee(emp.Id, user.Id, httpContext, warpDb, empDb);
+
+        GetStatusCode(result).Should().Be(200);
+
+        await empDb.Entry(emp).ReloadAsync();
+        emp.FirstName.Should().Be("EmployeeFirst", "existing first name should not be overwritten");
+        emp.LastName.Should().Be("Name", "missing last name should be synced");
+        emp.Email.Should().Be("sync@enterprise.com", "missing email should be synced");
+    }
+
+    #endregion
+
     #region By-User Endpoint Tests
 
     [Fact]
@@ -891,6 +1067,19 @@ public class EmployeeUserLinkingTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
         return await (Task<IResult>)method.Invoke(null,
             [userId, httpContext, empDb, CancellationToken.None])!;
+    }
+
+    /// <summary>
+    /// Calls PUT /api/employees/{id}/link-user/{userId} endpoint via reflection.
+    /// </summary>
+    private static async Task<IResult> CallLinkUserToEmployee(
+        Guid employeeId, Guid userId, HttpContext httpContext, 
+        WarpBusinessDbContext warpDb, EmployeeDbContext empDb)
+    {
+        var method = typeof(EmployeeUserEndpoints).GetMethod("LinkUserToEmployee",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        return await (Task<IResult>)method.Invoke(null,
+            [employeeId, userId, httpContext, warpDb, empDb, CancellationToken.None])!;
     }
 
     #endregion

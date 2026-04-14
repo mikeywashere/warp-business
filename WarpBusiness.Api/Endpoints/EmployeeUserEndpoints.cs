@@ -29,6 +29,10 @@ public static class EmployeeUserEndpoints
             .WithName("UpdateEmployeeWithUser")
             .RequireAuthorization("SystemAdministrator");
 
+        group.MapPut("/employees/{id:guid}/link-user/{userId:guid}", LinkUserToEmployee)
+            .WithName("LinkUserToEmployee")
+            .RequireAuthorization("SystemAdministrator");
+
         group.MapGet("/employees/by-user/{userId:guid}", GetEmployeeByUserId)
             .WithName("GetEmployeeByUserId");
     }
@@ -334,6 +338,51 @@ public static class EmployeeUserEndpoints
         return employee is null ? Results.NotFound() : Results.Ok(ToEmployeeResponse(employee));
     }
 
+    private static async Task<IResult> LinkUserToEmployee(
+        Guid id,
+        Guid userId,
+        HttpContext httpContext,
+        WarpBusinessDbContext db,
+        EmployeeDbContext employeeDb,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var employee = await employeeDb.Employees
+            .FirstOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId.Value, cancellationToken);
+
+        if (employee is null)
+            return Results.NotFound(new { message = "Employee not found." });
+
+        if (employee.UserId.HasValue)
+            return Results.BadRequest(new { message = "Employee is already linked to a user account." });
+
+        var user = await db.Users.FindAsync([userId], cancellationToken);
+        if (user is null)
+            return Results.BadRequest(new { message = "User not found." });
+
+        var userBelongsToTenant = await db.UserTenantMemberships.AnyAsync(
+            m => m.UserId == userId && m.TenantId == tenantId.Value, cancellationToken);
+        if (!userBelongsToTenant)
+            return Results.BadRequest(new { message = "User is not a member of this tenant." });
+
+        var userAlreadyLinked = await employeeDb.Employees.AnyAsync(
+            e => e.UserId == userId && e.TenantId == tenantId.Value, cancellationToken);
+        if (userAlreadyLinked)
+            return Results.Conflict(new { message = "User is already linked to another employee." });
+
+        SyncMissingDataFromUserToEmployee(user, employee);
+
+        employee.UserId = userId;
+        employee.UpdatedAt = DateTime.UtcNow;
+
+        await employeeDb.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToEmployeeResponse(employee));
+    }
+
     private static EmployeeResponse ToEmployeeResponse(Employee employee) =>
         new(
             employee.Id,
@@ -355,6 +404,22 @@ public static class EmployeeUserEndpoints
             employee.TenantId,
             employee.CreatedAt,
             employee.UpdatedAt);
+
+    /// <summary>
+    /// Syncs missing data from an ApplicationUser to an Employee.
+    /// Only populates empty employee fields from the corresponding user fields.
+    /// </summary>
+    private static void SyncMissingDataFromUserToEmployee(ApplicationUser user, Employee employee)
+    {
+        if (string.IsNullOrWhiteSpace(employee.FirstName) && !string.IsNullOrWhiteSpace(user.FirstName))
+            employee.FirstName = user.FirstName;
+
+        if (string.IsNullOrWhiteSpace(employee.LastName) && !string.IsNullOrWhiteSpace(user.LastName))
+            employee.LastName = user.LastName;
+
+        if (string.IsNullOrWhiteSpace(employee.Email) && !string.IsNullOrWhiteSpace(user.Email))
+            employee.Email = user.Email;
+    }
 
     private static async Task<string> GenerateEmployeeNumber(
         EmployeeDbContext db, Guid tenantId, CancellationToken cancellationToken)
