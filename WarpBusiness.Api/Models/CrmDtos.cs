@@ -35,7 +35,8 @@ public record CustomerCreateDto(
     string? CompanySize = null,
     string? Website = null,
     string? Notes = null,
-    string? Currency = null);
+    string? Currency = null,
+    Guid? BusinessId = null);
 
 public record CustomerUpdateDto(
     string Name,

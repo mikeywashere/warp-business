@@ -122,6 +122,7 @@ public static class CustomerEndpoints
             Notes = request.Notes,
             IsActive = true,
             Currency = request.Currency ?? "USD",
+            BusinessId = request.BusinessId,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };

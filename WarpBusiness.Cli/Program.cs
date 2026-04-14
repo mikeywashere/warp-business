@@ -7,6 +7,7 @@ var root = new RootCommand("warp — WarpBusiness developer CLI");
 root.AddCommand(LoginCommand.Create());
 root.AddCommand(LogoutCommand.Create());
 root.AddCommand(ClearCommand.Create());
+root.AddCommand(E2eCommand.Create());
 
 // Show current login status when no subcommand is given
 root.SetHandler(() =>
