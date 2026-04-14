@@ -147,7 +147,7 @@
 
             @* Customer List *@
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">Customers (@(customers?.Count ?? 0))</h5>
+                <h5 class="mb-0">Customers (@(FilteredCustomers.Count)@(!string.IsNullOrWhiteSpace(searchTerm) ? $" of {customers?.Count ?? 0}" : ""))</h5>
                 <button class="btn btn-primary" @onclick="ShowAddModal">
                     <span class="bi bi-plus-lg me-1"></span> Add Customer
                 </button>
