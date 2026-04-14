@@ -286,3 +286,37 @@
   - WarpBusiness.Api/Program.cs — registered MapBusinessEndpoints()
   - WarpBusiness.Api/Endpoints/AdminEndpoints.cs — updated truncate order
   - Migration: AddBusiness
+
+## 2025-01-29: Implemented warp e2e CLI command
+
+**Task:** Add `warp e2e` command for seeding test data via API
+
+**Changes:**
+- Added `Guid? BusinessId = null` to `CustomerCreateDto` and wired it in `CreateCustomer` endpoint
+- Created `WarpBusiness.Cli/Data/` directory with `WordData.cs`, `NameData.cs`, `LocationData.cs` containing arrays for realistic test data generation
+- Expanded `WarpApiClient` with:
+  - `CreateTenantAsync(name, slug, currency)` - returns null on 409 Conflict
+  - `CreateEmployeeAsync(tenantId, request)` - returns null on 409 Conflict
+  - `CreateBusinessAsync(tenantId, request)` - returns null on 409 Conflict
+  - `CreateCustomerAsync(tenantId, request)` - returns null on 409 Conflict
+  - Result records: `TenantResult`, `EmployeeResult`, `BusinessResult`, `CustomerResult`
+  - Request records: `CreateEmployeeRequest`, `CreateBusinessRequest`, `CreateCustomerRequest`
+- Created `E2eCommand.cs` with:
+  - Three options: `--tenantCount`, `--employeeCount`, `--customerCount` (defaults: 1, 100, 50)
+  - Full seeding logic with conflict retry patterns
+  - Realistic data generation: names, addresses, departments, job titles, companies, industries
+- Registered `E2eCommand` in CLI `Program.cs`
+
+**Outcomes:**
+- Both API and CLI projects build successfully with no warnings
+- Command supports seeding multiple tenants with realistic employee and customer data
+- All API calls handle 409 Conflict gracefully with retry logic
+
+## Learnings
+- Added BusinessId to CustomerCreateDto and wired it in CreateCustomer endpoint
+- Added WarpApiClient methods: CreateTenantAsync, CreateEmployeeAsync, CreateBusinessAsync, CreateCustomerAsync
+- Created WarpBusiness.Cli/Data/ directory with WordData.cs, NameData.cs, LocationData.cs
+- Created E2eCommand.cs with full data seeding algorithm
+- System.CommandLine 2.0.0-beta4: Option<T>(string, Func<T>, string) constructor works correctly
+- WarpApiClient returns null on 409 Conflict for all new Create* methods (retry pattern)
+- JsonDocument parsing with TryGetProperty for optional response fields works well
