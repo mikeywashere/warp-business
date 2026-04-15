@@ -45,7 +45,7 @@ public record CatalogProductResponse(
     string Name, string? Description, string? Brand, string? SKU,
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
-    int VariantCount);
+    int VariantCount, string? ImageKey = null, string? VideoKey = null);
 
 public record CreateCatalogProductRequest(
     string Name,
@@ -71,7 +71,7 @@ public record CatalogProductVariantResponse(
     Guid? ColorId, string? ColorName, string? ColorHex,
     Guid? SizeId, string? SizeName, string? SizeType,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? ImageKey = null, string? VideoKey = null);
 
 public record CreateCatalogVariantRequest(
     Guid? ColorId = null,
@@ -302,6 +302,110 @@ public class CatalogApiClient
         var response = await _httpClient.SendAsync(msg);
         await ThrowOnErrorAsync(response, "DeleteVariant");
     }
+
+    // Image management
+    public async Task<string?> UploadProductImageAsync(Guid productId, Stream imageStream, string fileName, string contentType)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(imageStream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/products/{productId}/image", content);
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UploadProductImage");
+
+        var result = await response.Content.ReadFromJsonAsync<ImageUploadResponse>();
+        return result?.ImageKey;
+    }
+
+    public async Task DeleteProductImageAsync(Guid productId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/products/{productId}/image");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "DeleteProductImage");
+    }
+
+    public async Task<string?> UploadVariantImageAsync(Guid variantId, Stream imageStream, string fileName, string contentType)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(imageStream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/variants/{variantId}/image", content);
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UploadVariantImage");
+
+        var result = await response.Content.ReadFromJsonAsync<ImageUploadResponse>();
+        return result?.ImageKey;
+    }
+
+    public async Task DeleteVariantImageAsync(Guid variantId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/variants/{variantId}/image");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "DeleteVariantImage");
+    }
+
+    public string GetImageUrl(string imageKey)
+    {
+        return $"{_httpClient.BaseAddress}api/catalog/images/{imageKey}";
+    }
+
+    // Video management
+    // NOTE: For large video files (up to 500MB), the API's MaxResponseContentBufferSize may need
+    // to be increased. This is configured on the API side, not here in the client.
+    public async Task<string?> UploadProductVideoAsync(Guid productId, Stream videoStream, string fileName, string contentType)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(videoStream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/products/{productId}/video", content);
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UploadProductVideo");
+
+        var result = await response.Content.ReadFromJsonAsync<VideoUploadResponse>();
+        return result?.VideoKey;
+    }
+
+    public async Task DeleteProductVideoAsync(Guid productId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/products/{productId}/video");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "DeleteProductVideo");
+    }
+
+    public async Task<string?> UploadVariantVideoAsync(Guid variantId, Stream videoStream, string fileName, string contentType)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(videoStream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/variants/{variantId}/video", content);
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UploadVariantVideo");
+
+        var result = await response.Content.ReadFromJsonAsync<VideoUploadResponse>();
+        return result?.VideoKey;
+    }
+
+    public async Task DeleteVariantVideoAsync(Guid variantId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/variants/{variantId}/video");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "DeleteVariantVideo");
+    }
+
+    public string GetVideoUrl(string videoKey)
+    {
+        return $"{_httpClient.BaseAddress}api/catalog/videos/{videoKey}";
+    }
 }
 
 public record ApiMessageResponse(string Message);
+public record ImageUploadResponse(string ImageKey);
+public record VideoUploadResponse(string VideoKey);

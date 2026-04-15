@@ -84,6 +84,8 @@ public class CatalogDbContext : DbContext
             entity.Property(e => e.SKU).HasMaxLength(100);
             entity.Property(e => e.BasePrice).HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(e => e.ImageKey).HasMaxLength(500);
+            entity.Property(e => e.VideoKey).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
             entity.HasOne(e => e.Category)
@@ -100,6 +102,8 @@ public class CatalogDbContext : DbContext
 
             entity.Property(e => e.SKU).HasMaxLength(100);
             entity.Property(e => e.Price).HasPrecision(18, 2);
+            entity.Property(e => e.ImageKey).HasMaxLength(500);
+            entity.Property(e => e.VideoKey).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
             // Variant SKU is unique within the tenant

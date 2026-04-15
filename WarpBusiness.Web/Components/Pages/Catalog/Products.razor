@@ -101,6 +101,57 @@
                                             <label class="form-label">Description</label>
                                             <InputTextArea @bind-Value="productForm.Description" class="form-control" rows="3" />
                                         </div>
+                                        @if (editingProductId.HasValue)
+                                        {
+                                            <div class="col-12">
+                                                <label class="form-label">Product Image</label>
+                                                @if (currentProductImageKey != null)
+                                                {
+                                                    <div class="mb-2">
+                                                        <img src="@GetProductImageUrl(currentProductImageKey)" class="product-preview-image" alt="Product" />
+                                                        <button type="button" class="btn btn-sm btn-outline-danger ms-2" @onclick="RemoveProductImage" disabled="@isSubmitting">
+                                                            Remove Image
+                                                        </button>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="mb-2 text-muted">No image uploaded</div>
+                                                }
+                                                <InputFile OnChange="@HandleProductImageUpload" accept="image/*" class="form-control" disabled="@isSubmitting" />
+                                                <div class="form-text">Max 5MB. JPG, PNG, or WebP.</div>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Product Video <span class="text-muted">(mp4, webm — up to 500MB)</span></label>
+                                                @if (currentProductVideoKey != null)
+                                                {
+                                                    <div class="mb-2">
+                                                        <video src="@GetProductVideoUrl(currentProductVideoKey)" 
+                                                               controls preload="metadata" 
+                                                               class="product-video-preview" />
+                                                        <button type="button" class="btn btn-sm btn-outline-danger d-block mt-2" @onclick="RemoveProductVideo" disabled="@isSubmitting">
+                                                            Remove Video
+                                                        </button>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="mb-2 text-muted">No video uploaded</div>
+                                                }
+                                                @if (isUploadingVideo)
+                                                {
+                                                    <div class="alert alert-info">
+                                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                                        Uploading video...
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <InputFile OnChange="@HandleProductVideoUpload" accept="video/mp4,video/webm,video/quicktime" class="form-control" disabled="@isSubmitting" />
+                                                    <div class="form-text">Max 500MB. MP4, WebM, or QuickTime.</div>
+                                                }
+                                            </div>
+                                        }
                                     </div>
                                     <div class="mt-3">
                                         <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
@@ -198,6 +249,7 @@
                                     <table class="table table-sm table-striped">
                                         <thead class="table-dark">
                                             <tr>
+                                                <th style="width: 60px;">Image</th>
                                                 <th>Color</th>
                                                 <th>Size</th>
                                                 <th>SKU</th>
@@ -213,6 +265,22 @@
                                                 @foreach (var v in selectedVariants)
                                                 {
                                                     <tr>
+                                                        <td>
+                                                            <div class="d-flex align-items-center">
+                                                                @if (v.ImageKey != null)
+                                                                {
+                                                                    <img src="@GetProductImageUrl(v.ImageKey)" class="product-thumbnail" alt="Variant" />
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="no-image-placeholder-sm">📷</span>
+                                                                }
+                                                                @if (v.VideoKey != null)
+                                                                {
+                                                                    <span class="video-badge-sm ms-1" title="Has video">🎬</span>
+                                                                }
+                                                            </div>
+                                                        </td>
                                                         <td>
                                                             @if (v.ColorName != null)
                                                             {
@@ -242,6 +310,9 @@
                                                         </td>
                                                         <td>
                                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditVariant(v)">Edit</button>
+                                                            <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ShowVariantImageUpload(v)" title="Manage Image">
+                                                                📷
+                                                            </button>
                                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteVariantAsync(v)">Delete</button>
                                                         </td>
                                                     </tr>
@@ -249,7 +320,7 @@
                                             }
                                             else
                                             {
-                                                <tr><td colspan="7" class="text-center text-muted py-3">No variants yet. Add one above.</td></tr>
+                                                <tr><td colspan="8" class="text-center text-muted py-3">No variants yet. Add one above.</td></tr>
                                             }
                                         </tbody>
                                     </table>
@@ -277,6 +348,7 @@
                 <table class="table table-striped table-hover">
                     <thead class="table-dark">
                         <tr>
+                            <th style="width: 60px;">Image</th>
                             <th>Name</th>
                             <th>Brand</th>
                             <th>SKU</th>
@@ -293,6 +365,22 @@
                             @foreach (var product in FilteredProducts)
                             {
                                 <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            @if (product.ImageKey != null)
+                                            {
+                                                <img src="@GetProductImageUrl(product.ImageKey)" class="product-thumbnail" alt="@product.Name" />
+                                            }
+                                            else
+                                            {
+                                                <span class="no-image-placeholder">📷</span>
+                                            }
+                                            @if (product.VideoKey != null)
+                                            {
+                                                <span class="video-badge ms-1" title="Has video">🎬</span>
+                                            }
+                                        </div>
+                                    </td>
                                     <td>@product.Name</td>
                                     <td>@(product.Brand ?? "—")</td>
                                     <td><code>@(product.SKU ?? "—")</code></td>
@@ -323,7 +411,7 @@
                         else
                         {
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">
+                                <td colspan="9" class="text-center text-muted py-4">
                                     @(string.IsNullOrWhiteSpace(searchTerm) ? "No products found." : "No products match your search.")
                                 </td>
                             </tr>
@@ -360,6 +448,77 @@
                     </div>
                 </div>
             }
+
+            @* Variant Image Upload Modal *@
+            @if (showVariantImageModal && selectedVariantForImage != null)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Variant Image — @(selectedVariantForImage.ColorName ?? "N/A") @(selectedVariantForImage.SizeName ?? "N/A")</h5>
+                                <button type="button" class="btn-close" @onclick="CloseVariantImageModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                @if (!string.IsNullOrEmpty(variantImageError))
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show">
+                                        @variantImageError
+                                        <button type="button" class="btn-close" @onclick="() => variantImageError = null"></button>
+                                    </div>
+                                }
+                                @if (selectedVariantForImage.ImageKey != null)
+                                {
+                                    <div class="mb-3">
+                                        <img src="@GetProductImageUrl(selectedVariantForImage.ImageKey)" class="product-preview-image" alt="Variant" />
+                                        <button type="button" class="btn btn-sm btn-outline-danger d-block mt-2" @onclick="RemoveVariantImage" disabled="@isSubmitting">
+                                            Remove Image
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="mb-3 text-muted">No image uploaded</div>
+                                }
+                                <label class="form-label">Upload New Image</label>
+                                <InputFile OnChange="@HandleVariantImageUpload" accept="image/*" class="form-control" disabled="@isSubmitting" />
+                                <div class="form-text">Max 5MB. JPG, PNG, or WebP.</div>
+
+                                <div class="mt-4">
+                                    <label class="form-label">Variant Video <span class="text-muted">(mp4, webm — up to 500MB)</span></label>
+                                    @if (selectedVariantForImage.VideoKey != null)
+                                    {
+                                        <div class="mb-2">
+                                            <video src="@GetProductVideoUrl(selectedVariantForImage.VideoKey)" 
+                                                   controls preload="metadata" 
+                                                   class="product-video-preview" />
+                                            <button type="button" class="btn btn-sm btn-outline-danger d-block mt-2" @onclick="RemoveVariantVideo" disabled="@isSubmitting">
+                                                Remove Video
+                                            </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="mb-2 text-muted">No video uploaded</div>
+                                    }
+                                    @if (isUploadingVariantVideo)
+                                    {
+                                        <div class="alert alert-info">
+                                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                            Uploading video...
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <InputFile OnChange="@HandleVariantVideoUpload" accept="video/mp4,video/webm,video/quicktime" class="form-control" disabled="@isSubmitting" />
+                                        <div class="form-text">Max 500MB. MP4, WebM, or QuickTime.</div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
         }
     </Authorized>
     <NotAuthorized>
@@ -383,15 +542,22 @@
     private bool showProductModal;
     private bool showVariantsModal;
     private bool showDeleteConfirm;
+    private bool showVariantImageModal;
+    private bool isUploadingVideo;
+    private bool isUploadingVariantVideo;
 
     private Guid? editingProductId;
     private Guid? editingVariantId;
     private CatalogProductResponse? deleteProductCandidate;
+    private CatalogProductVariantResponse? selectedVariantForImage;
 
     private string? errorMessage;
     private string? successMessage;
     private string? variantError;
+    private string? variantImageError;
     private string searchTerm = "";
+    private string? currentProductImageKey;
+    private string? currentProductVideoKey;
 
     private ProductFormModel productForm = new();
     private VariantFormModel variantForm = new();
@@ -462,6 +628,8 @@
             IsActive = product.IsActive
         };
         editingProductId = product.Id;
+        currentProductImageKey = product.ImageKey;
+        currentProductVideoKey = product.VideoKey;
         showProductModal = true;
     }
 
@@ -469,6 +637,8 @@
     {
         showProductModal = false;
         editingProductId = null;
+        currentProductImageKey = null;
+        currentProductVideoKey = null;
         productForm = new ProductFormModel();
     }
 
@@ -622,6 +792,246 @@
         }
         catch (ApiException ex) { variantError = ex.Message; }
         catch (Exception ex) { variantError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    // ── Image management ──────────────────────────────────────────────────────
+
+    private string? GetProductImageUrl(string? imageKey)
+        => imageKey != null ? CatalogApi.GetImageUrl(imageKey) : null;
+
+    private async Task HandleProductImageUpload(InputFileChangeEventArgs e)
+    {
+        if (!editingProductId.HasValue) return;
+        
+        var file = e.File;
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            errorMessage = "Image file must be under 5MB.";
+            return;
+        }
+
+        isSubmitting = true;
+        errorMessage = null;
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            var imageKey = await CatalogApi.UploadProductImageAsync(
+                editingProductId.Value, stream, file.Name, file.ContentType);
+            
+            if (imageKey != null)
+            {
+                currentProductImageKey = imageKey;
+                successMessage = "Image uploaded successfully.";
+                await LoadProducts();
+                StateHasChanged();
+            }
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Upload failed: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task RemoveProductImage()
+    {
+        if (!editingProductId.HasValue) return;
+        
+        isSubmitting = true;
+        errorMessage = null;
+        try
+        {
+            await CatalogApi.DeleteProductImageAsync(editingProductId.Value);
+            currentProductImageKey = null;
+            successMessage = "Image removed.";
+            await LoadProducts();
+            StateHasChanged();
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Failed to remove image: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private void ShowVariantImageUpload(CatalogProductVariantResponse variant)
+    {
+        selectedVariantForImage = variant;
+        variantImageError = null;
+        showVariantImageModal = true;
+    }
+
+    private void CloseVariantImageModal()
+    {
+        showVariantImageModal = false;
+        selectedVariantForImage = null;
+        variantImageError = null;
+    }
+
+    private async Task HandleVariantImageUpload(InputFileChangeEventArgs e)
+    {
+        if (selectedVariantForImage is null) return;
+        
+        var file = e.File;
+        if (file.Size > 5 * 1024 * 1024)
+        {
+            variantImageError = "Image file must be under 5MB.";
+            return;
+        }
+
+        isSubmitting = true;
+        variantImageError = null;
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            var imageKey = await CatalogApi.UploadVariantImageAsync(
+                selectedVariantForImage.Id, stream, file.Name, file.ContentType);
+            
+            if (imageKey != null)
+            {
+                await RefreshVariants();
+                successMessage = "Variant image uploaded.";
+                CloseVariantImageModal();
+                StateHasChanged();
+            }
+        }
+        catch (ApiException ex) { variantImageError = ex.Message; }
+        catch (Exception ex) { variantImageError = $"Upload failed: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task RemoveVariantImage()
+    {
+        if (selectedVariantForImage is null) return;
+        
+        isSubmitting = true;
+        variantImageError = null;
+        try
+        {
+            await CatalogApi.DeleteVariantImageAsync(selectedVariantForImage.Id);
+            await RefreshVariants();
+            successMessage = "Variant image removed.";
+            CloseVariantImageModal();
+            StateHasChanged();
+        }
+        catch (ApiException ex) { variantImageError = ex.Message; }
+        catch (Exception ex) { variantImageError = $"Failed to remove image: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    // ── Video management ──────────────────────────────────────────────────────
+
+    private string? GetProductVideoUrl(string? videoKey)
+        => videoKey != null ? CatalogApi.GetVideoUrl(videoKey) : null;
+
+    private async Task HandleProductVideoUpload(InputFileChangeEventArgs e)
+    {
+        if (!editingProductId.HasValue) return;
+        
+        var file = e.File;
+        if (file.Size > 500L * 1024 * 1024)
+        {
+            errorMessage = "Video file must be under 500MB.";
+            return;
+        }
+
+        isUploadingVideo = true;
+        errorMessage = null;
+        StateHasChanged();
+        
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 500L * 1024 * 1024);
+            var videoKey = await CatalogApi.UploadProductVideoAsync(
+                editingProductId.Value, stream, file.Name, file.ContentType);
+            
+            if (videoKey != null)
+            {
+                currentProductVideoKey = videoKey;
+                successMessage = "Video uploaded successfully.";
+                await LoadProducts();
+                StateHasChanged();
+            }
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Video upload failed: {ex.Message}"; }
+        finally 
+        { 
+            isUploadingVideo = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveProductVideo()
+    {
+        if (!editingProductId.HasValue) return;
+        
+        isSubmitting = true;
+        errorMessage = null;
+        try
+        {
+            await CatalogApi.DeleteProductVideoAsync(editingProductId.Value);
+            currentProductVideoKey = null;
+            successMessage = "Video removed.";
+            await LoadProducts();
+            StateHasChanged();
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Failed to remove video: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task HandleVariantVideoUpload(InputFileChangeEventArgs e)
+    {
+        if (selectedVariantForImage is null) return;
+        
+        var file = e.File;
+        if (file.Size > 500L * 1024 * 1024)
+        {
+            variantImageError = "Video file must be under 500MB.";
+            return;
+        }
+
+        isUploadingVariantVideo = true;
+        variantImageError = null;
+        StateHasChanged();
+        
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 500L * 1024 * 1024);
+            var videoKey = await CatalogApi.UploadVariantVideoAsync(
+                selectedVariantForImage.Id, stream, file.Name, file.ContentType);
+            
+            if (videoKey != null)
+            {
+                await RefreshVariants();
+                successMessage = "Variant video uploaded.";
+                CloseVariantImageModal();
+                StateHasChanged();
+            }
+        }
+        catch (ApiException ex) { variantImageError = ex.Message; }
+        catch (Exception ex) { variantImageError = $"Video upload failed: {ex.Message}"; }
+        finally 
+        { 
+            isUploadingVariantVideo = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemoveVariantVideo()
+    {
+        if (selectedVariantForImage is null) return;
+        
+        isSubmitting = true;
+        variantImageError = null;
+        try
+        {
+            await CatalogApi.DeleteVariantVideoAsync(selectedVariantForImage.Id);
+            await RefreshVariants();
+            successMessage = "Variant video removed.";
+            CloseVariantImageModal();
+            StateHasChanged();
+        }
+        catch (ApiException ex) { variantImageError = ex.Message; }
+        catch (Exception ex) { variantImageError = $"Failed to remove video: {ex.Message}"; }
         finally { isSubmitting = false; }
     }
 

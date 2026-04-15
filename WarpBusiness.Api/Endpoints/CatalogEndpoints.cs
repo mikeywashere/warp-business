@@ -552,7 +552,9 @@ public static class CatalogEndpoints
                 p.Name, p.Description, p.Brand, p.SKU,
                 p.BasePrice, p.Currency, p.IsActive,
                 p.CreatedAt, p.UpdatedAt,
-                p.Variants.Count(v => v.TenantId == tenantId.Value)))
+                p.Variants.Count(v => v.TenantId == tenantId.Value),
+                p.ImageKey,
+                p.VideoKey))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(products);
@@ -576,7 +578,9 @@ public static class CatalogEndpoints
                 p.Name, p.Description, p.Brand, p.SKU,
                 p.BasePrice, p.Currency, p.IsActive,
                 p.CreatedAt, p.UpdatedAt,
-                p.Variants.Count(v => v.TenantId == tenantId.Value)))
+                p.Variants.Count(v => v.TenantId == tenantId.Value),
+                p.ImageKey,
+                p.VideoKey))
             .FirstOrDefaultAsync(cancellationToken);
 
         return product is null ? Results.NotFound() : Results.Ok(product);
@@ -637,7 +641,7 @@ public static class CatalogEndpoints
             new ProductResponse(product.Id, product.TenantId, product.CategoryId, null,
                 product.Name, product.Description, product.Brand, product.SKU,
                 product.BasePrice, product.Currency, product.IsActive,
-                product.CreatedAt, product.UpdatedAt, 0));
+                product.CreatedAt, product.UpdatedAt, 0, product.ImageKey, product.VideoKey));
     }
 
     private static async Task<IResult> UpdateProduct(
@@ -696,7 +700,7 @@ public static class CatalogEndpoints
         return Results.Ok(new ProductResponse(product.Id, product.TenantId, product.CategoryId, categoryName,
             product.Name, product.Description, product.Brand, product.SKU,
             product.BasePrice, product.Currency, product.IsActive,
-            product.CreatedAt, product.UpdatedAt, variantCount));
+            product.CreatedAt, product.UpdatedAt, variantCount, product.ImageKey, product.VideoKey));
     }
 
     private static async Task<IResult> DeleteProduct(
@@ -745,7 +749,7 @@ public static class CatalogEndpoints
                 v.Id, v.ProductId, v.TenantId,
                 v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
                 v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
-                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt))
+                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt, v.ImageKey, v.VideoKey))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(variants);
@@ -768,7 +772,7 @@ public static class CatalogEndpoints
                 v.Id, v.ProductId, v.TenantId,
                 v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
                 v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
-                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt))
+                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt, v.ImageKey, v.VideoKey))
             .FirstOrDefaultAsync(cancellationToken);
 
         return variant is null ? Results.NotFound() : Results.Ok(variant);
@@ -844,7 +848,7 @@ public static class CatalogEndpoints
                 variant.ColorId, null, null,
                 variant.SizeId, null, null,
                 variant.SKU, variant.Price, variant.StockQuantity, variant.IsActive,
-                variant.CreatedAt, variant.UpdatedAt));
+                variant.CreatedAt, variant.UpdatedAt, variant.ImageKey, variant.VideoKey));
     }
 
     private static async Task<IResult> UpdateVariant(
@@ -914,7 +918,7 @@ public static class CatalogEndpoints
             variant.ColorId, colorName, null,
             variant.SizeId, sizeName, null,
             variant.SKU, variant.Price, variant.StockQuantity, variant.IsActive,
-            variant.CreatedAt, variant.UpdatedAt));
+            variant.CreatedAt, variant.UpdatedAt, variant.ImageKey, variant.VideoKey));
     }
 
     private static async Task<IResult> DeleteVariant(
@@ -981,7 +985,9 @@ public record ProductResponse(
     string Name, string? Description, string? Brand, string? SKU,
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
-    int VariantCount);
+    int VariantCount,
+    string? ImageKey,
+    string? VideoKey);
 
 public record CreateProductRequest(
     string Name,
@@ -1007,7 +1013,9 @@ public record ProductVariantResponse(
     Guid? ColorId, string? ColorName, string? ColorHex,
     Guid? SizeId, string? SizeName, string? SizeType,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
+    string? ImageKey,
+    string? VideoKey);
 
 public record CreateProductVariantRequest(
     Guid? ColorId = null,
