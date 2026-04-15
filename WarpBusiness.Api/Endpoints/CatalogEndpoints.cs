@@ -553,8 +553,7 @@ public static class CatalogEndpoints
                 p.BasePrice, p.Currency, p.IsActive,
                 p.CreatedAt, p.UpdatedAt,
                 p.Variants.Count(v => v.TenantId == tenantId.Value),
-                p.ImageKey,
-                p.VideoKey))
+                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(products);
@@ -579,8 +578,7 @@ public static class CatalogEndpoints
                 p.BasePrice, p.Currency, p.IsActive,
                 p.CreatedAt, p.UpdatedAt,
                 p.Variants.Count(v => v.TenantId == tenantId.Value),
-                p.ImageKey,
-                p.VideoKey))
+                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
             .FirstOrDefaultAsync(cancellationToken);
 
         return product is null ? Results.NotFound() : Results.Ok(product);
@@ -641,7 +639,7 @@ public static class CatalogEndpoints
             new ProductResponse(product.Id, product.TenantId, product.CategoryId, null,
                 product.Name, product.Description, product.Brand, product.SKU,
                 product.BasePrice, product.Currency, product.IsActive,
-                product.CreatedAt, product.UpdatedAt, 0, product.ImageKey, product.VideoKey));
+                product.CreatedAt, product.UpdatedAt, 0, null));
     }
 
     private static async Task<IResult> UpdateProduct(
@@ -696,11 +694,16 @@ public static class CatalogEndpoints
         var categoryName = product.CategoryId.HasValue
             ? await db.Categories.Where(c => c.Id == product.CategoryId.Value).Select(c => c.Name).FirstOrDefaultAsync(cancellationToken)
             : null;
+        var thumbnailKey = await db.ProductMedia
+            .Where(m => m.ProductId == id && m.TenantId == tenantId.Value && m.MediaType == MediaType.Image)
+            .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
+            .Select(m => m.ObjectKey)
+            .FirstOrDefaultAsync(cancellationToken);
 
         return Results.Ok(new ProductResponse(product.Id, product.TenantId, product.CategoryId, categoryName,
             product.Name, product.Description, product.Brand, product.SKU,
             product.BasePrice, product.Currency, product.IsActive,
-            product.CreatedAt, product.UpdatedAt, variantCount, product.ImageKey, product.VideoKey));
+            product.CreatedAt, product.UpdatedAt, variantCount, thumbnailKey));
     }
 
     private static async Task<IResult> DeleteProduct(
@@ -749,7 +752,8 @@ public static class CatalogEndpoints
                 v.Id, v.ProductId, v.TenantId,
                 v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
                 v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
-                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt, v.ImageKey, v.VideoKey))
+                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt,
+                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(variants);
@@ -772,7 +776,8 @@ public static class CatalogEndpoints
                 v.Id, v.ProductId, v.TenantId,
                 v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
                 v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
-                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt, v.ImageKey, v.VideoKey))
+                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt,
+                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
             .FirstOrDefaultAsync(cancellationToken);
 
         return variant is null ? Results.NotFound() : Results.Ok(variant);
@@ -848,7 +853,7 @@ public static class CatalogEndpoints
                 variant.ColorId, null, null,
                 variant.SizeId, null, null,
                 variant.SKU, variant.Price, variant.StockQuantity, variant.IsActive,
-                variant.CreatedAt, variant.UpdatedAt, variant.ImageKey, variant.VideoKey));
+                variant.CreatedAt, variant.UpdatedAt, null));
     }
 
     private static async Task<IResult> UpdateVariant(
@@ -912,13 +917,18 @@ public static class CatalogEndpoints
         var sizeName = variant.SizeId.HasValue
             ? await db.Sizes.Where(s => s.Id == variant.SizeId.Value).Select(s => s.Name).FirstOrDefaultAsync(cancellationToken)
             : null;
+        var variantThumbnailKey = await db.ProductMedia
+            .Where(m => m.VariantId == variantId && m.TenantId == tenantId.Value && m.MediaType == MediaType.Image)
+            .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
+            .Select(m => m.ObjectKey)
+            .FirstOrDefaultAsync(cancellationToken);
 
         return Results.Ok(new ProductVariantResponse(
             variant.Id, variant.ProductId, variant.TenantId,
             variant.ColorId, colorName, null,
             variant.SizeId, sizeName, null,
             variant.SKU, variant.Price, variant.StockQuantity, variant.IsActive,
-            variant.CreatedAt, variant.UpdatedAt, variant.ImageKey, variant.VideoKey));
+            variant.CreatedAt, variant.UpdatedAt, variantThumbnailKey));
     }
 
     private static async Task<IResult> DeleteVariant(
@@ -986,8 +996,7 @@ public record ProductResponse(
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     int VariantCount,
-    string? ImageKey,
-    string? VideoKey);
+    string? ThumbnailKey);
 
 public record CreateProductRequest(
     string Name,
@@ -1014,8 +1023,7 @@ public record ProductVariantResponse(
     Guid? SizeId, string? SizeName, string? SizeType,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
-    string? ImageKey,
-    string? VideoKey);
+    string? ThumbnailKey);
 
 public record CreateProductVariantRequest(
     Guid? ColorId = null,

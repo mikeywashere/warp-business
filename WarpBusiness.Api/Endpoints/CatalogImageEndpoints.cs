@@ -1,15 +1,25 @@
 using Microsoft.EntityFrameworkCore;
 using WarpBusiness.Catalog.Data;
+using WarpBusiness.Catalog.Models;
 using WarpBusiness.Storage;
 
 namespace WarpBusiness.Api.Endpoints;
+
+public record ProductMediaResponse(
+    Guid Id,
+    string ObjectKey,
+    MediaType MediaType,
+    string FileName,
+    string ContentType,
+    int SortOrder,
+    DateTimeOffset CreatedAt);
 
 public static class CatalogImageEndpoints
 {
     private const long MaxImageSize = 5 * 1024 * 1024; // 5MB
     private const long MaxVideoSize = 500 * 1024 * 1024; // 500MB
-    
-    private static readonly string[] AllowedImageContentTypes = 
+
+    private static readonly string[] AllowedImageContentTypes =
     [
         "image/jpeg",
         "image/png",
@@ -17,7 +27,7 @@ public static class CatalogImageEndpoints
         "image/webp"
     ];
 
-    private static readonly string[] AllowedVideoContentTypes = 
+    private static readonly string[] AllowedVideoContentTypes =
     [
         "video/mp4",
         "video/webm",
@@ -27,124 +37,38 @@ public static class CatalogImageEndpoints
 
     public static void MapCatalogImageEndpoints(this WebApplication app)
     {
-        var images = app.MapGroup("/api/catalog");
+        var media = app.MapGroup("/api/catalog");
 
-        // Product image endpoints
-        images.MapPost("/products/{productId:guid}/image", UploadProductImage)
-            .WithName("UploadProductImage")
+        media.MapPost("/products/{productId:guid}/media", UploadProductMedia)
+            .WithName("UploadProductMedia")
             .RequireAuthorization()
             .DisableAntiforgery();
 
-        images.MapDelete("/products/{productId:guid}/image", DeleteProductImage)
-            .WithName("DeleteProductImage")
-            .RequireAuthorization();
-
-        // Variant image endpoints
-        images.MapPost("/variants/{variantId:guid}/image", UploadVariantImage)
-            .WithName("UploadVariantImage")
-            .RequireAuthorization()
-            .DisableAntiforgery();
-
-        images.MapDelete("/variants/{variantId:guid}/image", DeleteVariantImage)
-            .WithName("DeleteVariantImage")
-            .RequireAuthorization();
-
-        // Proxy GET endpoint for image access
-        images.MapGet("/images/{*objectKey}", GetImage)
-            .WithName("GetCatalogImage")
+        media.MapGet("/products/{productId:guid}/media", GetProductMedia)
+            .WithName("GetProductMedia")
             .AllowAnonymous();
 
-        // Product video endpoints
-        images.MapPost("/products/{productId:guid}/video", UploadProductVideo)
-            .WithName("UploadProductVideo")
+        media.MapPost("/variants/{variantId:guid}/media", UploadVariantMedia)
+            .WithName("UploadVariantMedia")
             .RequireAuthorization()
             .DisableAntiforgery();
 
-        images.MapDelete("/products/{productId:guid}/video", DeleteProductVideo)
-            .WithName("DeleteProductVideo")
+        media.MapGet("/variants/{variantId:guid}/media", GetVariantMedia)
+            .WithName("GetVariantMedia")
+            .AllowAnonymous();
+
+        media.MapDelete("/media/{mediaId:guid}", DeleteMedia)
+            .WithName("DeleteCatalogMedia")
             .RequireAuthorization();
 
-        // Variant video endpoints
-        images.MapPost("/variants/{variantId:guid}/video", UploadVariantVideo)
-            .WithName("UploadVariantVideo")
-            .RequireAuthorization()
-            .DisableAntiforgery();
-
-        images.MapDelete("/variants/{variantId:guid}/video", DeleteVariantVideo)
-            .WithName("DeleteVariantVideo")
-            .RequireAuthorization();
-
-        // Proxy GET endpoint for video access
-        images.MapGet("/videos/{*objectKey}", GetVideo)
-            .WithName("GetCatalogVideo")
+        media.MapGet("/media/{mediaId:guid}", GetMediaRedirect)
+            .WithName("GetCatalogMediaRedirect")
             .AllowAnonymous();
     }
 
-    private static async Task<IResult> UploadProductImage(
+    private static async Task<IResult> UploadProductMedia(
         Guid productId,
-        IFormFile image,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        IFileStorageService storage,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        // Validate the product belongs to the tenant
-        var product = await db.Products
-            .FirstOrDefaultAsync(p => p.Id == productId && p.TenantId == tenantId.Value, cancellationToken);
-        if (product is null)
-            return Results.NotFound(new { message = "Product not found." });
-
-        // Validate content type
-        if (!AllowedImageContentTypes.Contains(image.ContentType.ToLowerInvariant()))
-            return Results.BadRequest(new { message = $"Invalid content type. Allowed: {string.Join(", ", AllowedImageContentTypes)}" });
-
-        // Validate size
-        if (image.Length > MaxImageSize)
-            return Results.BadRequest(new { message = $"Image size exceeds maximum allowed ({MaxImageSize / 1024 / 1024}MB)." });
-
-        // Generate object key with tenant prefix
-        var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = image.ContentType switch
-            {
-                "image/jpeg" => ".jpg",
-                "image/png" => ".png",
-                "image/gif" => ".gif",
-                "image/webp" => ".webp",
-                _ => ".jpg"
-            };
-        }
-
-        var objectKey = $"{tenantId}/products/{productId}/{Guid.NewGuid()}{extension}";
-
-        // Ensure bucket exists
-        await storage.EnsureBucketExistsAsync("warp-catalog", cancellationToken);
-
-        // Delete old image if exists
-        if (!string.IsNullOrEmpty(product.ImageKey))
-        {
-            await storage.DeleteAsync("warp-catalog", product.ImageKey, cancellationToken);
-        }
-
-        // Upload new image
-        using var stream = image.OpenReadStream();
-        await storage.UploadAsync("warp-catalog", objectKey, stream, image.ContentType, image.Length, cancellationToken);
-
-        // Update product
-        product.ImageKey = objectKey;
-        product.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(new { imageKey = objectKey });
-    }
-
-    private static async Task<IResult> DeleteProductImage(
-        Guid productId,
+        IFormFile file,
         HttpContext httpContext,
         CatalogDbContext db,
         IFileStorageService storage,
@@ -159,85 +83,62 @@ public static class CatalogImageEndpoints
         if (product is null)
             return Results.NotFound(new { message = "Product not found." });
 
-        if (string.IsNullOrEmpty(product.ImageKey))
-            return Results.NotFound(new { message = "Product has no image." });
+        var (mediaType, extension, validationError) = ValidateAndResolveFile(file);
+        if (validationError is not null)
+            return Results.BadRequest(new { message = validationError });
 
-        // Delete from storage
-        await storage.DeleteAsync("warp-catalog", product.ImageKey, cancellationToken);
+        var objectKey = mediaType == MediaType.Video
+            ? $"{tenantId}/products/{productId}/videos/{Guid.NewGuid()}{extension}"
+            : $"{tenantId}/products/{productId}/{Guid.NewGuid()}{extension}";
 
-        // Update product
-        product.ImageKey = null;
-        product.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> UploadVariantImage(
-        Guid variantId,
-        IFormFile image,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        IFileStorageService storage,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        // Validate the variant belongs to the tenant
-        var variant = await db.ProductVariants
-            .FirstOrDefaultAsync(v => v.Id == variantId && v.TenantId == tenantId.Value, cancellationToken);
-        if (variant is null)
-            return Results.NotFound(new { message = "Product variant not found." });
-
-        // Validate content type
-        if (!AllowedImageContentTypes.Contains(image.ContentType.ToLowerInvariant()))
-            return Results.BadRequest(new { message = $"Invalid content type. Allowed: {string.Join(", ", AllowedImageContentTypes)}" });
-
-        // Validate size
-        if (image.Length > MaxImageSize)
-            return Results.BadRequest(new { message = $"Image size exceeds maximum allowed ({MaxImageSize / 1024 / 1024}MB)." });
-
-        // Generate object key with tenant prefix
-        var extension = Path.GetExtension(image.FileName).ToLowerInvariant();
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = image.ContentType switch
-            {
-                "image/jpeg" => ".jpg",
-                "image/png" => ".png",
-                "image/gif" => ".gif",
-                "image/webp" => ".webp",
-                _ => ".jpg"
-            };
-        }
-
-        var objectKey = $"{tenantId}/variants/{variantId}/{Guid.NewGuid()}{extension}";
-
-        // Ensure bucket exists
         await storage.EnsureBucketExistsAsync("warp-catalog", cancellationToken);
+        using var stream = file.OpenReadStream();
+        await storage.UploadAsync("warp-catalog", objectKey, stream, file.ContentType, file.Length, cancellationToken);
 
-        // Delete old image if exists
-        if (!string.IsNullOrEmpty(variant.ImageKey))
+        var sortOrder = await db.ProductMedia.CountAsync(m => m.ProductId == productId, cancellationToken);
+
+        var productMedia = new ProductMedia
         {
-            await storage.DeleteAsync("warp-catalog", variant.ImageKey, cancellationToken);
-        }
+            Id = Guid.NewGuid(),
+            TenantId = tenantId.Value,
+            ProductId = productId,
+            ObjectKey = objectKey,
+            MediaType = mediaType,
+            FileName = file.FileName,
+            ContentType = file.ContentType,
+            SortOrder = sortOrder,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
 
-        // Upload new image
-        using var stream = image.OpenReadStream();
-        await storage.UploadAsync("warp-catalog", objectKey, stream, image.ContentType, image.Length, cancellationToken);
-
-        // Update variant
-        variant.ImageKey = objectKey;
-        variant.UpdatedAt = DateTimeOffset.UtcNow;
+        db.ProductMedia.Add(productMedia);
         await db.SaveChangesAsync(cancellationToken);
 
-        return Results.Ok(new { imageKey = objectKey });
+        return Results.Ok(ToResponse(productMedia));
     }
 
-    private static async Task<IResult> DeleteVariantImage(
+    private static async Task<IResult> GetProductMedia(
+        Guid productId,
+        HttpContext httpContext,
+        CatalogDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var mediaList = await db.ProductMedia
+            .Where(m => m.ProductId == productId && m.TenantId == tenantId.Value)
+            .OrderBy(m => m.SortOrder)
+            .ThenBy(m => m.CreatedAt)
+            .Select(m => ToResponse(m))
+            .ToListAsync(cancellationToken);
+
+        return Results.Ok(mediaList);
+    }
+
+    private static async Task<IResult> UploadVariantMedia(
         Guid variantId,
+        IFormFile file,
         HttpContext httpContext,
         CatalogDbContext db,
         IFileStorageService storage,
@@ -252,225 +153,135 @@ public static class CatalogImageEndpoints
         if (variant is null)
             return Results.NotFound(new { message = "Product variant not found." });
 
-        if (string.IsNullOrEmpty(variant.ImageKey))
-            return Results.NotFound(new { message = "Product variant has no image." });
+        var (mediaType, extension, validationError) = ValidateAndResolveFile(file);
+        if (validationError is not null)
+            return Results.BadRequest(new { message = validationError });
 
-        // Delete from storage
-        await storage.DeleteAsync("warp-catalog", variant.ImageKey, cancellationToken);
+        var objectKey = mediaType == MediaType.Video
+            ? $"{tenantId}/variants/{variantId}/videos/{Guid.NewGuid()}{extension}"
+            : $"{tenantId}/variants/{variantId}/{Guid.NewGuid()}{extension}";
 
-        // Update variant
-        variant.ImageKey = null;
-        variant.UpdatedAt = DateTimeOffset.UtcNow;
+        await storage.EnsureBucketExistsAsync("warp-catalog", cancellationToken);
+        using var stream = file.OpenReadStream();
+        await storage.UploadAsync("warp-catalog", objectKey, stream, file.ContentType, file.Length, cancellationToken);
+
+        var sortOrder = await db.ProductMedia.CountAsync(m => m.VariantId == variantId, cancellationToken);
+
+        var variantMedia = new ProductMedia
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId.Value,
+            VariantId = variantId,
+            ObjectKey = objectKey,
+            MediaType = mediaType,
+            FileName = file.FileName,
+            ContentType = file.ContentType,
+            SortOrder = sortOrder,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        db.ProductMedia.Add(variantMedia);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToResponse(variantMedia));
+    }
+
+    private static async Task<IResult> GetVariantMedia(
+        Guid variantId,
+        HttpContext httpContext,
+        CatalogDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var mediaList = await db.ProductMedia
+            .Where(m => m.VariantId == variantId && m.TenantId == tenantId.Value)
+            .OrderBy(m => m.SortOrder)
+            .ThenBy(m => m.CreatedAt)
+            .Select(m => ToResponse(m))
+            .ToListAsync(cancellationToken);
+
+        return Results.Ok(mediaList);
+    }
+
+    private static async Task<IResult> DeleteMedia(
+        Guid mediaId,
+        HttpContext httpContext,
+        CatalogDbContext db,
+        IFileStorageService storage,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var item = await db.ProductMedia
+            .FirstOrDefaultAsync(m => m.Id == mediaId && m.TenantId == tenantId.Value, cancellationToken);
+        if (item is null)
+            return Results.NotFound(new { message = "Media not found." });
+
+        await storage.DeleteAsync("warp-catalog", item.ObjectKey, cancellationToken);
+        db.ProductMedia.Remove(item);
         await db.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();
     }
 
-    private static async Task<IResult> GetImage(
-        string objectKey,
+    private static async Task<IResult> GetMediaRedirect(
+        Guid mediaId,
+        HttpContext httpContext,
+        CatalogDbContext db,
         IFileStorageService storage,
         CancellationToken cancellationToken)
     {
-        // Get presigned URL and redirect browser to MinIO
-        var presignedUrl = await storage.GetPresignedUrlAsync("warp-catalog", objectKey, 3600, cancellationToken);
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var item = await db.ProductMedia
+            .FirstOrDefaultAsync(m => m.Id == mediaId && m.TenantId == tenantId.Value, cancellationToken);
+        if (item is null)
+            return Results.NotFound(new { message = "Media not found." });
+
+        var expiry = item.MediaType == MediaType.Video ? 86400 : 3600;
+        var presignedUrl = await storage.GetPresignedUrlAsync("warp-catalog", item.ObjectKey, expiry, cancellationToken);
         return Results.Redirect(presignedUrl);
     }
 
-    // ── Video Endpoints ───────────────────────────────────────────────────────
-
-    private static async Task<IResult> UploadProductVideo(
-        Guid productId,
-        IFormFile video,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        IFileStorageService storage,
-        CancellationToken cancellationToken)
+    private static (MediaType MediaType, string Extension, string? Error) ValidateAndResolveFile(IFormFile file)
     {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+        var contentType = file.ContentType.ToLowerInvariant();
 
-        // Validate the product belongs to the tenant
-        var product = await db.Products
-            .FirstOrDefaultAsync(p => p.Id == productId && p.TenantId == tenantId.Value, cancellationToken);
-        if (product is null)
-            return Results.NotFound(new { message = "Product not found." });
-
-        // Validate content type
-        if (!AllowedVideoContentTypes.Contains(video.ContentType.ToLowerInvariant()))
-            return Results.BadRequest(new { message = $"Invalid content type. Allowed: {string.Join(", ", AllowedVideoContentTypes)}" });
-
-        // Validate size
-        if (video.Length > MaxVideoSize)
-            return Results.BadRequest(new { message = $"Video size exceeds maximum allowed ({MaxVideoSize / 1024 / 1024}MB)." });
-
-        // Generate object key with tenant prefix and videos subdirectory
-        var extension = Path.GetExtension(video.FileName).ToLowerInvariant();
-        if (string.IsNullOrEmpty(extension))
+        if (contentType.StartsWith("image/"))
         {
-            extension = video.ContentType switch
-            {
-                "video/mp4" => ".mp4",
-                "video/webm" => ".webm",
-                "video/quicktime" => ".mov",
-                "video/x-msvideo" => ".avi",
-                _ => ".mp4"
-            };
+            if (!AllowedImageContentTypes.Contains(contentType))
+                return (MediaType.Image, "", $"Invalid image type. Allowed: {string.Join(", ", AllowedImageContentTypes)}");
+            if (file.Length > MaxImageSize)
+                return (MediaType.Image, "", $"Image size exceeds maximum allowed ({MaxImageSize / 1024 / 1024}MB).");
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (string.IsNullOrEmpty(ext))
+                ext = contentType switch { "image/jpeg" => ".jpg", "image/png" => ".png", "image/gif" => ".gif", "image/webp" => ".webp", _ => ".jpg" };
+            return (MediaType.Image, ext, null);
+        }
+        else if (contentType.StartsWith("video/"))
+        {
+            if (!AllowedVideoContentTypes.Contains(contentType))
+                return (MediaType.Video, "", $"Invalid video type. Allowed: {string.Join(", ", AllowedVideoContentTypes)}");
+            if (file.Length > MaxVideoSize)
+                return (MediaType.Video, "", $"Video size exceeds maximum allowed ({MaxVideoSize / 1024 / 1024}MB).");
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (string.IsNullOrEmpty(ext))
+                ext = contentType switch { "video/mp4" => ".mp4", "video/webm" => ".webm", "video/quicktime" => ".mov", "video/x-msvideo" => ".avi", _ => ".mp4" };
+            return (MediaType.Video, ext, null);
         }
 
-        var objectKey = $"{tenantId}/products/{productId}/videos/{Guid.NewGuid()}{extension}";
-
-        // Ensure bucket exists
-        await storage.EnsureBucketExistsAsync("warp-catalog", cancellationToken);
-
-        // Delete old video if exists
-        if (!string.IsNullOrEmpty(product.VideoKey))
-        {
-            await storage.DeleteAsync("warp-catalog", product.VideoKey, cancellationToken);
-        }
-
-        // Upload new video
-        using var stream = video.OpenReadStream();
-        await storage.UploadAsync("warp-catalog", objectKey, stream, video.ContentType, video.Length, cancellationToken);
-
-        // Update product
-        product.VideoKey = objectKey;
-        product.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(new { videoKey = objectKey });
+        return (MediaType.Image, "", "File must be an image or video.");
     }
 
-    private static async Task<IResult> DeleteProductVideo(
-        Guid productId,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        IFileStorageService storage,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var product = await db.Products
-            .FirstOrDefaultAsync(p => p.Id == productId && p.TenantId == tenantId.Value, cancellationToken);
-        if (product is null)
-            return Results.NotFound(new { message = "Product not found." });
-
-        if (string.IsNullOrEmpty(product.VideoKey))
-            return Results.NotFound(new { message = "Product has no video." });
-
-        // Delete from storage
-        await storage.DeleteAsync("warp-catalog", product.VideoKey, cancellationToken);
-
-        // Update product
-        product.VideoKey = null;
-        product.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> UploadVariantVideo(
-        Guid variantId,
-        IFormFile video,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        IFileStorageService storage,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        // Validate the variant belongs to the tenant
-        var variant = await db.ProductVariants
-            .FirstOrDefaultAsync(v => v.Id == variantId && v.TenantId == tenantId.Value, cancellationToken);
-        if (variant is null)
-            return Results.NotFound(new { message = "Product variant not found." });
-
-        // Validate content type
-        if (!AllowedVideoContentTypes.Contains(video.ContentType.ToLowerInvariant()))
-            return Results.BadRequest(new { message = $"Invalid content type. Allowed: {string.Join(", ", AllowedVideoContentTypes)}" });
-
-        // Validate size
-        if (video.Length > MaxVideoSize)
-            return Results.BadRequest(new { message = $"Video size exceeds maximum allowed ({MaxVideoSize / 1024 / 1024}MB)." });
-
-        // Generate object key with tenant prefix and videos subdirectory
-        var extension = Path.GetExtension(video.FileName).ToLowerInvariant();
-        if (string.IsNullOrEmpty(extension))
-        {
-            extension = video.ContentType switch
-            {
-                "video/mp4" => ".mp4",
-                "video/webm" => ".webm",
-                "video/quicktime" => ".mov",
-                "video/x-msvideo" => ".avi",
-                _ => ".mp4"
-            };
-        }
-
-        var objectKey = $"{tenantId}/variants/{variantId}/videos/{Guid.NewGuid()}{extension}";
-
-        // Ensure bucket exists
-        await storage.EnsureBucketExistsAsync("warp-catalog", cancellationToken);
-
-        // Delete old video if exists
-        if (!string.IsNullOrEmpty(variant.VideoKey))
-        {
-            await storage.DeleteAsync("warp-catalog", variant.VideoKey, cancellationToken);
-        }
-
-        // Upload new video
-        using var stream = video.OpenReadStream();
-        await storage.UploadAsync("warp-catalog", objectKey, stream, video.ContentType, video.Length, cancellationToken);
-
-        // Update variant
-        variant.VideoKey = objectKey;
-        variant.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(new { videoKey = objectKey });
-    }
-
-    private static async Task<IResult> DeleteVariantVideo(
-        Guid variantId,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        IFileStorageService storage,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var variant = await db.ProductVariants
-            .FirstOrDefaultAsync(v => v.Id == variantId && v.TenantId == tenantId.Value, cancellationToken);
-        if (variant is null)
-            return Results.NotFound(new { message = "Product variant not found." });
-
-        if (string.IsNullOrEmpty(variant.VideoKey))
-            return Results.NotFound(new { message = "Product variant has no video." });
-
-        // Delete from storage
-        await storage.DeleteAsync("warp-catalog", variant.VideoKey, cancellationToken);
-
-        // Update variant
-        variant.VideoKey = null;
-        variant.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.NoContent();
-    }
-
-    private static async Task<IResult> GetVideo(
-        string objectKey,
-        IFileStorageService storage,
-        CancellationToken cancellationToken)
-    {
-        // Get presigned URL with longer expiry for video streaming (24 hours)
-        var presignedUrl = await storage.GetPresignedUrlAsync("warp-catalog", objectKey, 86400, cancellationToken);
-        return Results.Redirect(presignedUrl);
-    }
+    private static ProductMediaResponse ToResponse(ProductMedia m) =>
+        new(m.Id, m.ObjectKey, m.MediaType, m.FileName, m.ContentType, m.SortOrder, m.CreatedAt);
 }
