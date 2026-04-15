@@ -15,8 +15,6 @@ public class ProductVariant
     /// <summary>Per-variant price override; when null the product BasePrice applies.</summary>
     public decimal? Price { get; set; }
     public int StockQuantity { get; set; }
-    public string? ImageKey { get; set; }
-    public string? VideoKey { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
@@ -24,4 +22,5 @@ public class ProductVariant
     public Product Product { get; set; } = null!;
     public Color? Color { get; set; }
     public Size? Size { get; set; }
+    public ICollection<ProductMedia> Media { get; set; } = [];
 }

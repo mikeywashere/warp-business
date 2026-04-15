@@ -12,12 +12,11 @@ public class Product
     public string? SKU { get; set; }
     public decimal BasePrice { get; set; }
     public string Currency { get; set; } = string.Empty;
-    public string? ImageKey { get; set; }
-    public string? VideoKey { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
     public Category? Category { get; set; }
     public ICollection<ProductVariant> Variants { get; set; } = [];
+    public ICollection<ProductMedia> Media { get; set; } = [];
 }

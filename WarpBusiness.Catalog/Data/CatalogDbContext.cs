@@ -14,6 +14,7 @@ public class CatalogDbContext : DbContext
     public DbSet<Size> Sizes => Set<Size>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<ProductMedia> ProductMedia => Set<ProductMedia>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -84,8 +85,6 @@ public class CatalogDbContext : DbContext
             entity.Property(e => e.SKU).HasMaxLength(100);
             entity.Property(e => e.BasePrice).HasPrecision(18, 2).IsRequired();
             entity.Property(e => e.Currency).HasMaxLength(3).IsRequired();
-            entity.Property(e => e.ImageKey).HasMaxLength(500);
-            entity.Property(e => e.VideoKey).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
             entity.HasOne(e => e.Category)
@@ -102,8 +101,6 @@ public class CatalogDbContext : DbContext
 
             entity.Property(e => e.SKU).HasMaxLength(100);
             entity.Property(e => e.Price).HasPrecision(18, 2);
-            entity.Property(e => e.ImageKey).HasMaxLength(500);
-            entity.Property(e => e.VideoKey).HasMaxLength(500);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
             // Variant SKU is unique within the tenant
@@ -149,6 +146,28 @@ public class CatalogDbContext : DbContext
                 .WithMany(s => s.Variants)
                 .HasForeignKey(e => e.SizeId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductMedia>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.ProductId).HasFilter("\"ProductId\" IS NOT NULL");
+            entity.HasIndex(e => e.VariantId).HasFilter("\"VariantId\" IS NOT NULL");
+            entity.Property(e => e.ObjectKey).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.FileName).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.MediaType).HasConversion<string>();
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Media)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.Media)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
