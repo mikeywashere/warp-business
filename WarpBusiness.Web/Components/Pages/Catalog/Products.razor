@@ -261,9 +261,9 @@
                                                     <tr>
                                                         <td>
                                                             <div class="d-flex align-items-center">
-                                                                @if (v.ThumbnailKey != null)
+                                                                @if (v.ThumbnailMediaId != null)
                                                                 {
-                                                                    <img src="@GetProductImageUrl(v.ThumbnailKey)" class="product-thumbnail" alt="Variant" />
+                                                                    <img src="@GetProductImageUrl(v.ThumbnailMediaId)" class="product-thumbnail" alt="Variant" />
                                                                 }
                                                                 else
                                                                 {
@@ -357,9 +357,9 @@
                                 <tr>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            @if (product.ThumbnailKey != null)
+                                            @if (product.ThumbnailMediaId != null)
                                             {
-                                                <img src="@GetProductImageUrl(product.ThumbnailKey)" class="product-thumbnail" alt="@product.Name" />
+                                                <img src="@GetProductImageUrl(product.ThumbnailMediaId)" class="product-thumbnail" alt="@product.Name" />
                                             }
                                             else
                                             {
@@ -778,8 +778,8 @@
 
     // ── Media management ──────────────────────────────────────────────────────
 
-    private string? GetProductImageUrl(string? imageKey)
-        => imageKey != null ? CatalogApi.GetImageUrl(imageKey) : null;
+    private string? GetProductImageUrl(Guid? mediaId)
+        => mediaId.HasValue ? CatalogApi.GetMediaUrl(mediaId.Value) : null;
 
     private async Task HandleProductMediaUpload(InputFileChangeEventArgs e)
     {

@@ -553,7 +553,7 @@ public static class CatalogEndpoints
                 p.BasePrice, p.Currency, p.IsActive,
                 p.CreatedAt, p.UpdatedAt,
                 p.Variants.Count(v => v.TenantId == tenantId.Value),
-                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
+                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(products);
@@ -578,7 +578,7 @@ public static class CatalogEndpoints
                 p.BasePrice, p.Currency, p.IsActive,
                 p.CreatedAt, p.UpdatedAt,
                 p.Variants.Count(v => v.TenantId == tenantId.Value),
-                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
+                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
             .FirstOrDefaultAsync(cancellationToken);
 
         return product is null ? Results.NotFound() : Results.Ok(product);
@@ -697,7 +697,7 @@ public static class CatalogEndpoints
         var thumbnailKey = await db.ProductMedia
             .Where(m => m.ProductId == id && m.TenantId == tenantId.Value && m.MediaType == MediaType.Image)
             .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
-            .Select(m => m.ObjectKey)
+            .Select(m => (Guid?)m.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
         return Results.Ok(new ProductResponse(product.Id, product.TenantId, product.CategoryId, categoryName,
@@ -753,7 +753,7 @@ public static class CatalogEndpoints
                 v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
                 v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
                 v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt,
-                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
+                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(variants);
@@ -777,7 +777,7 @@ public static class CatalogEndpoints
                 v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
                 v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
                 v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt,
-                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => m.ObjectKey).FirstOrDefault()))
+                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
             .FirstOrDefaultAsync(cancellationToken);
 
         return variant is null ? Results.NotFound() : Results.Ok(variant);
@@ -920,7 +920,7 @@ public static class CatalogEndpoints
         var variantThumbnailKey = await db.ProductMedia
             .Where(m => m.VariantId == variantId && m.TenantId == tenantId.Value && m.MediaType == MediaType.Image)
             .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
-            .Select(m => m.ObjectKey)
+            .Select(m => (Guid?)m.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
         return Results.Ok(new ProductVariantResponse(
@@ -996,7 +996,7 @@ public record ProductResponse(
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     int VariantCount,
-    string? ThumbnailKey);
+    Guid? ThumbnailMediaId);
 
 public record CreateProductRequest(
     string Name,
@@ -1023,7 +1023,7 @@ public record ProductVariantResponse(
     Guid? SizeId, string? SizeName, string? SizeType,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
-    string? ThumbnailKey);
+    Guid? ThumbnailMediaId);
 
 public record CreateProductVariantRequest(
     Guid? ColorId = null,

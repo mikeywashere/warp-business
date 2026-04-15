@@ -45,7 +45,7 @@ public record CatalogProductResponse(
     string Name, string? Description, string? Brand, string? SKU,
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
-    int VariantCount, string? ThumbnailKey = null);
+    int VariantCount, Guid? ThumbnailMediaId = null);
 
 public record CreateCatalogProductRequest(
     string Name,
@@ -71,7 +71,7 @@ public record CatalogProductVariantResponse(
     Guid? ColorId, string? ColorName, string? ColorHex,
     Guid? SizeId, string? SizeName, string? SizeType,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? ThumbnailKey = null);
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, Guid? ThumbnailMediaId = null);
 
 public record CreateCatalogVariantRequest(
     Guid? ColorId = null,
