@@ -19,25 +19,32 @@ public static class StorageServiceExtensions
 
         services.AddSingleton<IMinioClient>(sp =>
         {
-            // Aspire injects MinIO as a plain endpoint URL (e.g. "http://localhost:9000").
-            // Credentials are not embedded — read separately with dev-safe defaults.
+            // Aspire's CommunityToolkit.Aspire.Hosting.Minio injects an ADO.NET-style
+            // connection string: "Endpoint=http://host:port;AccessKey=...;SecretKey=..."
+            // Parse that format first; fall back to treating the value as a plain URL.
+            var parts = ParseConnectionStringParts(connectionString);
+
             string endpoint;
             bool useSSL;
 
-            if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+            if (Uri.TryCreate(parts.Endpoint, UriKind.Absolute, out var uri))
             {
                 endpoint = uri.Port > 0 ? $"{uri.Host}:{uri.Port}" : uri.Host;
                 useSSL = uri.Scheme == "https";
             }
             else
             {
-                // Bare host:port fallback (no scheme)
-                endpoint = connectionString;
+                endpoint = parts.Endpoint;
                 useSSL = false;
             }
 
-            var accessKey = configuration["Minio:AccessKey"] ?? "minioadmin";
-            var secretKey = configuration["Minio:SecretKey"] ?? "minioadmin";
+            // Credentials from the connection string take priority over config keys.
+            var accessKey = parts.AccessKey
+                ?? configuration["Minio:AccessKey"]
+                ?? "minioadmin";
+            var secretKey = parts.SecretKey
+                ?? configuration["Minio:SecretKey"]
+                ?? "minioadmin";
 
             return new MinioClient()
                 .WithEndpoint(endpoint)
@@ -49,5 +56,36 @@ public static class StorageServiceExtensions
         services.AddSingleton<IFileStorageService, MinioFileStorageService>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Parses an ADO.NET-style MinIO connection string
+    /// (e.g. "Endpoint=http://host:port;AccessKey=x;SecretKey=y")
+    /// OR a plain URL (e.g. "http://host:port").
+    /// </summary>
+    private static (string Endpoint, string? AccessKey, string? SecretKey) ParseConnectionStringParts(string connectionString)
+    {
+        if (!connectionString.Contains('='))
+            return (connectionString, null, null);
+
+        string? endpoint = null, accessKey = null, secretKey = null;
+
+        foreach (var segment in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var eq = segment.IndexOf('=');
+            if (eq < 0) continue;
+
+            var key   = segment[..eq].Trim();
+            var value = segment[(eq + 1)..].Trim();
+
+            switch (key.ToLowerInvariant())
+            {
+                case "endpoint": endpoint  = value; break;
+                case "accesskey": accessKey = value; break;
+                case "secretkey": secretKey = value; break;
+            }
+        }
+
+        return (endpoint ?? connectionString, accessKey, secretKey);
     }
 }
