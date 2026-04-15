@@ -45,7 +45,7 @@ public record CatalogProductResponse(
     string Name, string? Description, string? Brand, string? SKU,
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
-    int VariantCount, string? ImageKey = null, string? VideoKey = null);
+    int VariantCount, string? ThumbnailKey = null);
 
 public record CreateCatalogProductRequest(
     string Name,
@@ -71,7 +71,7 @@ public record CatalogProductVariantResponse(
     Guid? ColorId, string? ColorName, string? ColorHex,
     Guid? SizeId, string? SizeName, string? SizeType,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? ImageKey = null, string? VideoKey = null);
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, string? ThumbnailKey = null);
 
 public record CreateCatalogVariantRequest(
     Guid? ColorId = null,
@@ -87,6 +87,21 @@ public record UpdateCatalogVariantRequest(
     decimal? Price = null,
     int? StockQuantity = null,
     bool? IsActive = null);
+
+// ── Media DTOs ────────────────────────────────────────────────────────────────
+
+public enum MediaType { Image, Video }
+
+public record ProductMediaResponse(
+    Guid Id,
+    string ObjectKey,
+    MediaType MediaType,
+    string FileName,
+    string ContentType,
+    int SortOrder,
+    DateTimeOffset CreatedAt);
+
+public record MediaUploadResponse(Guid Id, string ObjectKey, string MediaType, string FileName, string ContentType, int SortOrder, DateTimeOffset CreatedAt);
 
 // ── Client ────────────────────────────────────────────────────────────────────
 
@@ -404,6 +419,59 @@ public class CatalogApiClient
     {
         return $"{_httpClient.BaseAddress}api/catalog/videos/{videoKey}";
     }
+
+    // Media management (new multi-media API)
+    public async Task<List<ProductMediaResponse>> GetProductMediaAsync(Guid productId)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/catalog/products/{productId}/media");
+        var response = await _httpClient.SendAsync(request);
+        await ThrowOnErrorAsync(response, "GetProductMedia");
+        return await response.Content.ReadFromJsonAsync<List<ProductMediaResponse>>() ?? [];
+    }
+
+    public async Task<List<ProductMediaResponse>> GetVariantMediaAsync(Guid variantId)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/catalog/variants/{variantId}/media");
+        var response = await _httpClient.SendAsync(request);
+        await ThrowOnErrorAsync(response, "GetVariantMedia");
+        return await response.Content.ReadFromJsonAsync<List<ProductMediaResponse>>() ?? [];
+    }
+
+    public async Task<ProductMediaResponse> UploadProductMediaAsync(Guid productId, Stream stream, string fileName, string contentType)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(stream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/products/{productId}/media", content);
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UploadProductMedia");
+        return (await response.Content.ReadFromJsonAsync<ProductMediaResponse>())!;
+    }
+
+    public async Task<ProductMediaResponse> UploadVariantMediaAsync(Guid variantId, Stream stream, string fileName, string contentType)
+    {
+        using var content = new MultipartFormDataContent();
+        var streamContent = new StreamContent(stream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        content.Add(streamContent, "file", fileName);
+
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/variants/{variantId}/media", content);
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UploadVariantMedia");
+        return (await response.Content.ReadFromJsonAsync<ProductMediaResponse>())!;
+    }
+
+    public async Task DeleteMediaAsync(Guid mediaId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/media/{mediaId}");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "DeleteMedia");
+    }
+
+    public string GetMediaUrl(Guid mediaId)
+        => $"{_httpClient.BaseAddress}api/catalog/media/{mediaId}";
 }
 
 public record ApiMessageResponse(string Message);
