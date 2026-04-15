@@ -75,6 +75,16 @@
                                                 }
                                             </InputSelect>
                                         </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Product Type</label>
+                                            <InputSelect @bind-Value="productForm.ProductTypeId" class="form-select">
+                                                <option value="">— None —</option>
+                                                @foreach (var pt in productTypes?.Where(p => p.IsActive) ?? [])
+                                                {
+                                                    <option value="@pt.Id">@pt.Name</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
                                         <div class="col-md-4">
                                             <label class="form-label">Base Price <span class="text-danger">*</span></label>
                                             <InputNumber @bind-Value="productForm.BasePrice" class="form-control" />
@@ -94,6 +104,23 @@
                                                     <label class="form-check-label" for="productActiveSwitch">
                                                         @(productForm.IsActive ? "Active" : "Inactive")
                                                     </label>
+                                                </div>
+                                            </div>
+                                        }
+                                        @if (allWarnings != null && allWarnings.Count > 0)
+                                        {
+                                            <div class="col-12">
+                                                <label class="form-label">Warnings</label>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    @foreach (var w in allWarnings.Where(w => w.IsActive))
+                                                    {
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" id="warn-@w.Id"
+                                                                   checked="@productForm.SelectedWarningIds.Contains(w.Id)"
+                                                                   @onchange="@(e => ToggleWarning(w.Id, e.Value is true))" />
+                                                            <label class="form-check-label" for="warn-@w.Id">@w.Name</label>
+                                                        </div>
+                                                    }
                                                 </div>
                                             </div>
                                         }
@@ -186,31 +213,52 @@
                                     <div class="card-body">
                                         <EditForm Model="variantForm" OnValidSubmit="HandleVariantSubmit" FormName="variantForm">
                                             <div class="row g-2">
-                                                <div class="col-md-3">
-                                                    <label class="form-label">Color</label>
-                                                    <InputSelect @bind-Value="variantForm.ColorId" class="form-select">
-                                                        <option value="">— None —</option>
-                                                        @foreach (var color in colors?.Where(c => c.IsActive) ?? [])
-                                                        {
-                                                            <option value="@color.Id">@color.Name</option>
-                                                        }
-                                                    </InputSelect>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label">Size</label>
-                                                    <InputSelect @bind-Value="variantForm.SizeId" class="form-select">
-                                                        <option value="">— None —</option>
-                                                        @foreach (var grp in (sizes?.Where(s => s.IsActive) ?? []).GroupBy(s => s.SizeType))
-                                                        {
-                                                            <optgroup label="@grp.Key">
-                                                                @foreach (var s in grp.OrderBy(s => s.SortOrder))
-                                                                {
-                                                                    <option value="@s.Id">@s.Name</option>
-                                                                }
-                                                            </optgroup>
-                                                        }
-                                                    </InputSelect>
-                                                </div>
+                                                @{
+                                                    var ptAttributes = GetProductTypeAttributes();
+                                                }
+                                                @if (ptAttributes.Count > 0)
+                                                {
+                                                    @foreach (var attr in ptAttributes.OrderBy(a => a.SortOrder))
+                                                    {
+                                                        var entry = variantForm.AttributeValues.FirstOrDefault(av => av.AttributeTypeId == attr.AttributeTypeId);
+                                                        if (entry == null) continue;
+                                                        <div class="col-md-3">
+                                                            <label class="form-label">
+                                                                @attr.AttributeTypeName
+                                                                @if (attr.IsRequired) { <span class="text-danger">*</span> }
+                                                                @if (!string.IsNullOrEmpty(attr.Unit)) { <small class="text-muted ms-1">(@attr.Unit)</small> }
+                                                            </label>
+                                                            @if (attr.ValueType == "Select")
+                                                            {
+                                                                var attrType = allAttributeTypes?.FirstOrDefault(at => at.Id == attr.AttributeTypeId);
+                                                                <select class="form-select" @bind="entry.AttributeOptionId">
+                                                                    <option value="">— None —</option>
+                                                                    @foreach (var opt in (attrType?.Options ?? []).Where(o => o.IsActive).OrderBy(o => o.SortOrder))
+                                                                    {
+                                                                        <option value="@opt.Id">
+                                                                            @if (attr.HasColorPicker && !string.IsNullOrEmpty(opt.HexCode)) { @($"● {opt.Value}") }
+                                                                            else { @opt.Value }
+                                                                        </option>
+                                                                    }
+                                                                </select>
+                                                            }
+                                                            else if (attr.ValueType == "FreeText")
+                                                            {
+                                                                <input type="text" class="form-control" @bind="entry.TextValue" />
+                                                            }
+                                                            else if (attr.ValueType == "Number")
+                                                            {
+                                                                <input type="number" step="any" class="form-control" @bind="entry.NumberValue" />
+                                                            }
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <div class="col-12">
+                                                        <small class="text-muted">No product type selected — variants will have no attributes. Select a product type on the product to enable attributes.</small>
+                                                    </div>
+                                                }
                                                 <div class="col-md-2">
                                                     <label class="form-label">SKU</label>
                                                     <InputText @bind-Value="variantForm.SKU" class="form-control" />
@@ -244,8 +292,7 @@
                                         <thead class="table-dark">
                                             <tr>
                                                 <th style="width: 60px;">Image</th>
-                                                <th>Color</th>
-                                                <th>Size</th>
+                                                <th>Attributes</th>
                                                 <th>SKU</th>
                                                 <th>Price</th>
                                                 <th>Stock</th>
@@ -272,19 +319,12 @@
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            @if (v.ColorName != null)
+                                                            @if (v.Attributes != null && v.Attributes.Count > 0)
                                                             {
-                                                                <span>
-                                                                    @if (!string.IsNullOrEmpty(v.ColorHex))
-                                                                    {
-                                                                        <span style="display:inline-block;width:14px;height:14px;background:@v.ColorHex;border:1px solid #555;border-radius:3px;vertical-align:middle;margin-right:4px;"></span>
-                                                                    }
-                                                                    @v.ColorName
-                                                                </span>
+                                                                @FormatVariantAttributes(v)
                                                             }
                                                             else { <span class="text-muted">—</span> }
                                                         </td>
-                                                        <td>@(v.SizeName ?? "—")</td>
                                                         <td><code>@(v.SKU ?? "—")</code></td>
                                                         <td>
                                                             @if (v.Price.HasValue)
@@ -301,7 +341,7 @@
                                                         <td>
                                                             <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditVariant(v)">Edit</button>
                                                             <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ShowVariantImageUpload(v)" title="Manage Media">
-                                                                🖼️
+                                                                <span class="bi bi-images"></span>
                                                             </button>
                                                             <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteVariantAsync(v)">Delete</button>
                                                         </td>
@@ -310,7 +350,7 @@
                                             }
                                             else
                                             {
-                                                <tr><td colspan="8" class="text-center text-muted py-3">No variants yet. Add one above.</td></tr>
+                                                <tr><td colspan="7" class="text-center text-muted py-3">No variants yet. Add one above.</td></tr>
                                             }
                                         </tbody>
                                     </table>
@@ -442,7 +482,7 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Variant Media — @(selectedVariantForImage.ColorName ?? "N/A") @(selectedVariantForImage.SizeName ?? "N/A")</h5>
+                                <h5 class="modal-title">Variant Media — @(selectedVariantForImage.SKU ?? selectedVariantForImage.Id.ToString("N")[..8])</h5>
                                 <button type="button" class="btn-close" @onclick="CloseVariantImageModal"></button>
                             </div>
                             <div class="modal-body">
@@ -510,8 +550,9 @@
 @code {
     private List<CatalogProductResponse>? products;
     private List<CatalogCategoryResponse>? categories;
-    private List<CatalogColorResponse>? colors;
-    private List<CatalogSizeResponse>? sizes;
+    private List<CatalogProductTypeResponse>? productTypes;
+    private List<CatalogWarningResponse>? allWarnings;
+    private List<CatalogAttributeTypeResponse>? allAttributeTypes;
     private List<CatalogProductVariantResponse>? selectedVariants;
     private CatalogProductResponse? selectedProduct;
 
@@ -555,7 +596,7 @@
             Navigation.NavigateTo("/select-tenant");
             return;
         }
-        await Task.WhenAll(LoadProducts(), LoadCategories(), LoadColors(), LoadSizes());
+        await Task.WhenAll(LoadProducts(), LoadCategories(), LoadProductTypes(), LoadWarnings(), LoadAttributeTypes());
         isLoading = false;
     }
 
@@ -571,16 +612,54 @@
         catch { /* non-critical */ }
     }
 
-    private async Task LoadColors()
+    private async Task LoadProductTypes()
     {
-        try { colors = await CatalogApi.GetColorsAsync(); }
+        try { productTypes = await CatalogApi.GetProductTypesAsync(); }
         catch { /* non-critical */ }
     }
 
-    private async Task LoadSizes()
+    private async Task LoadWarnings()
     {
-        try { sizes = await CatalogApi.GetSizesAsync(); }
+        try { allWarnings = await CatalogApi.GetWarningsAsync(); }
         catch { /* non-critical */ }
+    }
+
+    private async Task LoadAttributeTypes()
+    {
+        try { allAttributeTypes = await CatalogApi.GetAttributeTypesAsync(); }
+        catch { /* non-critical */ }
+    }
+
+    private string FormatVariantAttributes(CatalogProductVariantResponse v)
+    {
+        if (v.Attributes == null || v.Attributes.Count == 0) return "—";
+        return string.Join(" | ", v.Attributes.Select(a =>
+        {
+            var val = a.ValueType == "Select" ? a.OptionValue
+                    : a.ValueType == "FreeText" ? a.TextValue
+                    : a.NumberValue?.ToString("G") + (a.Unit != null ? " " + a.Unit : "");
+            return $"{a.AttributeTypeName}: {val ?? "—"}";
+        }));
+    }
+
+    private List<CatalogProductTypeAttributeResponse> GetProductTypeAttributes()
+    {
+        if (selectedProduct?.ProductTypeId == null) return [];
+        return productTypes?.FirstOrDefault(pt => pt.Id == selectedProduct.ProductTypeId)?.Attributes ?? [];
+    }
+
+    private void InitVariantAttributeValues()
+    {
+        variantForm.AttributeValues = GetProductTypeAttributes()
+            .OrderBy(a => a.SortOrder)
+            .Select(a => new VariantAttributeEntry { AttributeTypeId = a.AttributeTypeId })
+            .ToList();
+    }
+
+    private void ToggleWarning(Guid warningId, bool add)
+    {
+        if (add) { if (!productForm.SelectedWarningIds.Contains(warningId)) productForm.SelectedWarningIds.Add(warningId); }
+        else { productForm.SelectedWarningIds.Remove(warningId); }
     }
 
     // ── Product modal ─────────────────────────────────────────────────────────
@@ -603,7 +682,9 @@
             BasePrice = product.BasePrice,
             Currency = product.Currency,
             CategoryId = product.CategoryId?.ToString(),
-            IsActive = product.IsActive
+            IsActive = product.IsActive,
+            ProductTypeId = product.ProductTypeId,
+            SelectedWarningIds = product.Warnings?.Select(w => w.WarningId).ToList() ?? []
         };
         editingProductId = product.Id;
         currentProductMedia = null;
@@ -637,14 +718,16 @@
                 await CatalogApi.UpdateProductAsync(editingProductId.Value, new UpdateCatalogProductRequest(
                     productForm.Name!, productForm.BasePrice, productForm.Currency!,
                     productForm.Description, productForm.Brand, productForm.SKU,
-                    categoryId, productForm.IsActive));
+                    categoryId, productForm.IsActive,
+                    productForm.ProductTypeId, productForm.SelectedWarningIds));
                 successMessage = "Product updated.";
             }
             else
             {
                 await CatalogApi.CreateProductAsync(new CreateCatalogProductRequest(
                     productForm.Name!, productForm.BasePrice, productForm.Currency!,
-                    productForm.Description, productForm.Brand, productForm.SKU, categoryId));
+                    productForm.Description, productForm.Brand, productForm.SKU, categoryId,
+                    productForm.ProductTypeId, productForm.SelectedWarningIds));
                 successMessage = "Product created.";
             }
             CloseProductModal();
@@ -692,6 +775,7 @@
         selectedProduct = product;
         editingVariantId = null;
         variantForm = new VariantFormModel();
+        InitVariantAttributeValues();
         variantError = null;
         showVariantsModal = true;
         await RefreshVariants();
@@ -717,18 +801,31 @@
         editingVariantId = v.Id;
         variantForm = new VariantFormModel
         {
-            ColorId = v.ColorId?.ToString(),
-            SizeId = v.SizeId?.ToString(),
             SKU = v.SKU,
             Price = v.Price,
             StockQuantity = v.StockQuantity
         };
+        if (v.Attributes != null && v.Attributes.Count > 0)
+        {
+            variantForm.AttributeValues = v.Attributes.Select(a => new VariantAttributeEntry
+            {
+                AttributeTypeId = a.AttributeTypeId,
+                AttributeOptionId = a.AttributeOptionId,
+                TextValue = a.TextValue,
+                NumberValue = a.NumberValue
+            }).ToList();
+        }
+        else
+        {
+            InitVariantAttributeValues();
+        }
     }
 
     private void CancelVariantEdit()
     {
         editingVariantId = null;
         variantForm = new VariantFormModel();
+        InitVariantAttributeValues();
     }
 
     private async Task HandleVariantSubmit()
@@ -738,18 +835,19 @@
         variantError = null;
         try
         {
-            var colorId = Guid.TryParse(variantForm.ColorId, out var cg) ? (Guid?)cg : null;
-            var sizeId = Guid.TryParse(variantForm.SizeId, out var sg) ? (Guid?)sg : null;
+            var attrValues = variantForm.AttributeValues
+                .Select(a => new CatalogVariantAttributeValueRequest(a.AttributeTypeId, a.AttributeOptionId, a.TextValue, a.NumberValue))
+                .ToList();
 
             if (editingVariantId.HasValue)
             {
                 await CatalogApi.UpdateVariantAsync(selectedProduct.Id, editingVariantId.Value,
-                    new UpdateCatalogVariantRequest(colorId, sizeId, variantForm.SKU, variantForm.Price, variantForm.StockQuantity));
+                    new UpdateCatalogVariantRequest(variantForm.SKU, variantForm.Price, variantForm.StockQuantity, Attributes: attrValues));
             }
             else
             {
                 await CatalogApi.CreateVariantAsync(selectedProduct.Id,
-                    new CreateCatalogVariantRequest(colorId, sizeId, variantForm.SKU, variantForm.Price, variantForm.StockQuantity));
+                    new CreateCatalogVariantRequest(variantForm.SKU, variantForm.Price, variantForm.StockQuantity, attrValues));
             }
             CancelVariantEdit();
             await RefreshVariants();
@@ -908,16 +1006,25 @@
         public string? Currency { get; set; } = "USD";
 
         public string? CategoryId { get; set; }
+        public Guid? ProductTypeId { get; set; }
         public bool IsActive { get; set; } = true;
+        public List<Guid> SelectedWarningIds { get; set; } = [];
     }
 
     private class VariantFormModel
     {
-        public string? ColorId { get; set; }
-        public string? SizeId { get; set; }
         public string? SKU { get; set; }
         public decimal? Price { get; set; }
         public int StockQuantity { get; set; }
+        public List<VariantAttributeEntry> AttributeValues { get; set; } = [];
+    }
+
+    private class VariantAttributeEntry
+    {
+        public Guid AttributeTypeId { get; set; }
+        public Guid? AttributeOptionId { get; set; }
+        public string? TextValue { get; set; }
+        public decimal? NumberValue { get; set; }
     }
 }
 

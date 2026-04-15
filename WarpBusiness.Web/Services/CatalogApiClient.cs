@@ -22,30 +22,70 @@ public record UpdateCatalogCategoryRequest(
     Guid? ParentCategoryId = null,
     bool? IsActive = null);
 
-public record CatalogColorResponse(
-    Guid Id, Guid TenantId,
-    string Name, string? HexCode, bool IsActive,
+// ── Product Type DTOs ─────────────────────────────────────────────────────────
+
+public record CatalogProductTypeResponse(
+    Guid Id, Guid TenantId, string Name, string? Description, bool IsActive,
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
+    List<CatalogProductTypeAttributeResponse> Attributes);
+
+public record CatalogProductTypeAttributeResponse(
+    Guid AttributeTypeId, string AttributeTypeName, string ValueType,
+    string? Unit, bool HasColorPicker, bool IsRequired, int SortOrder);
+
+public record CreateCatalogProductTypeRequest(string Name, string? Description = null);
+public record UpdateCatalogProductTypeRequest(string Name, string? Description = null, bool? IsActive = null);
+public record AssignCatalogProductTypeAttributeRequest(Guid AttributeTypeId, bool IsRequired = false, int SortOrder = 0);
+
+// ── Attribute Type DTOs ───────────────────────────────────────────────────────
+
+public record CatalogAttributeTypeResponse(
+    Guid Id, Guid TenantId, string Name, string ValueType, string? Unit, bool HasColorPicker,
+    int SortOrder, bool IsActive, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
+    List<CatalogAttributeOptionResponse> Options);
+
+public record CatalogAttributeOptionResponse(
+    Guid Id, Guid AttributeTypeId, Guid TenantId, string Value, string? HexCode,
+    int SortOrder, bool IsActive, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+
+public record CreateCatalogAttributeTypeRequest(
+    string Name,
+    string ValueType,
+    string? Unit = null,
+    bool HasColorPicker = false,
+    int SortOrder = 0);
+
+public record UpdateCatalogAttributeTypeRequest(
+    string Name,
+    string? Unit = null,
+    bool? HasColorPicker = null,
+    int? SortOrder = null,
+    bool? IsActive = null);
+
+public record CreateCatalogAttributeOptionRequest(string Value, string? HexCode = null, int SortOrder = 0);
+public record UpdateCatalogAttributeOptionRequest(string Value, string? HexCode = null, int? SortOrder = null, bool? IsActive = null);
+
+// ── Warning DTOs ──────────────────────────────────────────────────────────────
+
+public record CatalogWarningResponse(
+    Guid Id, Guid TenantId, string Name, string? Description, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
-public record CreateCatalogColorRequest(string Name, string? HexCode = null);
+public record CreateCatalogWarningRequest(string Name, string? Description = null);
+public record UpdateCatalogWarningRequest(string Name, string? Description = null, bool? IsActive = null);
 
-public record UpdateCatalogColorRequest(string Name, string? HexCode = null, bool? IsActive = null);
+// ── Product DTOs ──────────────────────────────────────────────────────────────
 
-public record CatalogSizeResponse(
-    Guid Id, Guid TenantId,
-    string Name, string SizeType, int SortOrder, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
-
-public record CreateCatalogSizeRequest(string Name, string? SizeType = null, int SortOrder = 0);
-
-public record UpdateCatalogSizeRequest(string Name, string? SizeType = null, int? SortOrder = null, bool? IsActive = null);
+public record CatalogProductWarningResponse(Guid WarningId, string Name, string? Description);
 
 public record CatalogProductResponse(
     Guid Id, Guid TenantId, Guid? CategoryId, string? CategoryName,
     string Name, string? Description, string? Brand, string? SKU,
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
-    int VariantCount, Guid? ThumbnailMediaId = null);
+    int VariantCount, Guid? ThumbnailMediaId = null,
+    Guid? ProductTypeId = null, string? ProductTypeName = null,
+    List<CatalogProductWarningResponse>? Warnings = null);
 
 public record CreateCatalogProductRequest(
     string Name,
@@ -54,7 +94,9 @@ public record CreateCatalogProductRequest(
     string? Description = null,
     string? Brand = null,
     string? SKU = null,
-    Guid? CategoryId = null);
+    Guid? CategoryId = null,
+    Guid? ProductTypeId = null,
+    List<Guid>? WarningIds = null);
 
 public record UpdateCatalogProductRequest(
     string Name,
@@ -64,29 +106,49 @@ public record UpdateCatalogProductRequest(
     string? Brand = null,
     string? SKU = null,
     Guid? CategoryId = null,
-    bool? IsActive = null);
+    bool? IsActive = null,
+    Guid? ProductTypeId = null,
+    List<Guid>? WarningIds = null);
+
+// ── Variant DTOs ──────────────────────────────────────────────────────────────
+
+public record CatalogVariantAttributeValueResponse(
+    Guid AttributeTypeId,
+    string AttributeTypeName,
+    string ValueType,
+    string? Unit,
+    bool HasColorPicker,
+    Guid? AttributeOptionId,
+    string? OptionValue,
+    string? OptionHexCode,
+    string? TextValue,
+    decimal? NumberValue);
+
+public record CatalogVariantAttributeValueRequest(
+    Guid AttributeTypeId,
+    Guid? AttributeOptionId = null,
+    string? TextValue = null,
+    decimal? NumberValue = null);
 
 public record CatalogProductVariantResponse(
     Guid Id, Guid ProductId, Guid TenantId,
-    Guid? ColorId, string? ColorName, string? ColorHex,
-    Guid? SizeId, string? SizeName, string? SizeType,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt, Guid? ThumbnailMediaId = null);
+    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
+    Guid? ThumbnailMediaId = null,
+    List<CatalogVariantAttributeValueResponse>? Attributes = null);
 
 public record CreateCatalogVariantRequest(
-    Guid? ColorId = null,
-    Guid? SizeId = null,
     string? SKU = null,
     decimal? Price = null,
-    int StockQuantity = 0);
+    int StockQuantity = 0,
+    List<CatalogVariantAttributeValueRequest>? Attributes = null);
 
 public record UpdateCatalogVariantRequest(
-    Guid? ColorId = null,
-    Guid? SizeId = null,
     string? SKU = null,
     decimal? Price = null,
     int? StockQuantity = null,
-    bool? IsActive = null);
+    bool? IsActive = null,
+    List<CatalogVariantAttributeValueRequest>? Attributes = null);
 
 // ── Media DTOs ────────────────────────────────────────────────────────────────
 
@@ -182,78 +244,179 @@ public class CatalogApiClient
         return null;
     }
 
-    // Colors
-    public async Task<List<CatalogColorResponse>> GetColorsAsync()
+    // Product Types
+    public async Task<List<CatalogProductTypeResponse>> GetProductTypesAsync()
     {
-        using var request = CreateRequest(HttpMethod.Get, "api/catalog/colors");
+        using var request = CreateRequest(HttpMethod.Get, "api/catalog/product-types");
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<CatalogColorResponse>>() ?? [];
+        return await response.Content.ReadFromJsonAsync<List<CatalogProductTypeResponse>>() ?? [];
     }
 
-    public async Task<CatalogColorResponse> CreateColorAsync(CreateCatalogColorRequest req)
+    public async Task<CatalogProductTypeResponse> CreateProductTypeAsync(CreateCatalogProductTypeRequest req)
     {
-        using var msg = CreateRequest(HttpMethod.Post, "api/catalog/colors", JsonContent.Create(req));
+        using var msg = CreateRequest(HttpMethod.Post, "api/catalog/product-types", JsonContent.Create(req));
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "CreateColor");
-        return (await response.Content.ReadFromJsonAsync<CatalogColorResponse>())!;
+        await ThrowOnErrorAsync(response, "CreateProductType");
+        return (await response.Content.ReadFromJsonAsync<CatalogProductTypeResponse>())!;
     }
 
-    public async Task UpdateColorAsync(Guid id, UpdateCatalogColorRequest req)
+    public async Task UpdateProductTypeAsync(Guid id, UpdateCatalogProductTypeRequest req)
     {
-        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/colors/{id}", JsonContent.Create(req));
+        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/product-types/{id}", JsonContent.Create(req));
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "UpdateColor");
+        await ThrowOnErrorAsync(response, "UpdateProductType");
     }
 
-    public async Task<string?> DeleteColorAsync(Guid id)
+    public async Task<string?> DeleteProductTypeAsync(Guid id)
     {
-        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/colors/{id}");
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/product-types/{id}");
         var response = await _httpClient.SendAsync(msg);
         if (response.StatusCode == System.Net.HttpStatusCode.OK)
         {
             var body = await response.Content.ReadFromJsonAsync<ApiMessageResponse>();
             return body?.Message;
         }
-        await ThrowOnErrorAsync(response, "DeleteColor");
+        await ThrowOnErrorAsync(response, "DeleteProductType");
         return null;
     }
 
-    // Sizes
-    public async Task<List<CatalogSizeResponse>> GetSizesAsync()
+    public async Task AssignProductTypeAttributeAsync(Guid productTypeId, AssignCatalogProductTypeAttributeRequest req)
     {
-        using var request = CreateRequest(HttpMethod.Get, "api/catalog/sizes");
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/product-types/{productTypeId}/attributes", JsonContent.Create(req));
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "AssignProductTypeAttribute");
+    }
+
+    public async Task RemoveProductTypeAttributeAsync(Guid productTypeId, Guid attributeTypeId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/product-types/{productTypeId}/attributes/{attributeTypeId}");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "RemoveProductTypeAttribute");
+    }
+
+    // Attribute Types
+    public async Task<List<CatalogAttributeTypeResponse>> GetAttributeTypesAsync()
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/catalog/attribute-types");
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<CatalogSizeResponse>>() ?? [];
+        return await response.Content.ReadFromJsonAsync<List<CatalogAttributeTypeResponse>>() ?? [];
     }
 
-    public async Task<CatalogSizeResponse> CreateSizeAsync(CreateCatalogSizeRequest req)
+    public async Task<CatalogAttributeTypeResponse> CreateAttributeTypeAsync(CreateCatalogAttributeTypeRequest req)
     {
-        using var msg = CreateRequest(HttpMethod.Post, "api/catalog/sizes", JsonContent.Create(req));
+        using var msg = CreateRequest(HttpMethod.Post, "api/catalog/attribute-types", JsonContent.Create(req));
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "CreateSize");
-        return (await response.Content.ReadFromJsonAsync<CatalogSizeResponse>())!;
+        await ThrowOnErrorAsync(response, "CreateAttributeType");
+        return (await response.Content.ReadFromJsonAsync<CatalogAttributeTypeResponse>())!;
     }
 
-    public async Task UpdateSizeAsync(Guid id, UpdateCatalogSizeRequest req)
+    public async Task UpdateAttributeTypeAsync(Guid id, UpdateCatalogAttributeTypeRequest req)
     {
-        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/sizes/{id}", JsonContent.Create(req));
+        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/attribute-types/{id}", JsonContent.Create(req));
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "UpdateSize");
+        await ThrowOnErrorAsync(response, "UpdateAttributeType");
     }
 
-    public async Task<string?> DeleteSizeAsync(Guid id)
+    public async Task<string?> DeleteAttributeTypeAsync(Guid id)
     {
-        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/sizes/{id}");
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/attribute-types/{id}");
         var response = await _httpClient.SendAsync(msg);
         if (response.StatusCode == System.Net.HttpStatusCode.OK)
         {
             var body = await response.Content.ReadFromJsonAsync<ApiMessageResponse>();
             return body?.Message;
         }
-        await ThrowOnErrorAsync(response, "DeleteSize");
+        await ThrowOnErrorAsync(response, "DeleteAttributeType");
         return null;
+    }
+
+    public async Task<List<CatalogAttributeOptionResponse>> GetAttributeOptionsAsync(Guid attributeTypeId)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/catalog/attribute-types/{attributeTypeId}/options");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<CatalogAttributeOptionResponse>>() ?? [];
+    }
+
+    public async Task<CatalogAttributeOptionResponse> CreateAttributeOptionAsync(Guid attributeTypeId, CreateCatalogAttributeOptionRequest req)
+    {
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/attribute-types/{attributeTypeId}/options", JsonContent.Create(req));
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "CreateAttributeOption");
+        return (await response.Content.ReadFromJsonAsync<CatalogAttributeOptionResponse>())!;
+    }
+
+    public async Task UpdateAttributeOptionAsync(Guid attributeTypeId, Guid optionId, UpdateCatalogAttributeOptionRequest req)
+    {
+        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/attribute-types/{attributeTypeId}/options/{optionId}", JsonContent.Create(req));
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UpdateAttributeOption");
+    }
+
+    public async Task<string?> DeleteAttributeOptionAsync(Guid attributeTypeId, Guid optionId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/attribute-types/{attributeTypeId}/options/{optionId}");
+        var response = await _httpClient.SendAsync(msg);
+        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            var body = await response.Content.ReadFromJsonAsync<ApiMessageResponse>();
+            return body?.Message;
+        }
+        await ThrowOnErrorAsync(response, "DeleteAttributeOption");
+        return null;
+    }
+
+    // Warnings
+    public async Task<List<CatalogWarningResponse>> GetWarningsAsync()
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/catalog/warnings");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<CatalogWarningResponse>>() ?? [];
+    }
+
+    public async Task<CatalogWarningResponse> CreateWarningAsync(CreateCatalogWarningRequest req)
+    {
+        using var msg = CreateRequest(HttpMethod.Post, "api/catalog/warnings", JsonContent.Create(req));
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "CreateWarning");
+        return (await response.Content.ReadFromJsonAsync<CatalogWarningResponse>())!;
+    }
+
+    public async Task UpdateWarningAsync(Guid id, UpdateCatalogWarningRequest req)
+    {
+        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/warnings/{id}", JsonContent.Create(req));
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UpdateWarning");
+    }
+
+    public async Task<string?> DeleteWarningAsync(Guid id)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/warnings/{id}");
+        var response = await _httpClient.SendAsync(msg);
+        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            var body = await response.Content.ReadFromJsonAsync<ApiMessageResponse>();
+            return body?.Message;
+        }
+        await ThrowOnErrorAsync(response, "DeleteWarning");
+        return null;
+    }
+
+    public async Task AddProductWarningAsync(Guid productId, Guid warningId)
+    {
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/products/{productId}/warnings/{warningId}");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "AddProductWarning");
+    }
+
+    public async Task RemoveProductWarningAsync(Guid productId, Guid warningId)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/products/{productId}/warnings/{warningId}");
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "RemoveProductWarning");
     }
 
     // Products
