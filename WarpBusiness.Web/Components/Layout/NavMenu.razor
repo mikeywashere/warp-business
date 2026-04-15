@@ -93,9 +93,12 @@
 
 <style>
     .warp-navbar {
-        background-color: rgba(5, 11, 24, 0.92);
+        background-color: rgba(5, 11, 24, 0.98);
         backdrop-filter: blur(12px);
         border-bottom: 1px solid rgba(0, 200, 255, 0.18);
+        position: sticky;
+        top: 0;
+        z-index: 1030;
     }
 
     .warp-brand {
@@ -137,7 +140,9 @@
 
     .warp-navbar .dropdown-menu {
         background-color: #0b1628;
-        border: 1px solid rgba(0, 200, 255, 0.18);
+        border: 1px solid rgba(0, 200, 255, 0.25);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+        z-index: 1031;
     }
 
     .warp-navbar .dropdown-item {
