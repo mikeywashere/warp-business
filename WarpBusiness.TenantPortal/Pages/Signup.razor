@@ -1,0 +1,130 @@
+@page "/signup"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.TenantPortal.Services
+@inject TenantPortalApiClient ApiClient
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@attribute [AllowAnonymous]
+
+<PageTitle>Sign Up - Tenant Portal</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header text-center">
+                    <h3 style="color: var(--clr-accent); font-family: var(--font-heading);">
+                        ⚡ Create Your Tenant Account
+                    </h3>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+
+                    <EditForm Model="signupModel" OnValidSubmit="HandleSignup">
+                        <DataAnnotationsValidator />
+
+                        <div class="mb-3">
+                            <label class="form-label">Company Name</label>
+                            <InputText @bind-Value="signupModel.CompanyName" class="form-control" 
+                                       placeholder="Your Company Inc." 
+                                       @oninput="GenerateSlug" />
+                            <ValidationMessage For="() => signupModel.CompanyName" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Slug (URL identifier)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">portal.warpbusiness.com/</span>
+                                <InputText @bind-Value="signupModel.Slug" class="form-control" 
+                                           placeholder="your-company" />
+                            </div>
+                            <small style="color: var(--clr-text-muted);">
+                                This will be your unique portal URL. Only lowercase letters, numbers, and hyphens allowed.
+                            </small>
+                            <ValidationMessage For="() => signupModel.Slug" class="text-danger" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Preferred Currency</label>
+                            <InputSelect @bind-Value="signupModel.PreferredCurrencyCode" class="form-select">
+                                <option value="USD">USD - US Dollar</option>
+                                <option value="EUR">EUR - Euro</option>
+                                <option value="GBP">GBP - British Pound</option>
+                                <option value="CAD">CAD - Canadian Dollar</option>
+                                <option value="AUD">AUD - Australian Dollar</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <strong>⚠️ Note:</strong> Full self-service signup with Keycloak account creation is coming soon. 
+                            This form submits your tenant information, but you'll need to contact support for account activation.
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100" disabled="@isSubmitting">
+                            @(isSubmitting ? "Creating Account..." : "Create Tenant Account")
+                        </button>
+                    </EditForm>
+
+                    <div class="text-center mt-3">
+                        <a href="/login">Already have an account? Log in</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private SignupModel signupModel = new();
+    private bool isSubmitting = false;
+    private string? errorMessage;
+
+    private async Task HandleSignup()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+
+            var dto = new CreateTenantRequest(
+                signupModel.CompanyName!,
+                signupModel.Slug!,
+                signupModel.PreferredCurrencyCode
+            );
+
+            Nav.NavigateTo("/login");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void GenerateSlug(ChangeEventArgs e)
+    {
+        var companyName = e.Value?.ToString() ?? "";
+        if (!string.IsNullOrWhiteSpace(companyName))
+        {
+            signupModel.Slug = companyName
+                .ToLowerInvariant()
+                .Replace(" ", "-")
+                .Replace(".", "")
+                .Replace(",", "")
+                .Replace("&", "and");
+        }
+    }
+
+    private class SignupModel
+    {
+        public string? CompanyName { get; set; }
+        public string? Slug { get; set; }
+        public string PreferredCurrencyCode { get; set; } = "USD";
+    }
+}

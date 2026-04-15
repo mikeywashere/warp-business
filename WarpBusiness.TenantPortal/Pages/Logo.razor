@@ -1,0 +1,254 @@
+@page "/logo"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.TenantPortal.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject TenantPortalApiClient ApiClient
+@inject AuthService AuthService
+@inject IJSRuntime JS
+@attribute [Authorize]
+
+<PageTitle>Logo - Tenant Portal</PageTitle>
+
+<h1 class="mb-4">Company Logo</h1>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Logo</h5>
+                </div>
+                <div class="card-body text-center">
+                    @if (!string.IsNullOrEmpty(currentLogoBase64))
+                    {
+                        <img src="data:@currentLogoMimeType;base64,@currentLogoBase64" 
+                             alt="Company Logo" 
+                             class="img-fluid mb-3" 
+                             style="max-height: 300px; border: 1px solid var(--clr-border); border-radius: 4px; padding: 10px;" />
+                        <div>
+                            <button class="btn btn-outline-danger" @onclick="DeleteLogo" disabled="@isProcessing">
+                                @(isProcessing ? "Deleting..." : "Delete Logo")
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="py-5">
+                            <div class="mb-3" style="font-size: 4rem;">🖼️</div>
+                            <p style="color: var(--clr-text-muted);">No logo uploaded yet</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Upload New Logo</h5>
+                </div>
+                <div class="card-body">
+                    <InputFile OnChange="HandleFileSelected" class="form-control mb-3" accept="image/*" />
+                    
+                    @if (selectedFileSize > 0)
+                    {
+                        <p style="color: var(--clr-text-muted);">
+                            Selected file: @selectedFileName (@FormatFileSize(selectedFileSize))
+                        </p>
+                        
+                        @if (selectedFileSize > 500 * 1024)
+                        {
+                            <div class="alert alert-warning">
+                                ⚠️ File size is larger than 500KB. Consider compressing your logo for better performance.
+                            </div>
+                        }
+
+                        <button class="btn btn-primary" @onclick="UploadLogo" disabled="@isProcessing">
+                            @(isProcessing ? "Uploading..." : "Upload Logo")
+                        </button>
+                    }
+                    else
+                    {
+                        <p style="color: var(--clr-text-muted);">
+                            Select an image file to upload (PNG, JPG, SVG recommended)
+                        </p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private TenantResponse? tenant;
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private string? currentLogoBase64;
+    private string? currentLogoMimeType;
+
+    private string? selectedFileName;
+    private long selectedFileSize;
+    private string? selectedFileBase64;
+    private string? selectedFileMimeType;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTenant();
+    }
+
+    private async Task LoadTenant()
+    {
+        try
+        {
+            isLoading = true;
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            tenant = await ApiClient.GetTenantAsync(tenantId);
+            
+            currentLogoBase64 = GetLogoBase64(tenant);
+            currentLogoMimeType = GetLogoMimeType(tenant);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        selectedFileName = file.Name;
+        selectedFileSize = file.Size;
+        selectedFileMimeType = file.ContentType;
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            selectedFileBase64 = Convert.ToBase64String(memoryStream.ToArray());
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to read file: {ex.Message}";
+            selectedFileName = null;
+            selectedFileSize = 0;
+            selectedFileBase64 = null;
+        }
+    }
+
+    private async Task UploadLogo()
+    {
+        if (string.IsNullOrEmpty(selectedFileBase64))
+            return;
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = null;
+            successMessage = null;
+
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            var updated = await ApiClient.UploadLogoAsync(tenantId, selectedFileBase64, selectedFileMimeType!);
+            
+            tenant = updated;
+            currentLogoBase64 = GetLogoBase64(tenant);
+            currentLogoMimeType = GetLogoMimeType(tenant);
+            
+            selectedFileName = null;
+            selectedFileSize = 0;
+            selectedFileBase64 = null;
+            selectedFileMimeType = null;
+
+            successMessage = "Logo uploaded successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task DeleteLogo()
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to delete the logo?");
+        if (!confirmed)
+            return;
+
+        try
+        {
+            isProcessing = true;
+            errorMessage = null;
+            successMessage = null;
+
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            await ApiClient.DeleteLogoAsync(tenantId);
+            
+            currentLogoBase64 = null;
+            currentLogoMimeType = null;
+
+            successMessage = "Logo deleted successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024)
+            return $"{bytes} B";
+        if (bytes < 1024 * 1024)
+            return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024):F1} MB";
+    }
+
+    private string? GetLogoBase64(TenantResponse? tenant)
+    {
+        return tenant?.GetType().GetProperty("LogoBase64")?.GetValue(tenant) as string;
+    }
+
+    private string? GetLogoMimeType(TenantResponse? tenant)
+    {
+        return tenant?.GetType().GetProperty("LogoMimeType")?.GetValue(tenant) as string;
+    }
+}

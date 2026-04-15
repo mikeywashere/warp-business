@@ -1,0 +1,30 @@
+@* Router configuration *@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(Program).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+                <NotAuthorized>
+                    <div class="container mt-5">
+                        <div class="alert alert-warning">
+                            <h4>Not Authorized</h4>
+                            <p>You need to be logged in to access this page.</p>
+                            <a href="/login" class="btn btn-primary">Log In</a>
+                        </div>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound>
+            <PageTitle>Not Found</PageTitle>
+            <LayoutView Layout="@typeof(Layout.MainLayout)">
+                <div class="container mt-5">
+                    <div class="alert alert-danger">
+                        <h4>Page Not Found</h4>
+                        <p>Sorry, the page you're looking for doesn't exist.</p>
+                        <a href="/" class="btn btn-primary">Back to Dashboard</a>
+                    </div>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

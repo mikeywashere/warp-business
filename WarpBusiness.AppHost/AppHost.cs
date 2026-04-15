@@ -29,6 +29,11 @@ builder.AddProject<Projects.WarpBusiness_CustomerPortal>("customer-portal")
     .WithReference(api)
     .WithReference(keycloak);
 
+builder.AddProject<Projects.WarpBusiness_TenantPortal>("tenant-portal")
+    .WithExternalHttpEndpoints()
+    .WithReference(api)
+    .WithReference(keycloak);
+
 builder.AddProject<Projects.WarpBusiness_MarketingSite>("marketing-site")
     .WithExternalHttpEndpoints();
 

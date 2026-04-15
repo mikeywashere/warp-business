@@ -1,0 +1,232 @@
+@page "/subscription"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.TenantPortal.Services
+@inject TenantPortalApiClient ApiClient
+@inject AuthService AuthService
+@attribute [Authorize]
+
+<PageTitle>Subscription - Tenant Portal</PageTitle>
+
+<h1 class="mb-4">Subscription Management</h1>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Current Plan</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <strong>Subscription Plan:</strong>
+                        <p style="color: var(--clr-text-muted);">@GetSubscriptionPlan(tenant)</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Max Users:</strong>
+                        <p style="color: var(--clr-text-muted);">@GetMaxUsers(tenant)</p>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Enabled Features:</strong>
+                        <p style="color: var(--clr-text-muted);">@GetEnabledFeatures(tenant)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Update Subscription</h5>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="updateModel" OnValidSubmit="UpdateSubscription">
+                        <div class="mb-3">
+                            <label class="form-label">Max Users</label>
+                            <InputNumber @bind-Value="updateModel.MaxUsers" class="form-control" min="1" />
+                            <small style="color: var(--clr-text-muted);">Number of users allowed on your plan</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Subscription Plan</label>
+                            <InputSelect @bind-Value="updateModel.SubscriptionPlan" class="form-select">
+                                <option value="Starter">Starter</option>
+                                <option value="Professional">Professional</option>
+                                <option value="Enterprise">Enterprise</option>
+                            </InputSelect>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Enabled Features</label>
+                            <InputText @bind-Value="updateModel.EnabledFeatures" class="form-control" 
+                                       placeholder="e.g., API Access, Advanced Reporting" />
+                            <small style="color: var(--clr-text-muted);">Comma-separated list of features</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                            @(isSaving ? "Saving..." : "Save Changes")
+                        </button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Plan Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Plan</th>
+                            <th>Max Users</th>
+                            <th>Features</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Starter</strong></td>
+                            <td>5</td>
+                            <td>Basic Support, Core Features</td>
+                            <td>$99/month</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Professional</strong></td>
+                            <td>25</td>
+                            <td>Priority Support, API Access, Advanced Reporting</td>
+                            <td>$299/month</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Enterprise</strong></td>
+                            <td>Unlimited</td>
+                            <td>24/7 Support, Custom Integrations, Dedicated Account Manager</td>
+                            <td>Contact Sales</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3" style="color: var(--clr-text-muted);">
+                <em>Note: Plan changes take effect immediately. Contact support for questions about billing.</em>
+            </p>
+        </div>
+    </div>
+}
+
+@code {
+    private TenantResponse? tenant;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private UpdateSubscriptionModel updateModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTenant();
+    }
+
+    private async Task LoadTenant()
+    {
+        try
+        {
+            isLoading = true;
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            tenant = await ApiClient.GetTenantAsync(tenantId);
+
+            updateModel.MaxUsers = GetMaxUsers(tenant) ?? 1;
+            updateModel.SubscriptionPlan = GetSubscriptionPlan(tenant) ?? "Starter";
+            updateModel.EnabledFeatures = GetEnabledFeatures(tenant) ?? "";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateSubscription()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+            successMessage = null;
+
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            var dto = new UpdateTenantRequest(
+                tenant!.Name,
+                tenant.Slug,
+                tenant.IsActive,
+                tenant.PreferredCurrencyCode,
+                tenant.LoginTimeoutMinutes
+            );
+
+            var updated = await ApiClient.UpdateSubscriptionAsync(tenantId, dto);
+            tenant = updated;
+
+            successMessage = "Subscription updated successfully!";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private int? GetMaxUsers(TenantResponse? tenant)
+    {
+        return tenant?.GetType().GetProperty("MaxUsers")?.GetValue(tenant) as int?;
+    }
+
+    private string? GetSubscriptionPlan(TenantResponse? tenant)
+    {
+        return tenant?.GetType().GetProperty("SubscriptionPlan")?.GetValue(tenant) as string;
+    }
+
+    private string? GetEnabledFeatures(TenantResponse? tenant)
+    {
+        return tenant?.GetType().GetProperty("EnabledFeatures")?.GetValue(tenant) as string;
+    }
+
+    private class UpdateSubscriptionModel
+    {
+        public int MaxUsers { get; set; } = 1;
+        public string SubscriptionPlan { get; set; } = "Starter";
+        public string? EnabledFeatures { get; set; }
+    }
+}

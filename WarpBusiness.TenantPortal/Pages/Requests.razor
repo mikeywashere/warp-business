@@ -1,0 +1,341 @@
+@page "/requests"
+@using WarpBusiness.Api.Models
+@using WarpBusiness.TenantPortal.Services
+@inject TenantPortalApiClient ApiClient
+@inject AuthService AuthService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@attribute [Authorize]
+
+<PageTitle>Requests - Tenant Portal</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Support Requests</h1>
+    <button class="btn btn-primary" @onclick="ToggleNewRequestForm">
+        @(showNewRequestForm ? "Cancel" : "New Request")
+    </button>
+</div>
+
+@if (showNewRequestForm)
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Create New Request</h5>
+        </div>
+        <div class="card-body">
+            <EditForm Model="newRequest" OnValidSubmit="CreateRequest">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger" />
+
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <InputText @bind-Value="newRequest.Title" class="form-control" placeholder="Brief description" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <InputTextArea @bind-Value="newRequest.Description" class="form-control" rows="4" placeholder="Detailed information" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Type</label>
+                    <InputSelect @bind-Value="newRequest.Type" class="form-select">
+                        <option value="General">General</option>
+                        <option value="Billing">Billing</option>
+                        <option value="Technical">Technical</option>
+                        <option value="Feature Request">Feature Request</option>
+                        <option value="Bug Report">Bug Report</option>
+                        <option value="Onboarding">Onboarding</option>
+                    </InputSelect>
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @(isSubmitting ? "Submitting..." : "Submit Request")
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick="ToggleNewRequestForm">Cancel</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <input type="text" class="form-control" placeholder="Search requests..." @bind="searchText" @bind:event="oninput" />
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="filterStatus">
+                    <option value="All">All Statuses</option>
+                    <option value="Open">Open</option>
+                    <option value="InProgress">In Progress</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Resolved">Resolved</option>
+                    <option value="Closed">Closed</option>
+                    <option value="Cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="filterType">
+                    <option value="All">All Types</option>
+                    <option value="General">General</option>
+                    <option value="Billing">Billing</option>
+                    <option value="Technical">Technical</option>
+                    <option value="Feature Request">Feature Request</option>
+                    <option value="Bug Report">Bug Report</option>
+                    <option value="Onboarding">Onboarding</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-primary w-100" @onclick="LoadRequests">Search</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3" style="color: var(--clr-text-muted);">Loading requests...</p>
+    </div>
+}
+else if (requests.Count == 0)
+{
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <div class="mb-3" style="font-size: 3rem;">📭</div>
+            <h5>No requests yet</h5>
+            <p style="color: var(--clr-text-muted);">Click "New Request" above to submit your first support request.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Assigned To</th>
+                    <th>Created</th>
+                    <th style="width: 250px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var request in FilteredRequests)
+                {
+                    <tr>
+                        <td>@request.Title</td>
+                        <td>@request.Type</td>
+                        <td>
+                            <span class="badge @GetStatusBadgeClass(request.Status)">
+                                @request.Status
+                            </span>
+                        </td>
+                        <td>@(request.AssignedToName ?? "Unassigned")</td>
+                        <td>@request.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" @onclick="() => ToggleDetails(request.Id)">
+                                @(expandedRequestId == request.Id ? "Hide" : "View") Details
+                            </button>
+                            @if (CanCancelRequest(request.Status))
+                            {
+                                <button class="btn btn-sm btn-outline-danger ms-2" @onclick="() => CancelRequest(request.Id)">
+                                    Cancel
+                                </button>
+                            }
+                        </td>
+                    </tr>
+                    @if (expandedRequestId == request.Id)
+                    {
+                        <tr>
+                            <td colspan="6">
+                                <div class="card border-info mt-2 mb-2">
+                                    <div class="card-body">
+                                        <h6 class="card-title">Request Details</h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Description:</strong></p>
+                                                <p style="color: var(--clr-text-muted);">@request.Description</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Status:</strong> @request.Status</p>
+                                                <p><strong>Type:</strong> @request.Type</p>
+                                                <p><strong>Created:</strong> @request.CreatedAt.ToString("yyyy-MM-dd HH:mm")</p>
+                                                <p><strong>Updated:</strong> @request.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</p>
+                                                @if (request.ClosedAt.HasValue)
+                                                {
+                                                    <p><strong>Closed:</strong> @request.ClosedAt.Value.ToString("yyyy-MM-dd HH:mm")</p>
+                                                }
+                                                @if (!string.IsNullOrEmpty(request.Resolution))
+                                                {
+                                                    <p><strong>Resolution:</strong></p>
+                                                    <p style="color: var(--clr-text-muted);">@request.Resolution</p>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private List<TenantRequestResponse> requests = new();
+    private bool isLoading = true;
+    private bool showNewRequestForm = false;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private Guid? expandedRequestId;
+
+    private string searchText = "";
+    private string filterStatus = "All";
+    private string filterType = "All";
+
+    private NewRequestModel newRequest = new();
+
+    private IEnumerable<TenantRequestResponse> FilteredRequests
+    {
+        get
+        {
+            var filtered = requests.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                filtered = filtered.Where(r =>
+                    r.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    r.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return filtered;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+    }
+
+    private async Task LoadRequests()
+    {
+        try
+        {
+            isLoading = true;
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            requests = await ApiClient.GetRequestsAsync(tenantId, null, 
+                filterStatus != "All" ? filterStatus : null, 
+                filterType != "All" ? filterType : null);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ToggleNewRequestForm()
+    {
+        showNewRequestForm = !showNewRequestForm;
+        if (!showNewRequestForm)
+        {
+            newRequest = new();
+            errorMessage = null;
+        }
+    }
+
+    private async Task CreateRequest()
+    {
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            var dto = new CreateTenantRequestRequest(
+                newRequest.Title!,
+                newRequest.Description!,
+                newRequest.Type!
+            );
+            await ApiClient.CreateRequestAsync(tenantId, dto);
+            showNewRequestForm = false;
+            newRequest = new();
+            await LoadRequests();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task CancelRequest(Guid requestId)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Are you sure you want to cancel this request?");
+        if (!confirmed)
+            return;
+
+        try
+        {
+            var tenantId = AuthService.GetTenantIdFromJwt();
+            await ApiClient.CancelRequestAsync(tenantId, requestId);
+            await LoadRequests();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void ToggleDetails(Guid requestId)
+    {
+        expandedRequestId = expandedRequestId == requestId ? null : requestId;
+    }
+
+    private bool CanCancelRequest(string status)
+    {
+        return status is "Open" or "InProgress" or "Pending";
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Open" => "bg-info",
+            "InProgress" => "bg-warning text-dark",
+            "Pending" => "bg-secondary",
+            "Resolved" => "bg-success",
+            "Closed" => "bg-secondary",
+            "Cancelled" => "bg-dark",
+            _ => "bg-secondary"
+        };
+    }
+
+    private class NewRequestModel
+    {
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public string Type { get; set; } = "General";
+    }
+}
