@@ -13,12 +13,25 @@ public static class StorageServiceExtensions
             var connectionString = configuration.GetConnectionString("minio")
                 ?? throw new InvalidOperationException("MinIO connection string 'minio' is not configured");
 
-            // Parse connection string: http://accessKey:secretKey@endpoint:port
-            var uri = new Uri(connectionString);
-            var endpoint = $"{uri.Host}:{uri.Port}";
-            var accessKey = uri.UserInfo.Split(':')[0];
-            var secretKey = uri.UserInfo.Split(':')[1];
-            var useSSL = uri.Scheme == "https";
+            // Aspire injects MinIO as a plain endpoint URL (e.g. "http://localhost:9000").
+            // Credentials are not embedded — read separately with dev-safe defaults.
+            string endpoint;
+            bool useSSL;
+
+            if (Uri.TryCreate(connectionString, UriKind.Absolute, out var uri))
+            {
+                endpoint = uri.Port > 0 ? $"{uri.Host}:{uri.Port}" : uri.Host;
+                useSSL = uri.Scheme == "https";
+            }
+            else
+            {
+                // Bare host:port fallback (no scheme)
+                endpoint = connectionString;
+                useSSL = false;
+            }
+
+            var accessKey = configuration["Minio:AccessKey"] ?? "minioadmin";
+            var secretKey = configuration["Minio:SecretKey"] ?? "minioadmin";
 
             return new MinioClient()
                 .WithEndpoint(endpoint)
