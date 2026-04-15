@@ -320,3 +320,85 @@
 - System.CommandLine 2.0.0-beta4: Option<T>(string, Func<T>, string) constructor works correctly
 - WarpApiClient returns null on 409 Conflict for all new Create* methods (retry pattern)
 - JsonDocument parsing with TryGetProperty for optional response fields works well
+
+
+## Task: Tenant Requests and Subscription Management
+
+**Date:** 2025-04-15  
+**Requested by:** Michael R. Schmidt
+
+### Implementation Summary
+
+1. **TenantRequest Model**
+   - Created Models/TenantRequest.cs with full request tracking entity
+   - Enums: TenantRequestStatus (Open, InProgress, Pending, Resolved, Closed, Cancelled)
+   - Enums: TenantRequestType (General, Billing, Technical, FeatureRequest, BugReport, Onboarding)
+   - Fields: Title, Description, Status, Type, AssignedToName, AssignedToUserId, Resolution, timestamps
+   - Navigation properties to Tenant and ApplicationUser (AssignedTo)
+
+2. **Tenant Model Extensions**
+   - Added to Models/Tenant.cs: LogoBase64, LogoMimeType, MaxUsers, SubscriptionPlan, EnabledFeatures
+   - Support for tenant branding (logo) and subscription tier management
+
+3. **DTOs**
+   - Created Models/TenantRequestDtos.cs with:
+     - TenantRequestResponse (full details)
+     - CreateTenantRequestRequest (Title, Description, Type)
+     - UpdateTenantRequestRequest (admin update with all fields)
+   - Updated Models/TenantDtos.cs with:
+     - Extended TenantResponse with logo and subscription fields
+     - UpdateTenantLogoRequest (LogoBase64, MimeType)
+     - UpdateTenantSubscriptionRequest (MaxUsers, SubscriptionPlan, EnabledFeatures)
+
+4. **DbContext Configuration**
+   - Added TenantRequests DbSet to WarpBusinessDbContext
+   - Entity config for TenantRequest:
+     - Indexes on TenantId, Status, AssignedToUserId (filtered)
+     - String enums stored with .HasConversion<string>()
+     - FK to Tenant (Cascade), FK to ApplicationUser (SetNull)
+     - Max lengths: Title (500), Description (4000), Resolution (4000), AssignedToName (200)
+   - Extended Tenant entity config with logo and subscription fields
+
+5. **API Endpoints - TenantRequestEndpoints.cs**
+   - **Tenant-facing** (/api/tenants/{tenantId}/requests):
+     - GET / — list requests with filters (search, status, type, assignedTo)
+     - POST / — create new request
+     - GET /{id} — get single request
+     - PUT /{id}/cancel — cancel own request
+   - **Admin-facing** (/api/admin/requests, requires SystemAdministrator role):
+     - GET / — list all requests across all tenants
+     - PUT /{id} — update request (status, assignment, resolution)
+   - Authorization: tenant members can access their own requests, admins see all
+
+6. **API Endpoints - Tenant Logo & Subscription**
+   - Added to TenantEndpoints.cs:
+     - PUT /api/tenants/{id}/logo — upload logo (validates image/* mime type)
+     - DELETE /api/tenants/{id}/logo — clear logo
+     - PUT /api/tenants/{id}/subscription — update subscription (admin-only)
+   - Authorization: tenant members can manage their logo, admins manage subscriptions
+
+7. **EF Migration**
+   - Created migration 20260415035354_AddTenantRequestsAndLogoAndSubscription
+   - Adds TenantRequests table with all indexes and foreign keys
+   - Adds columns to Tenants: LogoBase64, LogoMimeType, MaxUsers, SubscriptionPlan, EnabledFeatures
+   - All schema changes in "warp" schema
+
+8. **Registration**
+   - Registered MapTenantRequestEndpoints() in Program.cs
+   - Updated ToResponse helper in TenantEndpoints to include new fields
+
+### Patterns Used
+
+- **Multi-tenant authorization**: AuthorizeTenantAccess checks membership or admin role
+- **Enum storage**: enums stored as strings in DB (.HasConversion<string>())
+- **Filtered indexes**: AssignedToUserId index filtered to only non-null values
+- **Cascade deletes**: requests deleted when tenant deleted, assigned user set null on delete
+- **Status transitions**: only Open/Pending requests can be cancelled
+- **Denormalization**: AssignedToName stored for display (optional navigation to ApplicationUser)
+- **Query filters**: support for search, status, type, assignedTo, tenantId filters
+- **Timestamp tracking**: CreatedAt, UpdatedAt, ClosedAt (set on final status)
+
+### Build Status
+
+✅ API project builds successfully with no warnings
+

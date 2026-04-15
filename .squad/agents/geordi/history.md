@@ -195,3 +195,21 @@
 - **Pattern:** City/Country column uses `string.Join(", ", location)` to format combined location from nullable fields
 - **Status:** ✅ Complete — build passes, ready for backend API endpoints from Data team
 
+
+## Learnings - TenantPortal UI (2026-04-12)
+
+- TenantPortal is a separate Blazor Server project at `WarpBusiness.TenantPortal/` for tenant self-service (modeled after CustomerPortal pattern)
+- Uses OIDC client ID `warpbusiness-tenant-portal` in Keycloak (distinct from `warpbusiness-web` and `warpbusiness-customer-portal`)
+- `TenantPortalApiClient` provides methods: GetTenant, UpdateSubscription, UploadLogo, DeleteLogo, GetRequests, CreateRequest, CancelRequest
+- Logo upload uses base64-encoded data URIs (secure in-memory approach, no temp file storage) via `InputFile` component
+- Requests page has full filter bar (search, status dropdown, type dropdown) and inline expandable detail panels
+- Status badges color-coded: Open=blue, InProgress=warning, Pending=secondary, Resolved=success, Closed=secondary, Cancelled=dark
+- Actions column width set to 250px (per CSS rules) for all tables
+- Subscription page shows current plan + update form with MaxUsers, SubscriptionPlan (Starter/Professional/Enterprise), EnabledFeatures
+- Signup page is public (`[AllowAnonymous]`) with auto-generated slug from company name (lowercase, hyphens, sanitized)
+- Uses reflection (`GetType().GetProperty()`) to access dynamic TenantResponse properties (LogoBase64, LogoMimeType, MaxUsers, etc.) since DTOs may be extended by Data
+- Dark theme CSS copied from `WarpBusiness.Web/wwwroot/app.css` (all custom properties: --clr-bg, --clr-accent, --clr-text, etc.)
+- Dashboard has card-link navigation to Subscription (📦), Requests (🎫), Logo (🖼️), Profile Info (ℹ️)
+- MainLayout navbar shows "⚡ TENANT PORTAL" brand and links to Dashboard, Requests, Logo, Subscription, Logout
+- Cancel request action uses JS interop (`IJSRuntime.InvokeAsync<bool>("confirm", ...)`) for confirmation dialogs
+- All pages follow consistent card-based layout, loading spinner, error/success alert pattern
