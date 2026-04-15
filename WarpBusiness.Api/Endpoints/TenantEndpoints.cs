@@ -51,6 +51,17 @@ public static class TenantEndpoints
 
         me.MapPost("/tenant", SetActiveTenant)
             .WithName("SetActiveTenant");
+
+        // Tenant logo and subscription management
+        tenants.MapPut("/{id:guid}/logo", UpdateTenantLogo)
+            .WithName("UpdateTenantLogo");
+
+        tenants.MapDelete("/{id:guid}/logo", DeleteTenantLogo)
+            .WithName("DeleteTenantLogo");
+
+        tenants.MapPut("/{id:guid}/subscription", UpdateTenantSubscription)
+            .WithName("UpdateTenantSubscription")
+            .RequireAuthorization("SystemAdministrator");
     }
 
     private static async Task<IResult> GetAllTenants(
@@ -311,6 +322,92 @@ public static class TenantEndpoints
         return Results.Ok(new UserTenantResponse(tenant.Id, tenant.Name, tenant.Slug));
     }
 
+    private static async Task<IResult> UpdateTenantLogo(
+        Guid id,
+        [FromBody] UpdateTenantLogoRequest request,
+        ClaimsPrincipal principal,
+        WarpBusinessDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenant = await db.Tenants.FindAsync([id], cancellationToken);
+        if (tenant is null)
+            return Results.NotFound();
+
+        if (!IsSystemAdministrator(principal))
+        {
+            var userId = await GetCurrentUserId(principal, db, cancellationToken);
+            if (userId is null)
+                return Results.NotFound(new { message = "User profile not found." });
+
+            var isMember = await db.UserTenantMemberships
+                .AnyAsync(m => m.UserId == userId.Value && m.TenantId == id, cancellationToken);
+            if (!isMember)
+                return Results.Forbid();
+        }
+
+        if (!request.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            return Results.BadRequest(new { message = "MimeType must be an image type (image/*)." });
+
+        tenant.LogoBase64 = request.LogoBase64;
+        tenant.LogoMimeType = request.MimeType;
+        tenant.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToResponse(tenant));
+    }
+
+    private static async Task<IResult> DeleteTenantLogo(
+        Guid id,
+        ClaimsPrincipal principal,
+        WarpBusinessDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenant = await db.Tenants.FindAsync([id], cancellationToken);
+        if (tenant is null)
+            return Results.NotFound();
+
+        if (!IsSystemAdministrator(principal))
+        {
+            var userId = await GetCurrentUserId(principal, db, cancellationToken);
+            if (userId is null)
+                return Results.NotFound(new { message = "User profile not found." });
+
+            var isMember = await db.UserTenantMemberships
+                .AnyAsync(m => m.UserId == userId.Value && m.TenantId == id, cancellationToken);
+            if (!isMember)
+                return Results.Forbid();
+        }
+
+        tenant.LogoBase64 = null;
+        tenant.LogoMimeType = null;
+        tenant.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToResponse(tenant));
+    }
+
+    private static async Task<IResult> UpdateTenantSubscription(
+        Guid id,
+        [FromBody] UpdateTenantSubscriptionRequest request,
+        WarpBusinessDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenant = await db.Tenants.FindAsync([id], cancellationToken);
+        if (tenant is null)
+            return Results.NotFound();
+
+        tenant.MaxUsers = request.MaxUsers;
+        tenant.SubscriptionPlan = request.SubscriptionPlan;
+        tenant.EnabledFeatures = request.EnabledFeatures;
+        tenant.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToResponse(tenant));
+    }
+
     private static bool IsSystemAdministrator(ClaimsPrincipal principal)
     {
         if (principal.IsInRole("SystemAdministrator"))
@@ -340,7 +437,18 @@ public static class TenantEndpoints
     }
 
     private static TenantResponse ToResponse(Tenant tenant) =>
-        new(tenant.Id, tenant.Name, tenant.Slug, tenant.IsActive, tenant.CreatedAt, tenant.PreferredCurrencyCode, tenant.LoginTimeoutMinutes);
+        new(tenant.Id,
+            tenant.Name,
+            tenant.Slug,
+            tenant.IsActive,
+            tenant.CreatedAt,
+            tenant.PreferredCurrencyCode,
+            tenant.LoginTimeoutMinutes,
+            tenant.LogoBase64,
+            tenant.LogoMimeType,
+            tenant.MaxUsers,
+            tenant.SubscriptionPlan,
+            tenant.EnabledFeatures);
 }
 
 public record SetActiveTenantRequest(Guid TenantId);
