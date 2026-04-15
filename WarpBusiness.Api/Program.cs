@@ -8,6 +8,7 @@ using WarpBusiness.Crm.Data;
 using WarpBusiness.Employees.Data;
 using WarpBusiness.Employees.Endpoints;
 using WarpBusiness.Employees.Services;
+using WarpBusiness.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -128,6 +129,10 @@ builder.Services.AddHostedService<DbInitializer>();
 builder.Services.AddHostedService<EmployeeDbInitializer>();
 builder.Services.AddHostedService<CrmDbInitializer>();
 builder.Services.AddHostedService<CatalogDbInitializer>();
+
+// MinIO Storage
+builder.Services.AddMinioStorage(builder.Configuration);
+builder.Services.AddHostedService<StorageBucketInitializer>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -285,6 +290,7 @@ app.MapBusinessEndpoints();
 
 // Catalog management API endpoints
 app.MapCatalogEndpoints();
+app.MapCatalogImageEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();

@@ -1,3 +1,5 @@
+using CommunityToolkit.Aspire.Hosting;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var postgres = builder.AddPostgres("postgres")
@@ -10,12 +12,17 @@ var keycloak = builder.AddKeycloak("keycloak", 8080)
     .WithRealmImport("./KeycloakConfiguration")
     .WithBindMount("../keycloak/themes/warp", "/opt/keycloak/themes/warp");
 
+var minio = builder.AddMinioContainer("minio")
+    .WithDataVolume("minio-data");
+
 var api = builder.AddProject<Projects.WarpBusiness_Api>("api")
     .WithExternalHttpEndpoints()
     .WithReference(postgres)
     .WaitFor(postgres)
     .WithReference(keycloak)
     .WaitFor(keycloak)
+    .WithReference(minio)
+    .WaitFor(minio)
     .WithEnvironment("Keycloak__AdminUser", "admin")
     .WithEnvironment("Keycloak__AdminPassword", keycloak.Resource.AdminPasswordParameter);
 

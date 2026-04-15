@@ -13,4 +13,5 @@
   <Project Path="WarpBusiness.CustomerPortal/WarpBusiness.CustomerPortal.csproj" />
   <Project Path="WarpBusiness.TenantPortal/WarpBusiness.TenantPortal.csproj" />
   <Project Path="WarpBusiness.Cli/WarpBusiness.Cli.csproj" />
+  <Project Path="WarpBusiness.Storage/WarpBusiness.Storage.csproj" />
 </Solution>
