@@ -402,3 +402,72 @@
 
 ✅ API project builds successfully with no warnings
 
+
+### MinIO Storage Integration (2026-04-15)
+
+- **New library:** `WarpBusiness.Storage` — reusable file storage abstraction backed by MinIO. Target framework: net10.0, depends on `Minio` NuGet package v6.0.4.
+- **Service interface:** `IFileStorageService` — UploadAsync, GetPresignedUrlAsync, DeleteAsync, EnsureBucketExistsAsync. All methods take bucket + objectKey parameters, return Task. Stream-based upload with optional content length.
+- **Implementation:** `MinioFileStorageService` — uses `IMinioClient` from Minio SDK. Wraps all Minio exceptions in `InvalidOperationException` with meaningful messages. Singleton registration.
+- **DI registration:** `AddMinioStorage(IConfiguration)` extension method parses MinIO connection string (`http://accessKey:secretKey@endpoint:port`), registers `IMinioClient` and `IFileStorageService` as singletons.
+- **Aspire integration:** `CommunityToolkit.Aspire.Hosting.Minio` v13.1.1 in AppHost. Method is `AddMinioContainer(name)` (not `AddMinio`). Returns `IResourceBuilder<MinioContainerResource>` with `.WithDataVolume()` for persistence. Requires `using CommunityToolkit.Aspire.Hosting;` directive.
+- **Bucket strategy:** Hosted service `StorageBucketInitializer` ensures `warp-catalog` and `warp-logos` buckets exist at startup. Runs before HTTP pipeline starts, fails fast on error.
+- **Object key convention:** Products: `products/{productId}/image.jpg`, Variants: `variants/{variantId}/image.jpg`, Tenant logos: `tenants/{tenantId}/logo`.
+- **AppHost wiring:** MinIO container added with `.WithDataVolume("minio-data")` for persistence. API project has `.WithReference(minio).WaitFor(minio)` for startup ordering. Connection string automatically injected by Aspire as `ConnectionStrings:minio`.
+- **Key files:**
+  - `WarpBusiness.Storage/IFileStorageService.cs` — service interface
+  - `WarpBusiness.Storage/MinioFileStorageService.cs` — MinIO implementation
+  - `WarpBusiness.Storage/StorageServiceExtensions.cs` — DI registration
+  - `WarpBusiness.Storage/StorageBucketInitializer.cs` — startup bucket creation
+  - `WarpBusiness.AppHost/AppHost.cs` — MinIO container registration
+  - `WarpBusiness.Api/Program.cs` — service registration + hosted service
+- **Build status:** ✅ Solution builds successfully. Storage library compiles cleanly, AppHost updated, API wired.
+### Catalog Image Storage Integration (2026-04-15)
+
+- **Feature:** Added image storage support to the Catalog module using the WarpBusiness.Storage library with MinIO backend.
+- **Schema changes:** Added nullable `ImageKey` property (max 500 chars) to both `Product` and `ProductVariant` models. EF migration `AddImageKey` created.
+- **Storage pattern:** Object keys follow `{tenantId}/products/{productId}/{uuid}.{ext}` for products and `{tenantId}/variants/{variantId}/{uuid}.{ext}` for variants. Bucket: `warp-catalog`.
+- **Image upload endpoints:** `POST /api/catalog/products/{productId}/image` and `POST /api/catalog/variants/{variantId}/image` — accept `IFormFile`, validate content type (image/jpeg, image/png, image/gif, image/webp), enforce 5MB limit, delete old image before uploading new, update entity with new key.
+- **Image delete endpoints:** `DELETE /api/catalog/products/{productId}/image` and `DELETE /api/catalog/variants/{variantId}/image` — remove image from MinIO and clear ImageKey from entity.
+- **Image proxy endpoint:** `GET /api/catalog/images/{*objectKey}` — returns presigned MinIO URL with 1-hour expiry, allows anonymous access (URLs are time-limited tokens).
+- **Response DTOs updated:** Added `ImageKey` to `ProductResponse` and `ProductVariantResponse` so frontend can display images.
+- **Multi-tenancy:** TenantId prefix in object keys ensures tenant isolation. Validates product/variant belongs to tenant before upload/delete.
+- **Key files:**
+  - `WarpBusiness.Catalog/Models/Product.cs` — added ImageKey property
+  - `WarpBusiness.Catalog/Models/ProductVariant.cs` — added ImageKey property
+  - `WarpBusiness.Catalog/Data/CatalogDbContext.cs` — added ImageKey EF config (max 500 chars)
+  - `WarpBusiness.Catalog/Data/Migrations/*AddImageKey*.cs` — EF migration
+  - `WarpBusiness.Api/Endpoints/CatalogImageEndpoints.cs` — new endpoint file with upload/delete/proxy logic
+  - `WarpBusiness.Api/Endpoints/CatalogEndpoints.cs` — updated DTOs with ImageKey parameter
+  - `WarpBusiness.Api/Program.cs` — registered CatalogImageEndpoints
+- **Build status:** ✅ API project builds successfully. Frontend build fails due to missing UI implementation (Geordi's responsibility).
+- **Next step:** Geordi needs to implement frontend image upload UI that references the missing methods (`GetProductImageUrl`, `HandleProductImageUpload`, `RemoveProductImage`, `ShowVariantImageUpload`, `CloseVariantImageModal`, `HandleVariantImageUpload`, `RemoveVariantImage`) in `Products.razor`.
+
+### Catalog Image and Video Storage Integration (2026-04-15)
+
+- **Feature:** Added image and video storage support to the Catalog module using the WarpBusiness.Storage library with MinIO backend.
+- **Schema changes:** Added nullable `ImageKey` and `VideoKey` properties (max 500 chars each) to both `Product` and `ProductVariant` models. EF migration `AddImageAndVideoKeys` created.
+- **Storage pattern:** Object keys follow tenant-prefixed pattern:
+  - Product images: `{tenantId}/products/{productId}/{uuid}.{ext}`
+  - Variant images: `{tenantId}/variants/{variantId}/{uuid}.{ext}`
+  - Product videos: `{tenantId}/products/{productId}/videos/{uuid}.{ext}` (note "videos" subdirectory)
+  - Variant videos: `{tenantId}/variants/{variantId}/videos/{uuid}.{ext}`
+  - All use same bucket: `warp-catalog`
+- **Image upload endpoints:** `POST /api/catalog/products/{productId}/image` and `POST /api/catalog/variants/{variantId}/image` — accept `IFormFile`, validate content type (image/jpeg, image/png, image/gif, image/webp), enforce 5MB limit, delete old image before uploading new, update entity with new key.
+- **Video upload endpoints:** `POST /api/catalog/products/{productId}/video` and `POST /api/catalog/variants/{variantId}/video` — accept `IFormFile`, validate content type (video/mp4, video/webm, video/quicktime, video/x-msvideo), enforce 500MB limit, delete old video before uploading new, update entity with new key.
+- **Delete endpoints:** `DELETE` routes for both images and videos — remove from MinIO and clear key from entity.
+- **Proxy endpoints:** 
+  - `GET /api/catalog/images/{*objectKey}` — returns presigned MinIO URL with 1-hour expiry
+  - `GET /api/catalog/videos/{*objectKey}` — returns presigned MinIO URL with 24-hour expiry (longer for video streaming)
+  - Both allow anonymous access (URLs are time-limited tokens)
+- **Response DTOs updated:** Added `ImageKey` and `VideoKey` to `ProductResponse` and `ProductVariantResponse` so frontend can display media.
+- **Multi-tenancy:** TenantId prefix in object keys ensures tenant isolation. Validates product/variant belongs to tenant before upload/delete.
+- **Key files:**
+  - `WarpBusiness.Catalog/Models/Product.cs` — added ImageKey and VideoKey properties
+  - `WarpBusiness.Catalog/Models/ProductVariant.cs` — added ImageKey and VideoKey properties
+  - `WarpBusiness.Catalog/Data/CatalogDbContext.cs` — added ImageKey and VideoKey EF config (max 500 chars each)
+  - `WarpBusiness.Catalog/Data/Migrations/*AddImageAndVideoKeys*.cs` — EF migration
+  - `WarpBusiness.Api/Endpoints/CatalogImageEndpoints.cs` — endpoint file with image/video upload/delete/proxy logic (493 lines)
+  - `WarpBusiness.Api/Endpoints/CatalogEndpoints.cs` — updated DTOs with ImageKey and VideoKey parameters
+  - `WarpBusiness.Api/Program.cs` — registered CatalogImageEndpoints
+- **Build status:** ✅ API project builds successfully. Frontend build fails due to missing UI implementation (Geordi's responsibility).
+- **Next step:** Geordi needs to implement frontend media upload UI that references the missing methods in `Products.razor` for both images and videos.

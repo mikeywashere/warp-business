@@ -48,6 +48,32 @@
 - `ApiException` class in `UserApiClient.cs` parses JSON error bodies (`message`, `detail`, `title` fields) and provides fallback messages per status code
 - `UserApiClient.CreateUserAsync` reads response body on failure instead of using `EnsureSuccessStatusCode`, enabling user-friendly error display
 - `HandleFormSubmit` catches `ApiException` separately from generic exceptions for cleaner error messages
+- Catalog management UI at `/catalog/*` pages (Categories, Products, Colors, Sizes) — all require auth, use modal-based editing, follow consistent table + Actions column pattern
+- `CatalogApiClient` service wraps all catalog HTTP operations (categories, colors, sizes, products, variants) — pattern mirrors `UserApiClient`
+- Product variants support color + size combinations; variant SKU/price/stock are optional overrides of product defaults
+- Category hierarchy supported via `ParentCategoryId` (nullable) — shown with "↳" indent in table
+- Actions column header uses `style="width: 250px;"` per team convention for consistent button layout
+- Product images: `ImageKey` (string?) field on Product and ProductVariant DTOs stores MinIO object key, not full URL
+- Image display URL: `CatalogApiClient.GetImageUrl(imageKey)` returns `{apiBaseUrl}/api/catalog/images/{imageKey}` (proxy endpoint)
+- Product thumbnails: 48×48px, shown in product table and variant table with `.product-thumbnail` class
+- Image placeholder: emoji 📷 in `.no-image-placeholder` (48×48) or `.no-image-placeholder-sm` (36×36) for variants
+- Product modal: image upload section shown only when editing (editingProductId.HasValue), uses Blazor `<InputFile>` component
+- File validation: 5MB max size, accept="image/*", enforced in `HandleProductImageUpload` and `HandleVariantImageUpload` methods
+- Image upload flow: open stream (5MB limit), call API, update local state (`currentProductImageKey` or refresh variants), show success message
+- Variant image management: dedicated modal (`showVariantImageModal`) with thumbnail preview, Upload + Remove buttons
+- CSS: `.product-preview-image` (max 300×300px) for larger modal previews, maintains aspect ratio with `object-fit: contain`
+- Image methods: `GetProductImageUrl()`, `HandleProductImageUpload()`, `RemoveProductImage()`, `ShowVariantImageUpload()`, `HandleVariantImageUpload()`, `RemoveVariantImage()`
+- Variant image button in Actions column: 📷 emoji button with `.btn-outline-info` styling, opens variant image modal
+- Video support: Added VideoKey field to Product and ProductVariant DTOs alongside ImageKey
+- Video upload methods: `UploadProductVideoAsync()`, `UploadVariantVideoAsync()`, `DeleteProductVideoAsync()`, `DeleteVariantVideoAsync()` in CatalogApiClient
+- Video file limit: 500MB max (vs. 5MB for images), validated in upload handlers with `maxAllowedSize: 500L * 1024 * 1024`
+- Video display: HTML5 `<video>` tag with `controls` and `preload="metadata"` attributes, shown in product edit modal and variant media modal
+- Video upload UI: Separate section below image upload, shows "Uploading video..." spinner during upload (state: `isUploadingVideo`, `isUploadingVariantVideo`)
+- Video indicators in tables: 🎬 emoji badge (`.video-badge` or `.video-badge-sm`) shown alongside thumbnails when VideoKey is present
+- Video URL helper: `GetProductVideoUrl(videoKey)` returns `{apiBaseUrl}/api/catalog/videos/{videoKey}` (proxy endpoint, like images)
+- Video preview styling: `.product-video-preview` class (max 320px width, responsive, dark theme borders)
+- Variant media modal renamed conceptually: handles both images and videos (title still says "Variant Image" for brevity, but includes video section)
+- Large file upload note: Comment added in CatalogApiClient about API's `MaxResponseContentBufferSize` needing adjustment for large videos (Data's responsibility)
 - `TokenValidationParameters.RoleClaimType = "roles"` maps Keycloak's `roles` claim to .NET role claims, enabling `AuthorizeView Roles="..."` in Blazor components
 - **Tenant selection on user creation**: Add User form includes required tenant dropdown with type-ahead search; uses `TenantApiClient.GetTenantsAsync()` to populate options
 - **Type-ahead pattern**: Use `value="@field"` + `@oninput` (not `@bind` + `@oninput` together) to avoid Blazor RZ10008 duplicate attribute error

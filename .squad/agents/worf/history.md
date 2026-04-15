@@ -89,3 +89,20 @@
 - **Key Design Decisions**: Customer.BusinessId is nullable with SetNull on delete; Business entity has full address fields (Address, City, State, PostalCode, Country); multi-tenant scoping on all queries
 - **Test Results**: ✅ All 8 tests passing against PostgreSQL testcontainer in 15.2s
 - **Status:** ✅ Complete. Business endpoint tests ready for Data's implementation.
+
+### 2026-04-15: WarpBusiness.Storage.Tests Created
+
+- Created comprehensive unit test suite for `WarpBusiness.Storage` — Data's new MinIO file storage library
+- **Test Project**: `WarpBusiness.Storage.Tests` with net10.0 target, using xUnit 2.x, FluentAssertions 8.x, NSubstitute 5.x
+- **Test Strategy**: Unit tests with mocked `IMinioClient` interface — validates that `MinioFileStorageService` calls Minio SDK methods correctly and wraps exceptions appropriately
+- **Test Coverage (22 tests, all passing)**:
+  - **EnsureBucketExistsAsync (5 tests)**: Creates bucket when missing, skips creation when exists, wraps Minio exceptions as `InvalidOperationException`, propagates CancellationToken
+  - **UploadAsync (6 tests)**: Calls `PutObjectAsync` with correct args, handles explicit size vs stream.Length fallback, large stream handling, wraps exceptions, propagates CancellationToken
+  - **GetPresignedUrlAsync (3 tests)**: Returns presigned URL string, respects custom expiry parameter (default 3600s), wraps exceptions
+  - **DeleteAsync (3 tests)**: Calls `RemoveObjectAsync` correctly, wraps exceptions, propagates CancellationToken
+  - **Edge Cases (5 tests)**: Empty/whitespace bucket/object names trigger wrapped exceptions, CancellationToken cancellation triggers `InvalidOperationException` with `OperationCanceledException` inner
+- **NSubstitute Patterns**: Use `Task.FromResult()` for sync returns, `.Throws()` for sync exceptions (not `.ThrowsAsync()`), avoid checking internal Args object properties (not publicly accessible)
+- **Package Versions**: Matches `WarpBusiness.Api.Tests` exactly — Microsoft.NET.Test.Sdk 17.*, xUnit 2.*, FluentAssertions 8.*, NSubstitute 5.*
+- **Test Results**: ✅ All 22 tests passing in 3.4s
+- **Status:** ✅ Complete. Unit test coverage for MinioFileStorageService validated.
+

@@ -63,3 +63,51 @@
 - Create `warpbusiness-tenant-portal` client in Keycloak realm JSON
 - API endpoints for tenant self-service may need new routes
 - Signup flow needs API support for anonymous tenant registration
+
+### 2026-07-14: MinIO Image Storage Architecture
+
+**Architecture Decisions Made:**
+- SDK: `Minio` NuGet package (official MinIO .NET SDK) — direct, idiomatic, no S3 compatibility shim needed
+- Bucket: Single `warp-catalog` bucket with key prefix for tenant isolation
+- Object key format: `{tenantId}/products/{productId}/{uuid}.{ext}` — immutable, tenant-scoped
+- Upload flow: Client → API → MinIO (API as middleman) — simpler, validates auth/tenant before store
+- Image serving: API proxy endpoint (`GET /api/catalog/images/{key*}`) — keeps MinIO internal
+- Model changes: `ImageKey` nullable string on Product and ProductVariant — no separate entity
+
+**Key File Paths:**
+- `WarpBusiness.Catalog/Models/Product.cs` — add ImageKey property
+- `WarpBusiness.Catalog/Models/ProductVariant.cs` — add ImageKey property
+- `WarpBusiness.Catalog/Data/CatalogDbContext.cs` — no index needed for ImageKey (nullable, not unique)
+- `WarpBusiness.AppHost/AppHost.cs` — add MinIO container wiring
+- `WarpBusiness.Api/Endpoints/CatalogEndpoints.cs` — add image upload/proxy endpoints
+- `WarpBusiness.Api/Services/MinioService.cs` — new service for MinIO operations
+
+**Rationale:**
+- Minio SDK chosen over AWSSDK.S3 for direct MinIO features and simpler config
+- Single bucket with tenant prefix > bucket-per-tenant for operational simplicity
+- API proxy chosen to keep MinIO non-public and leverage existing auth
+- Deferred multi-image support (ProductImage entity) until actually needed
+
+### 2026-07-14: WarpBusiness.Storage Library Architecture
+
+**Architecture Decision Written:** `.squad/decisions/inbox/riker-storage-library.md`
+
+**Key Decisions:**
+- SDK: `Minio` NuGet (client) + `CommunityToolkit.Aspire.Hosting.Minio` (hosting) — clean Aspire integration
+- Buckets: Resource-type buckets (`warp-catalog`, `warp-logos`, `warp-documents`) not tenant buckets
+- Object keys: `{tenantId}/{resourceType}/{resourceId}/{uuid}.{ext}` pattern
+- CORS: Configure via MinIO API at API startup, not container init scripts
+
+**Interface Designed:**
+- `IFileStorageService` with: `UploadAsync`, `DownloadAsync`, `GetPresignedUrlAsync`, `DeleteAsync`, `EnsureBucketExistsAsync`, `ExistsAsync`
+- Both Stream download and presigned URL — caller decides based on use case
+
+**Project Structure:**
+- New library: `WarpBusiness.Storage/` (interface + MinIO implementation)
+- No DbContext — storage is stateless; image keys stored on existing entities
+- DI helper: `AddMinioStorage()` extension method
+
+**Gotchas Documented:**
+- Bucket creation should be lazy (first upload) not startup — MinIO may not be ready
+- CORS must be configured before first presigned PUT from browser
+- Always pass explicit contentType on upload
