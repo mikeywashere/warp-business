@@ -11,6 +11,7 @@ public record ProductMediaResponse(
     MediaType MediaType,
     string FileName,
     string ContentType,
+    string? Description,
     int SortOrder,
     DateTimeOffset CreatedAt);
 
@@ -61,6 +62,10 @@ public static class CatalogImageEndpoints
             .WithName("DeleteCatalogMedia")
             .RequireAuthorization();
 
+        media.MapPatch("/media/{mediaId:guid}/description", UpdateMediaDescription)
+            .WithName("UpdateCatalogMediaDescription")
+            .RequireAuthorization();
+
         media.MapGet("/media/{mediaId:guid}", GetMediaRedirect)
             .WithName("GetCatalogMediaRedirect")
             .AllowAnonymous();
@@ -69,6 +74,7 @@ public static class CatalogImageEndpoints
     private static async Task<IResult> UploadProductMedia(
         Guid productId,
         IFormFile file,
+        [Microsoft.AspNetCore.Mvc.FromForm] string? description,
         HttpContext httpContext,
         CatalogDbContext db,
         IFileStorageService storage,
@@ -106,6 +112,7 @@ public static class CatalogImageEndpoints
             MediaType = mediaType,
             FileName = file.FileName,
             ContentType = file.ContentType,
+            Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
             SortOrder = sortOrder,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -139,6 +146,7 @@ public static class CatalogImageEndpoints
     private static async Task<IResult> UploadVariantMedia(
         Guid variantId,
         IFormFile file,
+        [Microsoft.AspNetCore.Mvc.FromForm] string? description,
         HttpContext httpContext,
         CatalogDbContext db,
         IFileStorageService storage,
@@ -176,6 +184,7 @@ public static class CatalogImageEndpoints
             MediaType = mediaType,
             FileName = file.FileName,
             ContentType = file.ContentType,
+            Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
             SortOrder = sortOrder,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -204,6 +213,28 @@ public static class CatalogImageEndpoints
             .ToListAsync(cancellationToken);
 
         return Results.Ok(mediaList);
+    }
+
+    private static async Task<IResult> UpdateMediaDescription(
+        Guid mediaId,
+        UpdateMediaDescriptionRequest request,
+        HttpContext httpContext,
+        CatalogDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var item = await db.ProductMedia
+            .FirstOrDefaultAsync(m => m.Id == mediaId && m.TenantId == tenantId.Value, cancellationToken);
+        if (item is null)
+            return Results.NotFound(new { message = "Media not found." });
+
+        item.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.Ok(ToResponse(item));
     }
 
     private static async Task<IResult> DeleteMedia(
@@ -278,5 +309,7 @@ public static class CatalogImageEndpoints
     }
 
     private static ProductMediaResponse ToResponse(ProductMedia m) =>
-        new(m.Id, m.ObjectKey, m.MediaType, m.FileName, m.ContentType, m.SortOrder, m.CreatedAt);
+        new(m.Id, m.ObjectKey, m.MediaType, m.FileName, m.ContentType, m.Description, m.SortOrder, m.CreatedAt);
 }
+
+public record UpdateMediaDescriptionRequest(string? Description);

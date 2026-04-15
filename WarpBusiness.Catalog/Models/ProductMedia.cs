@@ -12,6 +12,7 @@ public class ProductMedia
     public MediaType MediaType { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public int SortOrder { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 

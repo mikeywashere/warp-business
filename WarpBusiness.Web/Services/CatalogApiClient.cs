@@ -160,6 +160,7 @@ public record ProductMediaResponse(
     MediaType MediaType,
     string FileName,
     string ContentType,
+    string? Description,
     int SortOrder,
     DateTimeOffset CreatedAt);
 
@@ -609,12 +610,14 @@ public class CatalogApiClient
         return await response.Content.ReadFromJsonAsync<List<ProductMediaResponse>>() ?? [];
     }
 
-    public async Task<ProductMediaResponse> UploadProductMediaAsync(Guid productId, Stream stream, string fileName, string contentType)
+    public async Task<ProductMediaResponse> UploadProductMediaAsync(Guid productId, Stream stream, string fileName, string contentType, string? description = null)
     {
         using var content = new MultipartFormDataContent();
         var streamContent = new StreamContent(stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         content.Add(streamContent, "file", fileName);
+        if (!string.IsNullOrWhiteSpace(description))
+            content.Add(new StringContent(description), "description");
 
         using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/products/{productId}/media", content);
         var response = await _httpClient.SendAsync(msg);
@@ -622,12 +625,14 @@ public class CatalogApiClient
         return (await response.Content.ReadFromJsonAsync<ProductMediaResponse>())!;
     }
 
-    public async Task<ProductMediaResponse> UploadVariantMediaAsync(Guid variantId, Stream stream, string fileName, string contentType)
+    public async Task<ProductMediaResponse> UploadVariantMediaAsync(Guid variantId, Stream stream, string fileName, string contentType, string? description = null)
     {
         using var content = new MultipartFormDataContent();
         var streamContent = new StreamContent(stream);
         streamContent.Headers.ContentType = new MediaTypeHeaderValue(contentType);
         content.Add(streamContent, "file", fileName);
+        if (!string.IsNullOrWhiteSpace(description))
+            content.Add(new StringContent(description), "description");
 
         using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/variants/{variantId}/media", content);
         var response = await _httpClient.SendAsync(msg);
@@ -640,6 +645,15 @@ public class CatalogApiClient
         using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/media/{mediaId}");
         var response = await _httpClient.SendAsync(msg);
         await ThrowOnErrorAsync(response, "DeleteMedia");
+    }
+
+    public async Task<ProductMediaResponse> UpdateMediaDescriptionAsync(Guid mediaId, string? description)
+    {
+        using var msg = CreateRequest(HttpMethod.Patch, $"api/catalog/media/{mediaId}/description",
+            JsonContent.Create(new { Description = description }));
+        var response = await _httpClient.SendAsync(msg);
+        await ThrowOnErrorAsync(response, "UpdateMediaDescription");
+        return (await response.Content.ReadFromJsonAsync<ProductMediaResponse>())!;
     }
 
     public string GetMediaUrl(Guid mediaId)

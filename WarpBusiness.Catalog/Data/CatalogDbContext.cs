@@ -212,6 +212,7 @@ public class CatalogDbContext : DbContext
             entity.Property(e => e.ObjectKey).HasMaxLength(500).IsRequired();
             entity.Property(e => e.FileName).HasMaxLength(500).IsRequired();
             entity.Property(e => e.ContentType).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.MediaType).HasConversion<string>();
 
             entity.HasOne(e => e.Product)

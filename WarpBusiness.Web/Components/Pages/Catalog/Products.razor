@@ -148,13 +148,32 @@
                                                             <div class="media-gallery-item">
                                                                 @if (m.MediaType == MediaType.Image)
                                                                 {
-                                                                    <img src="@CatalogApi.GetMediaUrl(m.Id)" class="media-gallery-thumb" alt="@m.FileName" />
+                                                                    <img src="@CatalogApi.GetMediaUrl(m.Id)" class="media-gallery-thumb" alt="@(m.Description ?? m.FileName)" />
                                                                 }
                                                                 else
                                                                 {
                                                                     <div class="media-gallery-video-card">
                                                                         <span class="media-type-icon">🎬</span>
                                                                         <span class="media-filename">@m.FileName</span>
+                                                                    </div>
+                                                                }
+                                                                @if (editingMediaId == m.Id)
+                                                                {
+                                                                    <div class="media-description-edit mt-1">
+                                                                        <input type="text" class="form-control form-control-sm" maxlength="500"
+                                                                               @bind="editingMediaDescription" placeholder="Description..." />
+                                                                        <div class="d-flex gap-1 mt-1">
+                                                                            <button type="button" class="btn btn-xs btn-success" @onclick="SaveMediaDescription">✓</button>
+                                                                            <button type="button" class="btn btn-xs btn-secondary" @onclick="CancelMediaDescriptionEdit">✕</button>
+                                                                        </div>
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <div class="media-item-footer mt-1">
+                                                                        <span class="media-description small text-muted">@(m.Description ?? "")</span>
+                                                                        <button type="button" class="btn btn-xs btn-outline-secondary ms-1"
+                                                                                title="Edit description" @onclick="() => StartMediaDescriptionEdit(m.Id, m.Description)">✎</button>
                                                                     </div>
                                                                 }
                                                                 <button type="button" class="btn btn-xs btn-outline-danger media-delete-btn"
@@ -168,6 +187,11 @@
                                                     <div class="mb-2 text-muted small">No media uploaded yet</div>
                                                 }
 
+                                                <div class="mb-2">
+                                                    <input type="text" class="form-control form-control-sm" maxlength="500"
+                                                           @bind="pendingProductMediaDescription"
+                                                           placeholder="Media description (optional — applies to all files in next upload)" />
+                                                </div>
                                                 <InputFile OnChange="@HandleProductMediaUpload" accept="image/*,video/mp4,video/webm,video/quicktime"
                                                            class="form-control" disabled="@(isSubmitting || isUploadingMedia)" multiple />
                                                 <div class="form-text">Images: max 5MB (JPG, PNG, WebP). Videos: max 500MB (MP4, WebM).</div>
@@ -512,13 +536,32 @@
                                             <div class="media-gallery-item">
                                                 @if (m.MediaType == MediaType.Image)
                                                 {
-                                                    <img src="@CatalogApi.GetMediaUrl(m.Id)" class="media-gallery-thumb" alt="@m.FileName" />
+                                                    <img src="@CatalogApi.GetMediaUrl(m.Id)" class="media-gallery-thumb" alt="@(m.Description ?? m.FileName)" />
                                                 }
                                                 else
                                                 {
                                                     <div class="media-gallery-video-card">
                                                         <span class="media-type-icon">🎬</span>
                                                         <span class="media-filename">@m.FileName</span>
+                                                    </div>
+                                                }
+                                                @if (editingMediaId == m.Id)
+                                                {
+                                                    <div class="media-description-edit mt-1">
+                                                        <input type="text" class="form-control form-control-sm" maxlength="500"
+                                                               @bind="editingMediaDescription" placeholder="Description..." />
+                                                        <div class="d-flex gap-1 mt-1">
+                                                            <button type="button" class="btn btn-xs btn-success" @onclick="SaveMediaDescription">✓</button>
+                                                            <button type="button" class="btn btn-xs btn-secondary" @onclick="CancelMediaDescriptionEdit">✕</button>
+                                                        </div>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <div class="media-item-footer mt-1">
+                                                        <span class="media-description small text-muted">@(m.Description ?? "")</span>
+                                                        <button type="button" class="btn btn-xs btn-outline-secondary ms-1"
+                                                                title="Edit description" @onclick="() => StartMediaDescriptionEdit(m.Id, m.Description)">✎</button>
                                                     </div>
                                                 }
                                                 <button type="button" class="btn btn-xs btn-outline-danger media-delete-btn"
@@ -532,6 +575,11 @@
                                     <div class="mb-2 text-muted small">No media uploaded yet</div>
                                 }
 
+                                <div class="mb-2">
+                                    <input type="text" class="form-control form-control-sm" maxlength="500"
+                                           @bind="pendingVariantMediaDescription"
+                                           placeholder="Media description (optional — applies to all files in next upload)" />
+                                </div>
                                 <InputFile OnChange="@HandleVariantMediaUpload" accept="image/*,video/mp4,video/webm,video/quicktime"
                                            class="form-control" disabled="@(isSubmitting || isUploadingVariantMedia)" multiple />
                                 <div class="form-text">Images: max 5MB (JPG, PNG, WebP). Videos: max 500MB (MP4, WebM).</div>
@@ -580,6 +628,11 @@
     private string searchTerm = "";
     private List<ProductMediaResponse>? currentProductMedia;
     private List<ProductMediaResponse>? currentVariantMedia;
+
+    private string pendingProductMediaDescription = "";
+    private string pendingVariantMediaDescription = "";
+    private Guid? editingMediaId;
+    private string editingMediaDescription = "";
 
     private ProductFormModel productForm = new();
     private VariantFormModel variantForm = new();
@@ -704,6 +757,9 @@
         showProductModal = false;
         editingProductId = null;
         currentProductMedia = null;
+        pendingProductMediaDescription = "";
+        editingMediaId = null;
+        editingMediaDescription = "";
         productForm = new ProductFormModel();
     }
 
@@ -893,12 +949,14 @@
         StateHasChanged();
         try
         {
+            var desc = string.IsNullOrWhiteSpace(pendingProductMediaDescription) ? null : pendingProductMediaDescription.Trim();
             foreach (var file in e.GetMultipleFiles(10))
             {
                 var maxSize = file.ContentType.StartsWith("video/") ? 500L * 1024 * 1024 : 5L * 1024 * 1024;
                 using var stream = file.OpenReadStream(maxAllowedSize: maxSize);
-                await CatalogApi.UploadProductMediaAsync(editingProductId.Value, stream, file.Name, file.ContentType);
+                await CatalogApi.UploadProductMediaAsync(editingProductId.Value, stream, file.Name, file.ContentType, desc);
             }
+            pendingProductMediaDescription = "";
             currentProductMedia = await CatalogApi.GetProductMediaAsync(editingProductId.Value);
             await LoadProducts();
             StateHasChanged();
@@ -933,12 +991,14 @@
         StateHasChanged();
         try
         {
+            var desc = string.IsNullOrWhiteSpace(pendingVariantMediaDescription) ? null : pendingVariantMediaDescription.Trim();
             foreach (var file in e.GetMultipleFiles(10))
             {
                 var maxSize = file.ContentType.StartsWith("video/") ? 500L * 1024 * 1024 : 5L * 1024 * 1024;
                 using var stream = file.OpenReadStream(maxAllowedSize: maxSize);
-                await CatalogApi.UploadVariantMediaAsync(selectedVariantForImage.Id, stream, file.Name, file.ContentType);
+                await CatalogApi.UploadVariantMediaAsync(selectedVariantForImage.Id, stream, file.Name, file.ContentType, desc);
             }
+            pendingVariantMediaDescription = "";
             currentVariantMedia = await CatalogApi.GetVariantMediaAsync(selectedVariantForImage.Id);
             await RefreshVariants();
             StateHasChanged();
@@ -964,6 +1024,40 @@
         catch (Exception ex) { variantImageError = $"Failed to remove media: {ex.Message}"; }
         finally { isSubmitting = false; }
     }
+
+    private void StartMediaDescriptionEdit(Guid mediaId, string? currentDescription)
+    {
+        editingMediaId = mediaId;
+        editingMediaDescription = currentDescription ?? "";
+    }
+
+    private void CancelMediaDescriptionEdit()
+    {
+        editingMediaId = null;
+        editingMediaDescription = "";
+    }
+
+    private async Task SaveMediaDescription()
+    {
+        if (!editingMediaId.HasValue) return;
+        try
+        {
+            var updated = await CatalogApi.UpdateMediaDescriptionAsync(editingMediaId.Value, editingMediaDescription);
+            if (currentProductMedia != null)
+            {
+                var idx = currentProductMedia.FindIndex(m => m.Id == updated.Id);
+                if (idx >= 0) currentProductMedia[idx] = updated;
+            }
+            if (currentVariantMedia != null)
+            {
+                var idx = currentVariantMedia.FindIndex(m => m.Id == updated.Id);
+                if (idx >= 0) currentVariantMedia[idx] = updated;
+            }
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Failed to update description: {ex.Message}"; }
+        finally { editingMediaId = null; editingMediaDescription = ""; }
+    }
     
     private void ShowVariantImageUpload(CatalogProductVariantResponse variant)
     {
@@ -984,6 +1078,9 @@
         selectedVariantForImage = null;
         variantImageError = null;
         currentVariantMedia = null;
+        pendingVariantMediaDescription = "";
+        editingMediaId = null;
+        editingMediaDescription = "";
     }
 
     // ── Form models ───────────────────────────────────────────────────────────
