@@ -231,17 +231,12 @@ public static class CatalogImageEndpoints
 
     private static async Task<IResult> GetMediaRedirect(
         Guid mediaId,
-        HttpContext httpContext,
         CatalogDbContext db,
         IFileStorageService storage,
         CancellationToken cancellationToken)
     {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
         var item = await db.ProductMedia
-            .FirstOrDefaultAsync(m => m.Id == mediaId && m.TenantId == tenantId.Value, cancellationToken);
+            .FirstOrDefaultAsync(m => m.Id == mediaId, cancellationToken);
         if (item is null)
             return Results.NotFound(new { message = "Media not found." });
 
