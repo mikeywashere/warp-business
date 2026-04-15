@@ -144,6 +144,8 @@ builder.Services.AddHttpClient<CrmApiClient>(configureApiClient)
 builder.Services.AddHttpClient<CatalogApiClient>(configureApiClient)
     .AddHttpMessageHandler<AuthTokenHandler>();
 
+builder.Services.AddSingleton<CatalogTemplateRenderer>();
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 

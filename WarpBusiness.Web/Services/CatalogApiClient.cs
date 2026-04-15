@@ -428,6 +428,15 @@ public class CatalogApiClient
         return await response.Content.ReadFromJsonAsync<List<CatalogProductResponse>>() ?? [];
     }
 
+    public async Task<CatalogProductResponse?> GetProductAsync(Guid id)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/catalog/products/{id}");
+        var response = await _httpClient.SendAsync(request);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<CatalogProductResponse>();
+    }
+
     public async Task<CatalogProductResponse> CreateProductAsync(CreateCatalogProductRequest req)
     {
         using var msg = CreateRequest(HttpMethod.Post, "api/catalog/products", JsonContent.Create(req));

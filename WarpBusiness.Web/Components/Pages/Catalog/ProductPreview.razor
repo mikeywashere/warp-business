@@ -1,0 +1,180 @@
+@page "/catalog/products/{id:guid}/preview"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject CatalogApiClient CatalogApi
+@inject CatalogTemplateRenderer TemplateRenderer
+@inject NavigationManager Navigation
+@inject Microsoft.JSInterop.IJSRuntime JS
+
+<PageTitle>Catalog Preview</PageTitle>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading preview…</span>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">
+        @errorMessage
+        <a href="/catalog/products" class="alert-link ms-2">← Back to Products</a>
+    </div>
+}
+else
+{
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <a href="/catalog/products" class="btn btn-sm btn-outline-secondary">← Products</a>
+        <div class="ms-2 me-auto">
+            <span class="text-muted" style="font-size:.85rem;">Catalog Preview — </span>
+            <strong>@productName</strong>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <label class="form-label mb-0 me-1" style="font-size:.85rem;">Template:</label>
+            <select class="form-select form-select-sm" style="width:auto;" @bind="selectedTemplate" @bind:after="RefreshPreview">
+                @foreach (var t in availableTemplates)
+                {
+                    <option value="@t">@t</option>
+                }
+            </select>
+            <button class="btn btn-sm btn-outline-primary" @onclick="() => PrintPreview()">🖨 Print</button>
+        </div>
+    </div>
+
+    <div class="catalog-preview-frame shadow-sm">
+        @((MarkupString)renderedHtml)
+    </div>
+}
+
+<style>
+    .catalog-preview-frame {
+        background: #f5f4f0;
+        border-radius: 4px;
+        padding: 0;
+        overflow: hidden;
+    }
+    @@media print {
+        .catalog-preview-frame { box-shadow: none !important; }
+        nav, header, .d-flex { display: none !important; }
+    }
+</style>
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private bool isLoading = true;
+    private string? errorMessage;
+    private string renderedHtml = "";
+    private string productName = "";
+    private string selectedTemplate = "default";
+    private List<string> availableTemplates = ["default"];
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        availableTemplates = TemplateRenderer.GetAvailableTemplates().ToList();
+        if (availableTemplates.Count > 0 && !availableTemplates.Contains(selectedTemplate))
+            selectedTemplate = availableTemplates[0];
+
+        await LoadPreviewAsync();
+    }
+
+    private async Task LoadPreviewAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var product = await CatalogApi.GetProductAsync(Id);
+            if (product is null)
+            {
+                errorMessage = "Product not found.";
+                return;
+            }
+
+            productName = product.Name;
+
+            var variants = await CatalogApi.GetVariantsAsync(Id);
+
+            var templateData = BuildTemplateData(product, variants);
+            renderedHtml = TemplateRenderer.Render(selectedTemplate, templateData);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load preview: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task RefreshPreview() => await LoadPreviewAsync();
+
+    private static object BuildTemplateData(CatalogProductResponse product, List<CatalogProductVariantResponse> variants)
+    {
+        var formattedBase = $"{product.Currency} {product.BasePrice:N2}";
+
+        return new
+        {
+            previewDate = DateTime.Now.ToString("MMMM d, yyyy"),
+            hasVariants = variants.Count > 0,
+            variantCount = variants.Count,
+            hasWarnings = product.Warnings is { Count: > 0 },
+            product = new
+            {
+                name = product.Name,
+                description = product.Description,
+                brand = product.Brand,
+                sku = product.SKU,
+                basePrice = product.BasePrice,
+                formattedPrice = formattedBase,
+                currency = product.Currency,
+                category = product.CategoryName,
+                productType = product.ProductTypeName,
+                isActive = product.IsActive,
+                thumbnailUrl = product.ThumbnailMediaId.HasValue
+                    ? null as string  // URL fetched separately; omit for simplicity in preview
+                    : null,
+                warnings = product.Warnings?.Select(w => new
+                {
+                    icon = w.Icon,
+                    name = w.Name,
+                    description = w.Description
+                }).ToList() ?? []
+            },
+            variants = variants.Select(v =>
+            {
+                var price = v.Price.HasValue
+                    ? $"{product.Currency} {v.Price.Value:N2}"
+                    : formattedBase;
+                return new
+                {
+                    sku = v.SKU,
+                    formattedPrice = price,
+                    stockQuantity = v.StockQuantity,
+                    lowStock = v.StockQuantity is >= 0 and <= 5,
+                    isActive = v.IsActive,
+                    hasAttributes = v.Attributes is { Count: > 0 },
+                    attributes = v.Attributes?.Select(a => new
+                    {
+                        name = a.AttributeTypeName,
+                        value = a.OptionValue ?? a.TextValue
+                              ?? (a.NumberValue.HasValue ? $"{a.NumberValue:G}{(!string.IsNullOrEmpty(a.Unit) ? " " + a.Unit : "")}" : ""),
+                        hexCode = a.OptionHexCode
+                    }).ToList() ?? []
+                };
+            }).ToList()
+        };
+    }
+
+    private async Task PrintPreview()
+    {
+        await JS.InvokeVoidAsync("eval", "window.print()");
+    }
+}

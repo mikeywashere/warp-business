@@ -427,6 +427,9 @@
                                         <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditProductModal(product)" title="Edit">
                                             Edit
                                         </button>
+                                        <button class="btn btn-sm btn-outline-info me-1" @onclick="() => NavigateToPreview(product.Id)" title="Catalog Preview">
+                                            Preview
+                                        </button>
                                         <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteProduct(product)" title="Delete">
                                             Delete
                                         </button>
@@ -875,6 +878,9 @@
     }
 
     // ── Media management ──────────────────────────────────────────────────────
+
+    private void NavigateToPreview(Guid productId)
+        => Navigation.NavigateTo($"/catalog/products/{productId}/preview");
 
     private string? GetProductImageUrl(Guid? mediaId)
         => mediaId.HasValue ? CatalogApi.GetMediaUrl(mediaId.Value) : null;

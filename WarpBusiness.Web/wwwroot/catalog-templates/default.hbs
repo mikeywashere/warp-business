@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{product.name}} — Catalog Preview</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@400;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Source Sans 3', 'Segoe UI', sans-serif; background: #f5f4f0; color: #1a1a1a; font-size: 14px; }
+  .page { max-width: 860px; margin: 24px auto; background: #fff; box-shadow: 0 2px 20px rgba(0,0,0,.12); }
+  /* Header */
+  .page-header { background: #1a1a2e; color: #fff; padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .page-header .brand { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; letter-spacing: .5px; }
+  .page-header .meta { font-size: 11px; opacity: .65; text-align: right; line-height: 1.6; }
+  /* Product hero */
+  .hero { display: flex; gap: 32px; padding: 32px; border-bottom: 1px solid #e8e6e0; }
+  .hero-image { flex: 0 0 220px; }
+  .hero-image img { width: 220px; height: 220px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd; }
+  .hero-image .no-image { width: 220px; height: 220px; background: #f0ede8; border: 1px dashed #ccc; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #aaa; font-size: 13px; }
+  .hero-info { flex: 1; }
+  .hero-info .category { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 6px; }
+  .hero-info h1 { font-family: 'Playfair Display', Georgia, serif; font-size: 28px; font-weight: 700; line-height: 1.2; margin-bottom: 8px; }
+  .hero-info .brand-name { color: #666; font-size: 13px; margin-bottom: 12px; }
+  .hero-info .price { font-size: 26px; font-weight: 700; color: #1a1a2e; margin-bottom: 12px; }
+  .hero-info .sku { font-size: 11px; color: #999; font-family: monospace; }
+  .hero-info .description { margin-top: 14px; font-size: 14px; line-height: 1.7; color: #444; }
+  .badge-active { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .badge-active.active { background: #d4f5e2; color: #176e3c; }
+  .badge-active.inactive { background: #fde8e8; color: #a02020; }
+  /* Section */
+  .section { padding: 24px 32px; border-bottom: 1px solid #e8e6e0; }
+  .section:last-child { border-bottom: none; }
+  .section-title { font-family: 'Playfair Display', Georgia, serif; font-size: 16px; font-weight: 700; margin-bottom: 16px; color: #1a1a2e; border-bottom: 2px solid #e8e6e0; padding-bottom: 6px; }
+  /* Variants */
+  .variants-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .variants-table th { background: #f5f4f0; padding: 8px 10px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #ddd; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .variants-table td { padding: 9px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  .variants-table tr:last-child td { border-bottom: none; }
+  .variants-table tr:hover td { background: #fafaf8; }
+  .color-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); margin-right: 5px; vertical-align: middle; }
+  .attr-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .attr-chip { background: #f0ede8; border: 1px solid #e0dcd4; border-radius: 3px; padding: 2px 7px; font-size: 11px; white-space: nowrap; }
+  .attr-chip .attr-name { color: #888; margin-right: 3px; }
+  .attr-chip .attr-val { font-weight: 600; color: #333; }
+  .price-cell { font-weight: 600; }
+  .stock-low { color: #b94a4a; font-weight: 600; }
+  /* Warnings */
+  .warnings-list { display: flex; flex-direction: column; gap: 8px; }
+  .warning-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: #fffbf0; border: 1px solid #f5dfa0; border-radius: 4px; }
+  .warning-icon { font-size: 16px; line-height: 1; }
+  .warning-text strong { font-size: 13px; }
+  .warning-text p { font-size: 12px; color: #666; margin-top: 2px; }
+  /* Footer */
+  .page-footer { background: #f5f4f0; padding: 12px 32px; text-align: right; font-size: 10px; color: #aaa; }
+  @media print {
+    body { background: white; }
+    .page { box-shadow: none; margin: 0; }
+    .page-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="brand">Product Catalog</div>
+    <div class="meta">
+      Preview generated {{previewDate}}<br>
+      {{#if product.productType}}Product Type: {{product.productType}}{{/if}}
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-image">
+      {{#if product.thumbnailUrl}}
+        <img src="{{product.thumbnailUrl}}" alt="{{product.name}}">
+      {{else}}
+        <div class="no-image">No image</div>
+      {{/if}}
+    </div>
+    <div class="hero-info">
+      {{#if product.category}}<div class="category">{{product.category}}</div>{{/if}}
+      <h1>{{product.name}}</h1>
+      {{#if product.brand}}<div class="brand-name">by {{product.brand}}</div>{{/if}}
+      <div class="price">{{product.formattedPrice}}</div>
+      {{#if product.sku}}<div class="sku">SKU: {{product.sku}}</div>{{/if}}
+      <div style="margin-top:8px;">
+        {{#if product.isActive}}
+          <span class="badge-active active">Active</span>
+        {{else}}
+          <span class="badge-active inactive">Inactive</span>
+        {{/if}}
+      </div>
+      {{#if product.description}}
+        <div class="description">{{product.description}}</div>
+      {{/if}}
+    </div>
+  </div>
+
+  <!-- Variants -->
+  {{#if hasVariants}}
+  <div class="section">
+    <div class="section-title">Variants ({{variantCount}})</div>
+    <table class="variants-table">
+      <thead>
+        <tr>
+          <th>Attributes</th>
+          <th>SKU</th>
+          <th>Price</th>
+          <th>Stock</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each variants}}
+        <tr>
+          <td>
+            {{#if hasAttributes}}
+              <div class="attr-list">
+                {{#each attributes}}
+                <span class="attr-chip">
+                  {{#if hexCode}}<span class="color-swatch" style="background:{{hexCode}};"></span>{{/if}}
+                  <span class="attr-name">{{name}}:</span>
+                  <span class="attr-val">{{value}}</span>
+                </span>
+                {{/each}}
+              </div>
+            {{else}}
+              <em style="color:#bbb;">Default</em>
+            {{/if}}
+          </td>
+          <td style="font-family:monospace;font-size:11px;color:#888;">{{sku}}</td>
+          <td class="price-cell">{{formattedPrice}}</td>
+          <td class="{{#if lowStock}}stock-low{{/if}}">{{stockQuantity}}</td>
+          <td>{{#if isActive}}<span class="badge-active active">Active</span>{{else}}<span class="badge-active inactive">Inactive</span>{{/if}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+  {{/if}}
+
+  <!-- Warnings -->
+  {{#if hasWarnings}}
+  <div class="section">
+    <div class="section-title">Warnings &amp; Notices</div>
+    <div class="warnings-list">
+      {{#each product.warnings}}
+      <div class="warning-item">
+        {{#if icon}}<div class="warning-icon">{{icon}}</div>{{/if}}
+        <div class="warning-text">
+          <strong>{{name}}</strong>
+          {{#if description}}<p>{{description}}</p>{{/if}}
+        </div>
+      </div>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  <div class="page-footer">Catalog Preview — For internal use only</div>
+</div>
+</body>
+</html>
