@@ -1034,7 +1034,7 @@
     private string? GetProductImageUrl(Guid? mediaId)
         => mediaId.HasValue ? CatalogApi.GetMediaUrl(mediaId.Value) : null;
 
-    private static object BuildPreviewTemplateData(CatalogProductResponse product, List<CatalogProductVariantResponse> variants)
+    private object BuildPreviewTemplateData(CatalogProductResponse product, List<CatalogProductVariantResponse> variants)
     {
         var formattedBase = $"{product.Currency} {product.BasePrice:N2}";
         return new
@@ -1055,7 +1055,9 @@
                 category = product.CategoryName,
                 productType = product.ProductTypeName,
                 isActive = product.IsActive,
-                thumbnailUrl = (string?)null,
+                thumbnailUrl = product.ThumbnailMediaId.HasValue
+                    ? CatalogApi.GetMediaUrl(product.ThumbnailMediaId.Value)
+                    : (string?)null,
                 warnings = product.Warnings?.Select(w => new
                 {
                     icon = w.Icon,

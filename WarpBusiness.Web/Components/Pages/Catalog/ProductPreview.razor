@@ -116,7 +116,7 @@ else
 
     private async Task RefreshPreview() => await LoadPreviewAsync();
 
-    private static object BuildTemplateData(CatalogProductResponse product, List<CatalogProductVariantResponse> variants)
+    private object BuildTemplateData(CatalogProductResponse product, List<CatalogProductVariantResponse> variants)
     {
         var formattedBase = $"{product.Currency} {product.BasePrice:N2}";
 
@@ -139,8 +139,8 @@ else
                 productType = product.ProductTypeName,
                 isActive = product.IsActive,
                 thumbnailUrl = product.ThumbnailMediaId.HasValue
-                    ? null as string  // URL fetched separately; omit for simplicity in preview
-                    : null,
+                    ? CatalogApi.GetMediaUrl(product.ThumbnailMediaId.Value)
+                    : (string?)null,
                 warnings = product.Warnings?.Select(w => new
                 {
                     icon = w.Icon,
