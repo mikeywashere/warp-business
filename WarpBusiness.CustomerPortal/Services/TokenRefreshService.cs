@@ -25,8 +25,8 @@ public class TokenRefreshService
         string refreshToken,
         CancellationToken cancellationToken = default)
     {
-        var keycloakUrl = _configuration["services:keycloak:https:0"]
-            ?? _configuration["services:keycloak:http:0"]
+        var keycloakUrl = _configuration["services:keycloak:http:0"]
+            ?? _configuration["services:keycloak:https:0"]
             ?? "http://localhost:8080";
         var tokenEndpoint = $"{keycloakUrl}/realms/warpbusiness/protocol/openid-connect/token";
 

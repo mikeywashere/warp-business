@@ -28,8 +28,8 @@ builder.Services.AddAuthentication(options =>
 })
 .AddOpenIdConnect(options =>
 {
-    var keycloakUrl = builder.Configuration["services:keycloak:https:0"]
-        ?? builder.Configuration["services:keycloak:http:0"]
+    var keycloakUrl = builder.Configuration["services:keycloak:http:0"]
+        ?? builder.Configuration["services:keycloak:https:0"]
         ?? "http://localhost:8080";
 
     options.Authority = $"{keycloakUrl}/realms/warpbusiness";
