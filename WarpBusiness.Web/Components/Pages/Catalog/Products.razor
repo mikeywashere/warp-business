@@ -1,0 +1,665 @@
+@page "/catalog/products"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject CatalogApiClient CatalogApi
+@inject NavigationManager Navigation
+
+<PageTitle>Product Catalog</PageTitle>
+
+<h1 class="mb-4">Product Catalog</h1>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            @* Add / Edit Product Modal *@
+            @if (showProductModal)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">@(editingProductId.HasValue ? "Edit Product" : "Add Product")</h5>
+                                <button type="button" class="btn-close" @onclick="CloseProductModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <EditForm Model="productForm" OnValidSubmit="HandleProductSubmit" FormName="productForm">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary class="text-danger mb-3" />
+                                    <div class="row g-3">
+                                        <div class="col-md-8">
+                                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                                            <InputText @bind-Value="productForm.Name" class="form-control" />
+                                            <ValidationMessage For="() => productForm.Name" class="text-danger" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">SKU</label>
+                                            <InputText @bind-Value="productForm.SKU" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Brand</label>
+                                            <InputText @bind-Value="productForm.Brand" class="form-control" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Category</label>
+                                            <InputSelect @bind-Value="productForm.CategoryId" class="form-select">
+                                                <option value="">— No category —</option>
+                                                @foreach (var cat in categories ?? [])
+                                                {
+                                                    <option value="@cat.Id">@cat.Name</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Base Price <span class="text-danger">*</span></label>
+                                            <InputNumber @bind-Value="productForm.BasePrice" class="form-control" />
+                                            <ValidationMessage For="() => productForm.BasePrice" class="text-danger" />
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Currency <span class="text-danger">*</span></label>
+                                            <InputText @bind-Value="productForm.Currency" class="form-control" placeholder="USD" maxlength="3" />
+                                            <ValidationMessage For="() => productForm.Currency" class="text-danger" />
+                                        </div>
+                                        @if (editingProductId.HasValue)
+                                        {
+                                            <div class="col-md-4">
+                                                <label class="form-label">Status</label>
+                                                <div class="form-check form-switch mt-2">
+                                                    <InputCheckbox @bind-Value="productForm.IsActive" class="form-check-input" id="productActiveSwitch" />
+                                                    <label class="form-check-label" for="productActiveSwitch">
+                                                        @(productForm.IsActive ? "Active" : "Inactive")
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        }
+                                        <div class="col-12">
+                                            <label class="form-label">Description</label>
+                                            <InputTextArea @bind-Value="productForm.Description" class="form-control" rows="3" />
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                            @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
+                                            @(editingProductId.HasValue ? "Update Product" : "Create Product")
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CloseProductModal">Cancel</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* Variant Management Modal *@
+            @if (showVariantsModal && selectedProduct != null)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Variants — @selectedProduct.Name</h5>
+                                <button type="button" class="btn-close" @onclick="CloseVariantsModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                @if (!string.IsNullOrEmpty(variantError))
+                                {
+                                    <div class="alert alert-danger alert-dismissible fade show">
+                                        @variantError
+                                        <button type="button" class="btn-close" @onclick="() => variantError = null"></button>
+                                    </div>
+                                }
+
+                                @* Add/Edit Variant Form *@
+                                <div class="card mb-3">
+                                    <div class="card-header">@(editingVariantId.HasValue ? "Edit Variant" : "Add Variant")</div>
+                                    <div class="card-body">
+                                        <EditForm Model="variantForm" OnValidSubmit="HandleVariantSubmit" FormName="variantForm">
+                                            <div class="row g-2">
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Color</label>
+                                                    <InputSelect @bind-Value="variantForm.ColorId" class="form-select">
+                                                        <option value="">— None —</option>
+                                                        @foreach (var color in colors?.Where(c => c.IsActive) ?? [])
+                                                        {
+                                                            <option value="@color.Id">@color.Name</option>
+                                                        }
+                                                    </InputSelect>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label">Size</label>
+                                                    <InputSelect @bind-Value="variantForm.SizeId" class="form-select">
+                                                        <option value="">— None —</option>
+                                                        @foreach (var grp in (sizes?.Where(s => s.IsActive) ?? []).GroupBy(s => s.SizeType))
+                                                        {
+                                                            <optgroup label="@grp.Key">
+                                                                @foreach (var s in grp.OrderBy(s => s.SortOrder))
+                                                                {
+                                                                    <option value="@s.Id">@s.Name</option>
+                                                                }
+                                                            </optgroup>
+                                                        }
+                                                    </InputSelect>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">SKU</label>
+                                                    <InputText @bind-Value="variantForm.SKU" class="form-control" />
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Price Override</label>
+                                                    <InputNumber @bind-Value="variantForm.Price" class="form-control" />
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label">Stock Qty</label>
+                                                    <InputNumber @bind-Value="variantForm.StockQuantity" class="form-control" />
+                                                </div>
+                                            </div>
+                                            <div class="mt-2">
+                                                <button type="submit" class="btn btn-sm btn-primary" disabled="@isSubmitting">
+                                                    @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
+                                                    @(editingVariantId.HasValue ? "Update" : "Add Variant")
+                                                </button>
+                                                @if (editingVariantId.HasValue)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" @onclick="CancelVariantEdit">Cancel Edit</button>
+                                                }
+                                            </div>
+                                        </EditForm>
+                                    </div>
+                                </div>
+
+                                @* Variants Table *@
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped">
+                                        <thead class="table-dark">
+                                            <tr>
+                                                <th>Color</th>
+                                                <th>Size</th>
+                                                <th>SKU</th>
+                                                <th>Price</th>
+                                                <th>Stock</th>
+                                                <th>Status</th>
+                                                <th style="width: 250px;">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @if (selectedVariants is { Count: > 0 })
+                                            {
+                                                @foreach (var v in selectedVariants)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            @if (v.ColorName != null)
+                                                            {
+                                                                <span>
+                                                                    @if (!string.IsNullOrEmpty(v.ColorHex))
+                                                                    {
+                                                                        <span style="display:inline-block;width:14px;height:14px;background:@v.ColorHex;border:1px solid #555;border-radius:3px;vertical-align:middle;margin-right:4px;"></span>
+                                                                    }
+                                                                    @v.ColorName
+                                                                </span>
+                                                            }
+                                                            else { <span class="text-muted">—</span> }
+                                                        </td>
+                                                        <td>@(v.SizeName ?? "—")</td>
+                                                        <td><code>@(v.SKU ?? "—")</code></td>
+                                                        <td>
+                                                            @if (v.Price.HasValue)
+                                                            { <span>@v.Price.Value.ToString("F2") @selectedProduct.Currency</span> }
+                                                            else
+                                                            { <span class="text-muted">Base (@selectedProduct.BasePrice.ToString("F2"))</span> }
+                                                        </td>
+                                                        <td>@v.StockQuantity</td>
+                                                        <td>
+                                                            <span class="badge @(v.IsActive ? "bg-success" : "bg-secondary")">
+                                                                @(v.IsActive ? "Active" : "Inactive")
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditVariant(v)">Edit</button>
+                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteVariantAsync(v)">Delete</button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <tr><td colspan="7" class="text-center text-muted py-3">No variants yet. Add one above.</td></tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* Product List *@
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Products (@(FilteredProducts.Count)@(!string.IsNullOrWhiteSpace(searchTerm) ? $" of {products?.Count ?? 0}" : ""))</h5>
+                <button class="btn btn-primary" @onclick="ShowAddProductModal">
+                    <span class="bi bi-plus-lg me-1"></span> Add Product
+                </button>
+            </div>
+
+            <div class="mb-3">
+                <input type="text" class="form-control" placeholder="Search by name, brand, or SKU..."
+                       @bind="searchTerm" @bind:event="oninput" />
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Name</th>
+                            <th>Brand</th>
+                            <th>SKU</th>
+                            <th>Category</th>
+                            <th>Base Price</th>
+                            <th>Variants</th>
+                            <th>Status</th>
+                            <th style="width: 250px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (FilteredProducts is { Count: > 0 })
+                        {
+                            @foreach (var product in FilteredProducts)
+                            {
+                                <tr>
+                                    <td>@product.Name</td>
+                                    <td>@(product.Brand ?? "—")</td>
+                                    <td><code>@(product.SKU ?? "—")</code></td>
+                                    <td>@(product.CategoryName ?? "—")</td>
+                                    <td>@product.BasePrice.ToString("F2") @product.Currency</td>
+                                    <td>
+                                        <span class="badge bg-info text-dark">@product.VariantCount</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(product.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(product.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => OpenVariantsModal(product)" title="Manage Variants">
+                                            Variants
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditProductModal(product)" title="Edit">
+                                            Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteProduct(product)" title="Delete">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center text-muted py-4">
+                                    @(string.IsNullOrWhiteSpace(searchTerm) ? "No products found." : "No products match your search.")
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* Delete Confirmation Modal *@
+            @if (showDeleteConfirm && deleteProductCandidate != null)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Confirm Delete</h5>
+                                <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Delete <strong>@deleteProductCandidate.Name</strong>?</p>
+                                @if (deleteProductCandidate.VariantCount > 0)
+                                {
+                                    <p class="text-warning">This will also delete all <strong>@deleteProductCandidate.VariantCount</strong> variant(s).</p>
+                                }
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                                <button type="button" class="btn btn-danger" @onclick="ExecuteDeleteProduct" disabled="@isSubmitting">
+                                    @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-warning">
+            <h4>Access Denied</h4>
+            <p>You must be logged in. <a href="/login">Login</a></p>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<CatalogProductResponse>? products;
+    private List<CatalogCategoryResponse>? categories;
+    private List<CatalogColorResponse>? colors;
+    private List<CatalogSizeResponse>? sizes;
+    private List<CatalogProductVariantResponse>? selectedVariants;
+    private CatalogProductResponse? selectedProduct;
+
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool showProductModal;
+    private bool showVariantsModal;
+    private bool showDeleteConfirm;
+
+    private Guid? editingProductId;
+    private Guid? editingVariantId;
+    private CatalogProductResponse? deleteProductCandidate;
+
+    private string? errorMessage;
+    private string? successMessage;
+    private string? variantError;
+    private string searchTerm = "";
+
+    private ProductFormModel productForm = new();
+    private VariantFormModel variantForm = new();
+
+    private List<CatalogProductResponse> FilteredProducts =>
+        products?.Where(p =>
+            string.IsNullOrWhiteSpace(searchTerm) ||
+            p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+            (p.Brand?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (p.SKU?.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ?? false)
+        ).ToList() ?? [];
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(TokenProvider.SelectedTenantId))
+        {
+            Navigation.NavigateTo("/select-tenant");
+            return;
+        }
+        await Task.WhenAll(LoadProducts(), LoadCategories(), LoadColors(), LoadSizes());
+        isLoading = false;
+    }
+
+    private async Task LoadProducts()
+    {
+        try { products = await CatalogApi.GetProductsAsync(); }
+        catch (Exception ex) { errorMessage = $"Failed to load products: {ex.Message}"; }
+    }
+
+    private async Task LoadCategories()
+    {
+        try { categories = await CatalogApi.GetCategoriesAsync(); }
+        catch { /* non-critical */ }
+    }
+
+    private async Task LoadColors()
+    {
+        try { colors = await CatalogApi.GetColorsAsync(); }
+        catch { /* non-critical */ }
+    }
+
+    private async Task LoadSizes()
+    {
+        try { sizes = await CatalogApi.GetSizesAsync(); }
+        catch { /* non-critical */ }
+    }
+
+    // ── Product modal ─────────────────────────────────────────────────────────
+
+    private void ShowAddProductModal()
+    {
+        productForm = new ProductFormModel { Currency = "USD" };
+        editingProductId = null;
+        showProductModal = true;
+    }
+
+    private void ShowEditProductModal(CatalogProductResponse product)
+    {
+        productForm = new ProductFormModel
+        {
+            Name = product.Name,
+            Description = product.Description,
+            Brand = product.Brand,
+            SKU = product.SKU,
+            BasePrice = product.BasePrice,
+            Currency = product.Currency,
+            CategoryId = product.CategoryId?.ToString(),
+            IsActive = product.IsActive
+        };
+        editingProductId = product.Id;
+        showProductModal = true;
+    }
+
+    private void CloseProductModal()
+    {
+        showProductModal = false;
+        editingProductId = null;
+        productForm = new ProductFormModel();
+    }
+
+    private async Task HandleProductSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            var categoryId = Guid.TryParse(productForm.CategoryId, out var catGuid) ? (Guid?)catGuid : null;
+
+            if (editingProductId.HasValue)
+            {
+                await CatalogApi.UpdateProductAsync(editingProductId.Value, new UpdateCatalogProductRequest(
+                    productForm.Name!, productForm.BasePrice, productForm.Currency!,
+                    productForm.Description, productForm.Brand, productForm.SKU,
+                    categoryId, productForm.IsActive));
+                successMessage = "Product updated.";
+            }
+            else
+            {
+                await CatalogApi.CreateProductAsync(new CreateCatalogProductRequest(
+                    productForm.Name!, productForm.BasePrice, productForm.Currency!,
+                    productForm.Description, productForm.Brand, productForm.SKU, categoryId));
+                successMessage = "Product created.";
+            }
+            CloseProductModal();
+            await LoadProducts();
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    // ── Delete product ────────────────────────────────────────────────────────
+
+    private void ConfirmDeleteProduct(CatalogProductResponse product)
+    {
+        deleteProductCandidate = product;
+        showDeleteConfirm = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirm = false;
+        deleteProductCandidate = null;
+    }
+
+    private async Task ExecuteDeleteProduct()
+    {
+        if (deleteProductCandidate is null) return;
+        isSubmitting = true;
+        try
+        {
+            await CatalogApi.DeleteProductAsync(deleteProductCandidate.Id);
+            successMessage = "Product deleted.";
+            CancelDelete();
+            await LoadProducts();
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    // ── Variants modal ────────────────────────────────────────────────────────
+
+    private async Task OpenVariantsModal(CatalogProductResponse product)
+    {
+        selectedProduct = product;
+        editingVariantId = null;
+        variantForm = new VariantFormModel();
+        variantError = null;
+        showVariantsModal = true;
+        await RefreshVariants();
+    }
+
+    private void CloseVariantsModal()
+    {
+        showVariantsModal = false;
+        selectedProduct = null;
+        selectedVariants = null;
+        editingVariantId = null;
+    }
+
+    private async Task RefreshVariants()
+    {
+        if (selectedProduct is null) return;
+        try { selectedVariants = await CatalogApi.GetVariantsAsync(selectedProduct.Id); }
+        catch (Exception ex) { variantError = $"Failed to load variants: {ex.Message}"; }
+    }
+
+    private void EditVariant(CatalogProductVariantResponse v)
+    {
+        editingVariantId = v.Id;
+        variantForm = new VariantFormModel
+        {
+            ColorId = v.ColorId?.ToString(),
+            SizeId = v.SizeId?.ToString(),
+            SKU = v.SKU,
+            Price = v.Price,
+            StockQuantity = v.StockQuantity
+        };
+    }
+
+    private void CancelVariantEdit()
+    {
+        editingVariantId = null;
+        variantForm = new VariantFormModel();
+    }
+
+    private async Task HandleVariantSubmit()
+    {
+        if (selectedProduct is null) return;
+        isSubmitting = true;
+        variantError = null;
+        try
+        {
+            var colorId = Guid.TryParse(variantForm.ColorId, out var cg) ? (Guid?)cg : null;
+            var sizeId = Guid.TryParse(variantForm.SizeId, out var sg) ? (Guid?)sg : null;
+
+            if (editingVariantId.HasValue)
+            {
+                await CatalogApi.UpdateVariantAsync(selectedProduct.Id, editingVariantId.Value,
+                    new UpdateCatalogVariantRequest(colorId, sizeId, variantForm.SKU, variantForm.Price, variantForm.StockQuantity));
+            }
+            else
+            {
+                await CatalogApi.CreateVariantAsync(selectedProduct.Id,
+                    new CreateCatalogVariantRequest(colorId, sizeId, variantForm.SKU, variantForm.Price, variantForm.StockQuantity));
+            }
+            CancelVariantEdit();
+            await RefreshVariants();
+            await LoadProducts(); // refresh variant count
+        }
+        catch (ApiException ex) { variantError = ex.Message; }
+        catch (Exception ex) { variantError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task DeleteVariantAsync(CatalogProductVariantResponse v)
+    {
+        if (selectedProduct is null) return;
+        isSubmitting = true;
+        variantError = null;
+        try
+        {
+            await CatalogApi.DeleteVariantAsync(selectedProduct.Id, v.Id);
+            await RefreshVariants();
+            await LoadProducts();
+        }
+        catch (ApiException ex) { variantError = ex.Message; }
+        catch (Exception ex) { variantError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    // ── Form models ───────────────────────────────────────────────────────────
+
+    private class ProductFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(500)]
+        public string? Name { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(4000)]
+        public string? Description { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string? Brand { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(100)]
+        public string? SKU { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.Range(0, 9999999999)]
+        public decimal BasePrice { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(3)]
+        public string? Currency { get; set; } = "USD";
+
+        public string? CategoryId { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    private class VariantFormModel
+    {
+        public string? ColorId { get; set; }
+        public string? SizeId { get; set; }
+        public string? SKU { get; set; }
+        public decimal? Price { get; set; }
+        public int StockQuantity { get; set; }
+    }
+}

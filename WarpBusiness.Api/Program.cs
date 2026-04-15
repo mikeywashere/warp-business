@@ -3,6 +3,7 @@ using WarpBusiness.Api.Data;
 using WarpBusiness.Api.Endpoints;
 using WarpBusiness.Api.Models;
 using WarpBusiness.Api.Services;
+using WarpBusiness.Catalog.Data;
 using WarpBusiness.Crm.Data;
 using WarpBusiness.Employees.Data;
 using WarpBusiness.Employees.Endpoints;
@@ -16,6 +17,7 @@ builder.AddServiceDefaults();
 builder.AddNpgsqlDbContext<WarpBusinessDbContext>("warpdb");
 builder.AddNpgsqlDbContext<EmployeeDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CrmDbContext>("warpdb");
+builder.AddNpgsqlDbContext<CatalogDbContext>("warpdb");
 
 builder.Services.AddScoped<IUserValidator, UserValidator>();
 
@@ -125,6 +127,7 @@ builder.Services.AddHttpClient<KeycloakAdminService>(client =>
 builder.Services.AddHostedService<DbInitializer>();
 builder.Services.AddHostedService<EmployeeDbInitializer>();
 builder.Services.AddHostedService<CrmDbInitializer>();
+builder.Services.AddHostedService<CatalogDbInitializer>();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -262,6 +265,9 @@ app.MapUserEndpoints();
 // Tenant management API endpoints
 app.MapTenantEndpoints();
 
+// Tenant request management API endpoints
+app.MapTenantRequestEndpoints();
+
 // Employee management API endpoints
 app.MapEmployeeEndpoints();
 
@@ -276,6 +282,9 @@ app.MapCustomerEndpoints();
 
 // Business management API endpoints
 app.MapBusinessEndpoints();
+
+// Catalog management API endpoints
+app.MapCatalogEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();

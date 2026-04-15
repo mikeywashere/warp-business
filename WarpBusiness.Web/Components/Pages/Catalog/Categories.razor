@@ -1,0 +1,283 @@
+@page "/catalog/categories"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject CatalogApiClient CatalogApi
+@inject NavigationManager Navigation
+
+<PageTitle>Catalog Categories</PageTitle>
+
+<h1 class="mb-4">Catalog Categories</h1>
+
+<AuthorizeView>
+    <Authorized Context="authContext">
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            @if (showFormModal)
+            {
+                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">@(editingId.HasValue ? "Edit Category" : "Add Category")</h5>
+                                <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <EditForm Model="formModel" OnValidSubmit="HandleSubmit" FormName="categoryForm">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary class="text-danger mb-3" />
+                                    <div class="row g-3">
+                                        <div class="col-12">
+                                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                                            <InputText @bind-Value="formModel.Name" class="form-control" />
+                                            <ValidationMessage For="() => formModel.Name" class="text-danger" />
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Parent Category</label>
+                                            <InputSelect @bind-Value="formModel.ParentCategoryId" class="form-select">
+                                                <option value="">— Root category —</option>
+                                                @foreach (var cat in EligibleParents)
+                                                {
+                                                    <option value="@cat.Id">@cat.Name</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label">Description</label>
+                                            <InputTextArea @bind-Value="formModel.Description" class="form-control" rows="2" />
+                                        </div>
+                                        @if (editingId.HasValue)
+                                        {
+                                            <div class="col-12">
+                                                <div class="form-check form-switch">
+                                                    <InputCheckbox @bind-Value="formModel.IsActive" class="form-check-input" id="catActiveSwitch" />
+                                                    <label class="form-check-label" for="catActiveSwitch">
+                                                        @(formModel.IsActive ? "Active" : "Inactive")
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="mt-3">
+                                        <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                            @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
+                                            @(editingId.HasValue ? "Update Category" : "Create Category")
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CloseModal">Cancel</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="mb-0">Categories (@(categories?.Count ?? 0))</h5>
+                <button class="btn btn-primary" @onclick="ShowAddModal">
+                    <span class="bi bi-plus-lg me-1"></span> Add Category
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Name</th>
+                            <th>Parent</th>
+                            <th>Description</th>
+                            <th>Sub-categories</th>
+                            <th>Products</th>
+                            <th>Status</th>
+                            <th style="width: 250px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (categories is { Count: > 0 })
+                        {
+                            @foreach (var cat in categories.OrderBy(c => c.ParentCategoryId.HasValue ? 1 : 0).ThenBy(c => c.Name))
+                            {
+                                <tr>
+                                    <td>
+                                        @if (cat.ParentCategoryId.HasValue)
+                                        {
+                                            <span class="ms-3">↳ @cat.Name</span>
+                                        }
+                                        else
+                                        {
+                                            <strong>@cat.Name</strong>
+                                        }
+                                    </td>
+                                    <td>@(GetParentName(cat.ParentCategoryId) ?? "—")</td>
+                                    <td class="text-truncate" style="max-width:200px;">@(cat.Description ?? "—")</td>
+                                    <td><span class="badge bg-secondary">@cat.SubCategoryCount</span></td>
+                                    <td><span class="badge bg-info text-dark">@cat.ProductCount</span></td>
+                                    <td>
+                                        <span class="badge @(cat.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(cat.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditModal(cat)">Edit</button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteCategory(cat)">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr><td colspan="7" class="text-center text-muted py-4">No categories defined yet.</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-warning"><h4>Access Denied</h4><p>You must be logged in. <a href="/login">Login</a></p></div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<CatalogCategoryResponse>? categories;
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private bool showFormModal;
+    private Guid? editingId;
+    private string? errorMessage;
+    private string? successMessage;
+    private CategoryFormModel formModel = new();
+
+    // Exclude the category being edited from parent choices (prevents self-reference)
+    private IEnumerable<CatalogCategoryResponse> EligibleParents =>
+        categories?.Where(c => c.Id != editingId) ?? [];
+
+    private string? GetParentName(Guid? parentId) =>
+        parentId.HasValue ? categories?.FirstOrDefault(c => c.Id == parentId.Value)?.Name : null;
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(TokenProvider.SelectedTenantId))
+        {
+            Navigation.NavigateTo("/select-tenant");
+            return;
+        }
+        await LoadCategories();
+        isLoading = false;
+    }
+
+    private async Task LoadCategories()
+    {
+        try { categories = await CatalogApi.GetCategoriesAsync(); }
+        catch (Exception ex) { errorMessage = $"Failed to load categories: {ex.Message}"; }
+    }
+
+    private void ShowAddModal()
+    {
+        formModel = new CategoryFormModel();
+        editingId = null;
+        showFormModal = true;
+    }
+
+    private void ShowEditModal(CatalogCategoryResponse cat)
+    {
+        formModel = new CategoryFormModel
+        {
+            Name = cat.Name,
+            Description = cat.Description,
+            ParentCategoryId = cat.ParentCategoryId?.ToString(),
+            IsActive = cat.IsActive
+        };
+        editingId = cat.Id;
+        showFormModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showFormModal = false;
+        editingId = null;
+        formModel = new CategoryFormModel();
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            var parentId = Guid.TryParse(formModel.ParentCategoryId, out var pg) ? (Guid?)pg : null;
+
+            if (editingId.HasValue)
+            {
+                await CatalogApi.UpdateCategoryAsync(editingId.Value,
+                    new UpdateCatalogCategoryRequest(formModel.Name!, formModel.Description, parentId, formModel.IsActive));
+                successMessage = "Category updated.";
+            }
+            else
+            {
+                await CatalogApi.CreateCategoryAsync(
+                    new CreateCatalogCategoryRequest(formModel.Name!, formModel.Description, parentId));
+                successMessage = "Category created.";
+            }
+            CloseModal();
+            await LoadCategories();
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task DeleteCategory(CatalogCategoryResponse cat)
+    {
+        isSubmitting = true;
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            var msg = await CatalogApi.DeleteCategoryAsync(cat.Id);
+            successMessage = msg ?? "Category deleted.";
+            await LoadCategories();
+        }
+        catch (ApiException ex) { errorMessage = ex.Message; }
+        catch (Exception ex) { errorMessage = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private class CategoryFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required]
+        [System.ComponentModel.DataAnnotations.MaxLength(200)]
+        public string? Name { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(1000)]
+        public string? Description { get; set; }
+
+        public string? ParentCategoryId { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+}
