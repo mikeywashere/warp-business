@@ -5,8 +5,6 @@ public class ProductVariant
     public Guid Id { get; set; }
     public Guid ProductId { get; set; }
     public Guid TenantId { get; set; }
-    public Guid? ColorId { get; set; }
-    public Guid? SizeId { get; set; }
     /// <summary>
     /// Child SKU for this specific variant. When null, the parent product SKU applies.
     /// Must be unique within the tenant when set.
@@ -20,7 +18,6 @@ public class ProductVariant
     public DateTimeOffset UpdatedAt { get; set; }
 
     public Product Product { get; set; } = null!;
-    public Color? Color { get; set; }
-    public Size? Size { get; set; }
+    public ICollection<ProductVariantAttributeValue> AttributeValues { get; set; } = [];
     public ICollection<ProductMedia> Media { get; set; } = [];
 }

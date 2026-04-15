@@ -10,11 +10,16 @@ public class CatalogDbContext : DbContext
     }
 
     public DbSet<Category> Categories => Set<Category>();
-    public DbSet<Color> Colors => Set<Color>();
-    public DbSet<Size> Sizes => Set<Size>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
     public DbSet<ProductMedia> ProductMedia => Set<ProductMedia>();
+    public DbSet<ProductType> ProductTypes => Set<ProductType>();
+    public DbSet<ProductTypeAttribute> ProductTypeAttributes => Set<ProductTypeAttribute>();
+    public DbSet<CatalogAttributeType> AttributeTypes => Set<CatalogAttributeType>();
+    public DbSet<CatalogAttributeOption> AttributeOptions => Set<CatalogAttributeOption>();
+    public DbSet<ProductVariantAttributeValue> VariantAttributeValues => Set<ProductVariantAttributeValue>();
+    public DbSet<CatalogWarning> Warnings => Set<CatalogWarning>();
+    public DbSet<ProductWarning> ProductWarnings => Set<ProductWarning>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,13 +36,11 @@ public class CatalogDbContext : DbContext
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
-            // Root categories: unique name per tenant
             entity.HasIndex(e => new { e.TenantId, e.Name })
                 .IsUnique()
                 .HasFilter("\"ParentCategoryId\" IS NULL")
                 .HasDatabaseName("IX_Categories_TenantId_Name_Root");
 
-            // Sub-categories: unique name within parent
             entity.HasIndex(e => new { e.TenantId, e.ParentCategoryId, e.Name })
                 .IsUnique()
                 .HasFilter("\"ParentCategoryId\" IS NOT NULL")
@@ -49,26 +52,82 @@ public class CatalogDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<Color>(entity =>
+        modelBuilder.Entity<ProductType>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.Name, e.TenantId }).IsUnique();
             entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.TenantId, e.Name }).IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.HexCode).HasMaxLength(7).IsFixedLength(false);
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
         });
 
-        modelBuilder.Entity<Size>(entity =>
+        modelBuilder.Entity<ProductTypeAttribute>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductTypeId, e.AttributeTypeId });
+
+            entity.HasOne(e => e.ProductType)
+                .WithMany(pt => pt.Attributes)
+                .HasForeignKey(e => e.ProductTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AttributeType)
+                .WithMany(at => at.ProductTypeAttributes)
+                .HasForeignKey(e => e.AttributeTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CatalogAttributeType>(entity =>
         {
             entity.HasKey(e => e.Id);
-            entity.HasIndex(e => new { e.Name, e.SizeType, e.TenantId }).IsUnique();
             entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.TenantId, e.Name }).IsUnique();
 
-            entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.SizeType).HasMaxLength(50).IsRequired().HasDefaultValue("General");
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Unit).HasMaxLength(50);
+            entity.Property(e => e.ValueType).HasConversion<string>();
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<CatalogAttributeOption>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.AttributeTypeId);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.AttributeTypeId, e.TenantId, e.Value }).IsUnique();
+
+            entity.Property(e => e.Value).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.HexCode).HasMaxLength(7);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(e => e.AttributeType)
+                .WithMany(at => at.Options)
+                .HasForeignKey(e => e.AttributeTypeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductVariantAttributeValue>(entity =>
+        {
+            entity.HasKey(e => new { e.VariantId, e.AttributeTypeId });
+
+            entity.Property(e => e.TextValue).HasMaxLength(1000);
+            entity.Property(e => e.NumberValue).HasPrecision(18, 4);
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.AttributeValues)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.AttributeType)
+                .WithMany(at => at.VariantValues)
+                .HasForeignKey(e => e.AttributeTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.AttributeOption)
+                .WithMany(ao => ao.VariantValues)
+                .HasForeignKey(e => e.AttributeOptionId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Product>(entity =>
@@ -91,6 +150,37 @@ public class CatalogDbContext : DbContext
                 .WithMany(c => c.Products)
                 .HasForeignKey(e => e.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ProductType)
+                .WithMany(pt => pt.Products)
+                .HasForeignKey(e => e.ProductTypeId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<CatalogWarning>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.TenantId, e.Name }).IsUnique();
+
+            entity.Property(e => e.Name).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<ProductWarning>(entity =>
+        {
+            entity.HasKey(e => new { e.ProductId, e.WarningId });
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Warnings)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Warning)
+                .WithMany(w => w.ProductWarnings)
+                .HasForeignKey(e => e.WarningId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ProductVariant>(entity =>
@@ -103,49 +193,14 @@ public class CatalogDbContext : DbContext
             entity.Property(e => e.Price).HasPrecision(18, 2);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
-            // Variant SKU is unique within the tenant
             entity.HasIndex(e => new { e.SKU, e.TenantId })
                 .IsUnique()
                 .HasFilter("\"SKU\" IS NOT NULL");
-
-            // At most one default (no color, no size) variant per product
-            entity.HasIndex(e => e.ProductId)
-                .IsUnique()
-                .HasFilter("\"ColorId\" IS NULL AND \"SizeId\" IS NULL")
-                .HasDatabaseName("IX_ProductVariants_ProductId_Default");
-
-            // Unique color+size combination per product (both specified)
-            entity.HasIndex(e => new { e.ProductId, e.ColorId, e.SizeId })
-                .IsUnique()
-                .HasFilter("\"ColorId\" IS NOT NULL AND \"SizeId\" IS NOT NULL")
-                .HasDatabaseName("IX_ProductVariants_ProductId_Color_Size");
-
-            // Unique color-only variants per product (no size)
-            entity.HasIndex(e => new { e.ProductId, e.ColorId })
-                .IsUnique()
-                .HasFilter("\"ColorId\" IS NOT NULL AND \"SizeId\" IS NULL")
-                .HasDatabaseName("IX_ProductVariants_ProductId_Color");
-
-            // Unique size-only variants per product (no color)
-            entity.HasIndex(e => new { e.ProductId, e.SizeId })
-                .IsUnique()
-                .HasFilter("\"ColorId\" IS NULL AND \"SizeId\" IS NOT NULL")
-                .HasDatabaseName("IX_ProductVariants_ProductId_Size");
 
             entity.HasOne(e => e.Product)
                 .WithMany(p => p.Variants)
                 .HasForeignKey(e => e.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.Color)
-                .WithMany(c => c.Variants)
-                .HasForeignKey(e => e.ColorId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(e => e.Size)
-                .WithMany(s => s.Variants)
-                .HasForeignKey(e => e.SizeId)
-                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<ProductMedia>(entity =>
