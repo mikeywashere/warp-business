@@ -5,6 +5,8 @@
 @inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject CatalogApiClient CatalogApi
 @inject NavigationManager Navigation
+@inject CatalogTemplateRenderer TemplateRenderer
+@inject Microsoft.JSInterop.IJSRuntime JS
 
 <PageTitle>Product Catalog</PageTitle>
 
@@ -589,6 +591,54 @@
                 </div>
             }
         }
+
+        @* Catalog Preview Modal *@
+        @if (showPreviewModal)
+        {
+            <div class="modal d-block catalog-preview-modal" tabindex="-1" style="background-color: rgba(0,0,0,0.75);" @onclick="ClosePreviewModal">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable" style="max-width:960px;" @onclick:stopPropagation="true">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div class="d-flex align-items-center gap-2 flex-grow-1">
+                                <h5 class="modal-title mb-0">Catalog Preview — @previewProductName</h5>
+                                <div class="ms-auto d-flex align-items-center gap-2">
+                                    <label class="form-label mb-0 me-1 small">Template:</label>
+                                    <select class="form-select form-select-sm" style="width:auto;"
+                                            @bind="previewSelectedTemplate" @bind:after="RefreshPreviewAsync">
+                                        @foreach (var t in previewAvailableTemplates)
+                                        {
+                                            <option value="@t">@t</option>
+                                        }
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-primary" @onclick="PrintPreviewAsync">🖨 Print</button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close ms-2" @onclick="ClosePreviewModal"></button>
+                        </div>
+                        <div class="modal-body p-0">
+                            @if (isLoadingPreview)
+                            {
+                                <div class="d-flex justify-content-center my-5">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading preview…</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (!string.IsNullOrEmpty(previewError))
+                            {
+                                <div class="alert alert-danger m-3">@previewError</div>
+                            }
+                            else
+                            {
+                                <div class="catalog-preview-frame">
+                                    @((MarkupString)previewRenderedHtml)
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
     </Authorized>
     <NotAuthorized>
         <div class="alert alert-warning">
@@ -615,6 +665,14 @@
     private bool showVariantImageModal;
     private bool isUploadingMedia;
     private bool isUploadingVariantMedia;
+    private bool showPreviewModal;
+    private bool isLoadingPreview;
+    private string previewProductName = "";
+    private string previewRenderedHtml = "";
+    private string? previewError;
+    private string previewSelectedTemplate = "default";
+    private List<string> previewAvailableTemplates = ["default"];
+    private Guid previewProductId;
 
     private Guid? editingProductId;
     private Guid? editingVariantId;
@@ -936,10 +994,97 @@
     // ── Media management ──────────────────────────────────────────────────────
 
     private void NavigateToPreview(Guid productId)
-        => Navigation.NavigateTo($"/catalog/products/{productId}/preview");
+    {
+        previewProductId = productId;
+        showPreviewModal = true;
+        previewAvailableTemplates = TemplateRenderer.GetAvailableTemplates().ToList();
+        if (previewAvailableTemplates.Count > 0 && !previewAvailableTemplates.Contains(previewSelectedTemplate))
+            previewSelectedTemplate = previewAvailableTemplates[0];
+        _ = LoadPreviewAsync();
+    }
+
+    private void ClosePreviewModal()
+    {
+        showPreviewModal = false;
+        previewRenderedHtml = "";
+        previewError = null;
+    }
+
+    private async Task LoadPreviewAsync()
+    {
+        isLoadingPreview = true;
+        previewError = null;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var product = await CatalogApi.GetProductAsync(previewProductId);
+            if (product is null) { previewError = "Product not found."; return; }
+            previewProductName = product.Name;
+            var variants = await CatalogApi.GetVariantsAsync(previewProductId);
+            previewRenderedHtml = TemplateRenderer.Render(previewSelectedTemplate, BuildPreviewTemplateData(product, variants));
+        }
+        catch (Exception ex) { previewError = $"Failed to load preview: {ex.Message}"; }
+        finally { isLoadingPreview = false; await InvokeAsync(StateHasChanged); }
+    }
+
+    private async Task RefreshPreviewAsync() => await LoadPreviewAsync();
+
+    private async Task PrintPreviewAsync() => await JS.InvokeVoidAsync("eval", "window.print()");
 
     private string? GetProductImageUrl(Guid? mediaId)
         => mediaId.HasValue ? CatalogApi.GetMediaUrl(mediaId.Value) : null;
+
+    private static object BuildPreviewTemplateData(CatalogProductResponse product, List<CatalogProductVariantResponse> variants)
+    {
+        var formattedBase = $"{product.Currency} {product.BasePrice:N2}";
+        return new
+        {
+            previewDate = DateTime.Now.ToString("MMMM d, yyyy"),
+            hasVariants = variants.Count > 0,
+            variantCount = variants.Count,
+            hasWarnings = product.Warnings is { Count: > 0 },
+            product = new
+            {
+                name = product.Name,
+                description = product.Description,
+                brand = product.Brand,
+                sku = product.SKU,
+                basePrice = product.BasePrice,
+                formattedPrice = formattedBase,
+                currency = product.Currency,
+                category = product.CategoryName,
+                productType = product.ProductTypeName,
+                isActive = product.IsActive,
+                thumbnailUrl = (string?)null,
+                warnings = product.Warnings?.Select(w => new
+                {
+                    icon = w.Icon,
+                    name = w.Name,
+                    description = w.Description
+                }).ToList() ?? (object)new List<object>()
+            },
+            variants = variants.Select(v =>
+            {
+                var price = v.Price.HasValue ? $"{product.Currency} {v.Price.Value:N2}" : formattedBase;
+                return new
+                {
+                    sku = v.SKU,
+                    formattedPrice = price,
+                    stockQuantity = v.StockQuantity,
+                    lowStock = v.StockQuantity is >= 0 and <= 5,
+                    isActive = v.IsActive,
+                    hasAttributes = v.Attributes is { Count: > 0 },
+                    attributes = v.Attributes?.Select(a => new
+                    {
+                        name = a.AttributeTypeName,
+                        value = a.OptionValue ?? a.TextValue
+                              ?? (a.NumberValue.HasValue ? $"{a.NumberValue:G}{(!string.IsNullOrEmpty(a.Unit) ? " " + a.Unit : "")}" : ""),
+                        hexCode = a.OptionHexCode
+                    }).ToList() ?? (object)new List<object>()
+                };
+            }).ToList()
+        };
+    }
 
     private async Task HandleProductMediaUpload(InputFileChangeEventArgs e)
     {
@@ -1193,5 +1338,40 @@
 
     .media-gallery-item:hover .media-delete-btn {
         opacity: 1;
+    }
+
+    .media-gallery-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .media-item-footer {
+        display: flex;
+        align-items: center;
+        max-width: 100px;
+    }
+
+    .media-description {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        font-size: 0.6rem;
+    }
+
+    .catalog-preview-modal .modal-body {
+        max-height: 80vh;
+    }
+
+    .catalog-preview-frame {
+        background: #f5f4f0;
+        padding: 0;
+        overflow: auto;
+    }
+
+    @@media print {
+        .catalog-preview-frame { box-shadow: none !important; }
+        .catalog-preview-modal .modal-header,
+        .catalog-preview-modal .modal-footer { display: none !important; }
     }
 </style>
