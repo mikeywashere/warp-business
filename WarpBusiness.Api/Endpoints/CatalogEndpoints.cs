@@ -470,7 +470,7 @@ public static class CatalogEndpoints
         var warnings = await db.ProductWarnings
             .Where(pw => pw.ProductId == id)
             .Include(pw => pw.Warning)
-            .Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description))
+            .Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description, pw.Warning.Icon))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(new ProductResponse(product.Id, product.TenantId, product.CategoryId, categoryName,
@@ -733,7 +733,7 @@ public static class CatalogEndpoints
             .Select(m => (Guid?)m.Id).FirstOrDefault(),
         p.ProductTypeId,
         p.ProductType?.Name,
-        p.Warnings.Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description)).ToList());
+        p.Warnings.Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description, pw.Warning.Icon)).ToList());
 
     private static ProductVariantResponse MapVariantResponse(ProductVariant v) => new(
         v.Id, v.ProductId, v.TenantId,
@@ -863,4 +863,5 @@ public record VariantAttributeValueRequest(
 public record ProductWarningResponse(
     Guid WarningId,
     string Name,
-    string? Description);
+    string? Description,
+    string? Icon);

@@ -68,15 +68,15 @@ public record UpdateCatalogAttributeOptionRequest(string Value, string? HexCode 
 // ── Warning DTOs ──────────────────────────────────────────────────────────────
 
 public record CatalogWarningResponse(
-    Guid Id, Guid TenantId, string Name, string? Description, bool IsActive,
+    Guid Id, Guid TenantId, string Name, string? Description, string? Icon, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
-public record CreateCatalogWarningRequest(string Name, string? Description = null);
-public record UpdateCatalogWarningRequest(string Name, string? Description = null, bool? IsActive = null);
+public record CreateCatalogWarningRequest(string Name, string? Description = null, string? Icon = null);
+public record UpdateCatalogWarningRequest(string Name, string? Description = null, string? Icon = null, bool? IsActive = null);
 
 // ── Product DTOs ──────────────────────────────────────────────────────────────
 
-public record CatalogProductWarningResponse(Guid WarningId, string Name, string? Description);
+public record CatalogProductWarningResponse(Guid WarningId, string Name, string? Description, string? Icon);
 
 public record CatalogProductResponse(
     Guid Id, Guid TenantId, Guid? CategoryId, string? CategoryName,

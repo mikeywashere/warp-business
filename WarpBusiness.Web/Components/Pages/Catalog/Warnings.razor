@@ -57,6 +57,18 @@
                                             <ValidationMessage For="() => formModel.Name" class="text-danger" />
                                         </div>
                                         <div class="col-12">
+                                            <label class="form-label">Icon / Prefix</label>
+                                            <InputText @bind-Value="formModel.Icon" class="form-control" placeholder="e.g. ⚠ WARNING: or ⚠ CA WARNING:" />
+                                            <div class="form-text">Emoji or short text shown before the warning name (e.g. ⚠ WARNING:, ⚠ CA WARNING:, ⚠ CALIFORNIA WARNING:).</div>
+                                            @if (!string.IsNullOrWhiteSpace(formModel.Icon))
+                                            {
+                                                <div class="mt-2 p-2 rounded" style="background:rgba(255,200,0,0.08); border:1px solid rgba(255,200,0,0.25);">
+                                                    <span class="fw-semibold">Preview: </span>
+                                                    <span>@formModel.Icon @formModel.Name</span>
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="col-12">
                                             <label class="form-label">Description</label>
                                             <InputTextArea @bind-Value="formModel.Description" class="form-control" rows="2" />
                                         </div>
@@ -121,6 +133,7 @@
                 <table class="table table-striped table-hover">
                     <thead class="table-dark">
                         <tr>
+                            <th>Icon</th>
                             <th>Name</th>
                             <th>Description</th>
                             <th>Status</th>
@@ -133,6 +146,7 @@
                             @foreach (var w in warnings.OrderBy(w => w.Name))
                             {
                                 <tr>
+                                    <td class="text-nowrap">@(string.IsNullOrWhiteSpace(w.Icon) ? "—" : w.Icon)</td>
                                     <td>@w.Name</td>
                                     <td class="text-truncate" style="max-width:300px;">@(w.Description ?? "—")</td>
                                     <td>
@@ -149,7 +163,7 @@
                         }
                         else
                         {
-                            <tr><td colspan="4" class="text-center text-muted py-4">No warnings defined yet.</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-4">No warnings defined yet.</td></tr>
                         }
                     </tbody>
                 </table>
@@ -199,7 +213,7 @@
 
     private void ShowEditModal(CatalogWarningResponse w)
     {
-        formModel = new WarningFormModel { Name = w.Name, Description = w.Description, IsActive = w.IsActive };
+        formModel = new WarningFormModel { Name = w.Name, Description = w.Description, Icon = w.Icon, IsActive = w.IsActive };
         editingId = w.Id;
         showFormModal = true;
     }
@@ -221,12 +235,12 @@
             if (editingId.HasValue)
             {
                 await CatalogApi.UpdateWarningAsync(editingId.Value,
-                    new UpdateCatalogWarningRequest(formModel.Name!, formModel.Description, formModel.IsActive));
+                    new UpdateCatalogWarningRequest(formModel.Name!, formModel.Description, formModel.Icon, formModel.IsActive));
                 successMessage = "Warning updated.";
             }
             else
             {
-                await CatalogApi.CreateWarningAsync(new CreateCatalogWarningRequest(formModel.Name!, formModel.Description));
+                await CatalogApi.CreateWarningAsync(new CreateCatalogWarningRequest(formModel.Name!, formModel.Description, formModel.Icon));
                 successMessage = "Warning created.";
             }
             CloseModal();
@@ -272,6 +286,9 @@
         [System.ComponentModel.DataAnnotations.Required]
         [System.ComponentModel.DataAnnotations.MaxLength(200)]
         public string? Name { get; set; }
+
+        [System.ComponentModel.DataAnnotations.MaxLength(50)]
+        public string? Icon { get; set; }
 
         [System.ComponentModel.DataAnnotations.MaxLength(1000)]
         public string? Description { get; set; }

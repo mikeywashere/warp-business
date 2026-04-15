@@ -10,6 +10,8 @@ public class CatalogWarning
     public Guid TenantId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    /// <summary>Optional icon prefix shown with the warning (e.g. "⚠ WARNING:", "⚠ CA WARNING:").</summary>
+    public string? Icon { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

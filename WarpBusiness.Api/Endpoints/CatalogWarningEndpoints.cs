@@ -35,7 +35,7 @@ public static class CatalogWarningEndpoints
         var warnings = await db.Warnings
             .Where(w => w.TenantId == tenantId.Value)
             .OrderBy(w => w.Name)
-            .Select(w => new WarningResponse(w.Id, w.TenantId, w.Name, w.Description, w.IsActive, w.CreatedAt, w.UpdatedAt))
+            .Select(w => new WarningResponse(w.Id, w.TenantId, w.Name, w.Description, w.Icon, w.IsActive, w.CreatedAt, w.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(warnings);
@@ -53,7 +53,7 @@ public static class CatalogWarningEndpoints
 
         var warning = await db.Warnings
             .Where(w => w.Id == id && w.TenantId == tenantId.Value)
-            .Select(w => new WarningResponse(w.Id, w.TenantId, w.Name, w.Description, w.IsActive, w.CreatedAt, w.UpdatedAt))
+            .Select(w => new WarningResponse(w.Id, w.TenantId, w.Name, w.Description, w.Icon, w.IsActive, w.CreatedAt, w.UpdatedAt))
             .FirstOrDefaultAsync(cancellationToken);
 
         return warning is null ? Results.NotFound() : Results.Ok(warning);
@@ -78,6 +78,7 @@ public static class CatalogWarningEndpoints
             TenantId = tenantId.Value,
             Name = request.Name,
             Description = request.Description,
+            Icon = request.Icon,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
@@ -95,7 +96,7 @@ public static class CatalogWarningEndpoints
 
         return Results.Created(
             $"/api/catalog/warnings/{warning.Id}",
-            new WarningResponse(warning.Id, warning.TenantId, warning.Name, warning.Description, warning.IsActive, warning.CreatedAt, warning.UpdatedAt));
+            new WarningResponse(warning.Id, warning.TenantId, warning.Name, warning.Description, warning.Icon, warning.IsActive, warning.CreatedAt, warning.UpdatedAt));
     }
 
     private static async Task<IResult> UpdateWarning(
@@ -119,6 +120,7 @@ public static class CatalogWarningEndpoints
 
         warning.Name = request.Name;
         warning.Description = request.Description;
+        warning.Icon = request.Icon;
         warning.IsActive = request.IsActive ?? warning.IsActive;
         warning.UpdatedAt = DateTimeOffset.UtcNow;
 
@@ -131,7 +133,7 @@ public static class CatalogWarningEndpoints
             return Results.Conflict(new { message = "A warning with this name already exists." });
         }
 
-        return Results.Ok(new WarningResponse(warning.Id, warning.TenantId, warning.Name, warning.Description, warning.IsActive, warning.CreatedAt, warning.UpdatedAt));
+        return Results.Ok(new WarningResponse(warning.Id, warning.TenantId, warning.Name, warning.Description, warning.Icon, warning.IsActive, warning.CreatedAt, warning.UpdatedAt));
     }
 
     private static async Task<IResult> DeleteWarning(
@@ -183,7 +185,7 @@ public static class CatalogWarningEndpoints
             .OrderBy(pw => pw.Warning.Name)
             .Select(pw => new WarningResponse(
                 pw.WarningId, pw.Warning.TenantId, pw.Warning.Name,
-                pw.Warning.Description, pw.Warning.IsActive, pw.Warning.CreatedAt, pw.Warning.UpdatedAt))
+                pw.Warning.Description, pw.Warning.Icon, pw.Warning.IsActive, pw.Warning.CreatedAt, pw.Warning.UpdatedAt))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(warnings);
@@ -242,8 +244,8 @@ public static class CatalogWarningEndpoints
 // ── DTOs ──────────────────────────────────────────────────────────────────────
 
 public record WarningResponse(
-    Guid Id, Guid TenantId, string Name, string? Description, bool IsActive,
+    Guid Id, Guid TenantId, string Name, string? Description, string? Icon, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
-public record CreateWarningRequest(string Name, string? Description = null);
-public record UpdateWarningRequest(string Name, string? Description = null, bool? IsActive = null);
+public record CreateWarningRequest(string Name, string? Description = null, string? Icon = null);
+public record UpdateWarningRequest(string Name, string? Description = null, string? Icon = null, bool? IsActive = null);
