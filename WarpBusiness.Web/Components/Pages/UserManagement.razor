@@ -126,6 +126,58 @@
                                     </InputSelect>
                                     <ValidationMessage For="() => formModel.RoleName" class="text-danger" />
                                 </div>
+                                @if (editingUserId.HasValue)
+                                {
+                                    <div class="col-12">
+                                        <hr class="my-3" />
+                                        <label class="form-label fw-semibold">Keycloak Roles</label>
+                                        <div class="d-flex flex-wrap gap-2 mb-2">
+                                            @if (isLoadingRoles)
+                                            {
+                                                <span class="text-muted small">Loading roles...</span>
+                                            }
+                                            else if (userRoles.Count == 0)
+                                            {
+                                                <span class="text-muted small">No roles assigned.</span>
+                                            }
+                                            else
+                                            {
+                                                @foreach (var role in userRoles)
+                                                {
+                                                    <span class="badge bg-secondary d-flex align-items-center gap-1">
+                                                        @role
+                                                        <button type="button" class="btn-close btn-close-white btn-sm ms-1"
+                                                                style="font-size: 0.6em;"
+                                                                title="Remove role"
+                                                                @onclick="() => RemoveRoleAsync(role)"
+                                                                disabled="@isRoleChanging"></button>
+                                                    </span>
+                                                }
+                                            }
+                                        </div>
+                                        @if (availableRoles.Count > 0)
+                                        {
+                                            <div class="d-flex gap-2 align-items-center" style="max-width: 400px;">
+                                                <select class="form-select form-select-sm" @bind="roleToAdd">
+                                                    <option value="">-- Add a role --</option>
+                                                    @foreach (var role in availableRoles.Where(r => !userRoles.Contains(r)))
+                                                    {
+                                                        <option value="@role">@role</option>
+                                                    }
+                                                </select>
+                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                        @onclick="AddRoleAsync"
+                                                        disabled="@(string.IsNullOrEmpty(roleToAdd) || isRoleChanging)">
+                                                    Add
+                                                </button>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(roleErrorMessage))
+                                        {
+                                            <div class="text-danger small mt-1">@roleErrorMessage</div>
+                                        }
+                                    </div>
+                                }
                                 @if (!editingUserId.HasValue)
                                 {
                                     <div class="col-md-6">
@@ -206,7 +258,7 @@
                             <th>Tenants</th>
                             <th>Employee Link</th>
                             <th>Created</th>
-                            <th style="width: 150px;">Actions</th>
+                            <th style="width: 250px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -326,9 +378,18 @@
     private string tenantSearchText = "";
     private bool showTenantDropdown;
 
+    private List<string> userRoles = [];
+    private List<string> availableRoles = [];
+    private string roleToAdd = "";
+    private bool isLoadingRoles;
+    private bool isRoleChanging;
+    private string? roleErrorMessage;
+
     protected override async Task OnAuthenticatedInitializedAsync()
     {
         await LoadUsers();
+        try { availableRoles = await UserApi.GetAvailableRolesAsync(); }
+        catch { /* non-critical, silently ignore */ }
     }
 
     private async Task LoadUsers()
@@ -361,7 +422,7 @@
         ClearMessages();
     }
 
-    private void ShowEditForm(UserResponse user)
+    private async Task ShowEditForm(UserResponse user)
     {
         editingUserId = user.Id;
         formModel = new UserFormModel
@@ -374,9 +435,10 @@
         };
         showForm = true;
         ClearMessages();
+        await LoadUserRolesAsync(user.Id);
     }
 
-    private void HandleEditUser(UserResponse user)
+    private async Task HandleEditUser(UserResponse user)
     {
         if (user.LinkedEmployeeId.HasValue)
         {
@@ -385,7 +447,67 @@
         }
         else
         {
-            ShowEditForm(user);
+            await ShowEditForm(user);
+        }
+    }
+
+    private async Task LoadUserRolesAsync(Guid userId)
+    {
+        isLoadingRoles = true;
+        roleErrorMessage = null;
+        userRoles = [];
+        try
+        {
+            userRoles = await UserApi.GetUserRolesAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            roleErrorMessage = $"Could not load roles: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingRoles = false;
+        }
+    }
+
+    private async Task AddRoleAsync()
+    {
+        if (string.IsNullOrEmpty(roleToAdd) || !editingUserId.HasValue) return;
+        isRoleChanging = true;
+        roleErrorMessage = null;
+        try
+        {
+            await UserApi.AddUserRoleAsync(editingUserId.Value, roleToAdd);
+            roleToAdd = "";
+            await LoadUserRolesAsync(editingUserId.Value);
+        }
+        catch (Exception ex)
+        {
+            roleErrorMessage = $"Failed to add role: {ex.Message}";
+        }
+        finally
+        {
+            isRoleChanging = false;
+        }
+    }
+
+    private async Task RemoveRoleAsync(string roleName)
+    {
+        if (!editingUserId.HasValue) return;
+        isRoleChanging = true;
+        roleErrorMessage = null;
+        try
+        {
+            await UserApi.RemoveUserRoleAsync(editingUserId.Value, roleName);
+            await LoadUserRolesAsync(editingUserId.Value);
+        }
+        catch (Exception ex)
+        {
+            roleErrorMessage = $"Failed to remove role: {ex.Message}";
+        }
+        finally
+        {
+            isRoleChanging = false;
         }
     }
 
@@ -397,6 +519,9 @@
         usernameManuallyEdited = false;
         tenantSearchText = "";
         showTenantDropdown = false;
+        userRoles = [];
+        roleToAdd = "";
+        roleErrorMessage = null;
     }
 
     private async Task HandleFormSubmit()

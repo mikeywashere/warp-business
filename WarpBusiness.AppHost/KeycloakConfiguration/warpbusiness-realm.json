@@ -26,6 +26,10 @@
       {
         "name": "Customer",
         "description": "Customer Portal User — external customer access"
+      },
+      {
+        "name": "tenant_portal",
+        "description": "Tenant Portal User — tenant self-service access"
       }
     ]
   },
@@ -153,6 +157,47 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "warpbusiness-tenant-portal",
+      "name": "WarpBusiness Tenant Portal",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["*"],
+      "webOrigins": ["*"],
+      "attributes": {
+        "post.logout.redirect.uris": "+"
+      },
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "warpbusiness-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "warpbusiness-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
@@ -170,7 +215,7 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["SystemAdministrator"]
+      "realmRoles": ["SystemAdministrator", "tenant_portal"]
     }
   ]
 }

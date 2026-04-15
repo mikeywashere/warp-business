@@ -39,6 +39,22 @@ public static class UserEndpoints
         users.MapDelete("/{id:guid}", DeleteUser)
             .WithName("DeleteUser")
             .RequireAuthorization("SystemAdministrator");
+
+        users.MapGet("/roles/available", GetAvailableRoles)
+            .WithName("GetAvailableRoles")
+            .RequireAuthorization("SystemAdministrator");
+
+        users.MapGet("/{id:guid}/roles", GetUserRoles)
+            .WithName("GetUserRoles")
+            .RequireAuthorization("SystemAdministrator");
+
+        users.MapPost("/{id:guid}/roles/{roleName}", AssignUserRole)
+            .WithName("AssignUserRole")
+            .RequireAuthorization("SystemAdministrator");
+
+        users.MapDelete("/{id:guid}/roles/{roleName}", RemoveUserRole)
+            .WithName("RemoveUserRole")
+            .RequireAuthorization("SystemAdministrator");
     }
 
     private static async Task<IResult> GetCurrentUser(
@@ -422,5 +438,75 @@ public static class UserEndpoints
         if (principal.HasClaim("roles", "SystemAdministrator"))
             return true;
         return principal.HasClaim("app_role", "SystemAdministrator");
+    }
+
+    private static async Task<IResult> GetAvailableRoles(
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        var roles = await keycloakAdmin.GetRealmRolesAsync(cancellationToken);
+        var filtered = roles
+            .Where(r => !r.Name.StartsWith("default-roles-") && !r.Name.StartsWith("uma_") && r.Name != "offline_access")
+            .Select(r => r.Name)
+            .OrderBy(n => n)
+            .ToArray();
+        return Results.Ok(filtered);
+    }
+
+    private static async Task<IResult> GetUserRoles(
+        Guid id,
+        WarpBusinessDbContext db,
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FindAsync([id], cancellationToken);
+        if (user is null) return Results.NotFound();
+        if (string.IsNullOrEmpty(user.KeycloakSubjectId))
+            return Results.Ok(Array.Empty<string>());
+
+        var roles = await keycloakAdmin.GetUserRolesAsync(user.KeycloakSubjectId, cancellationToken);
+        return Results.Ok(roles.Select(r => r.Name).OrderBy(n => n).ToArray());
+    }
+
+    private static async Task<IResult> AssignUserRole(
+        Guid id,
+        string roleName,
+        WarpBusinessDbContext db,
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FindAsync([id], cancellationToken);
+        if (user is null) return Results.NotFound();
+        if (string.IsNullOrEmpty(user.KeycloakSubjectId))
+            return Results.BadRequest(new { message = "User has no linked Keycloak account." });
+
+        var allRoles = await keycloakAdmin.GetRealmRolesAsync(cancellationToken);
+        var role = allRoles.FirstOrDefault(r => r.Name == roleName);
+        if (role is null)
+            return Results.NotFound(new { message = $"Role '{roleName}' not found in realm." });
+
+        var success = await keycloakAdmin.AssignRealmRolesToUserAsync(user.KeycloakSubjectId, [role], cancellationToken);
+        return success ? Results.NoContent() : Results.Problem("Failed to assign role in identity provider.");
+    }
+
+    private static async Task<IResult> RemoveUserRole(
+        Guid id,
+        string roleName,
+        WarpBusinessDbContext db,
+        KeycloakAdminService keycloakAdmin,
+        CancellationToken cancellationToken)
+    {
+        var user = await db.Users.FindAsync([id], cancellationToken);
+        if (user is null) return Results.NotFound();
+        if (string.IsNullOrEmpty(user.KeycloakSubjectId))
+            return Results.BadRequest(new { message = "User has no linked Keycloak account." });
+
+        var allRoles = await keycloakAdmin.GetRealmRolesAsync(cancellationToken);
+        var role = allRoles.FirstOrDefault(r => r.Name == roleName);
+        if (role is null)
+            return Results.NotFound(new { message = $"Role '{roleName}' not found in realm." });
+
+        var success = await keycloakAdmin.RemoveRealmRolesFromUserAsync(user.KeycloakSubjectId, [role], cancellationToken);
+        return success ? Results.NoContent() : Results.Problem("Failed to remove role in identity provider.");
     }
 }

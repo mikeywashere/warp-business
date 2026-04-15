@@ -180,4 +180,42 @@ public class UserApiClient
         var response = await _httpClient.SendAsync(msg);
         response.EnsureSuccessStatusCode();
     }
+
+    public async Task<List<string>> GetAvailableRolesAsync()
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/users/roles/available");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<string>>() ?? [];
+    }
+
+    public async Task<List<string>> GetUserRolesAsync(Guid userId)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/users/{userId}/roles");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<string>>() ?? [];
+    }
+
+    public async Task AddUserRoleAsync(Guid userId, string roleName)
+    {
+        using var msg = CreateRequest(HttpMethod.Post, $"api/users/{userId}/roles/{Uri.EscapeDataString(roleName)}");
+        var response = await _httpClient.SendAsync(msg);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            throw new ApiException((int)response.StatusCode, body);
+        }
+    }
+
+    public async Task RemoveUserRoleAsync(Guid userId, string roleName)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/users/{userId}/roles/{Uri.EscapeDataString(roleName)}");
+        var response = await _httpClient.SendAsync(msg);
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync();
+            throw new ApiException((int)response.StatusCode, body);
+        }
+    }
 }

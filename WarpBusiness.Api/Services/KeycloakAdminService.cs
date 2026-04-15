@@ -293,6 +293,60 @@ public class KeycloakAdminService
 
         return response.IsSuccessStatusCode;
     }
+
+    public async Task<List<KeycloakRole>> GetRealmRolesAsync(CancellationToken cancellationToken = default)
+    {
+        var request = await CreateAuthorizedRequest(HttpMethod.Get, $"/admin/realms/{Realm}/roles", cancellationToken);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<KeycloakRole>>(cancellationToken) ?? [];
+    }
+
+    public async Task<List<KeycloakRole>> GetUserRolesAsync(string keycloakUserId, CancellationToken cancellationToken = default)
+    {
+        var request = await CreateAuthorizedRequest(HttpMethod.Get, $"/admin/realms/{Realm}/users/{keycloakUserId}/role-mappings/realm", cancellationToken);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<KeycloakRole>>(cancellationToken) ?? [];
+    }
+
+    public async Task<bool> AssignRealmRolesToUserAsync(string keycloakUserId, IEnumerable<KeycloakRole> roles, CancellationToken cancellationToken = default)
+    {
+        var request = await CreateAuthorizedRequest(HttpMethod.Post, $"/admin/realms/{Realm}/users/{keycloakUserId}/role-mappings/realm", cancellationToken);
+        request.Content = new StringContent(JsonSerializer.Serialize(roles), Encoding.UTF8, "application/json");
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Failed to assign roles to Keycloak user {UserId}: {StatusCode} - {Error}", keycloakUserId, response.StatusCode, error);
+        }
+        return response.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> RemoveRealmRolesFromUserAsync(string keycloakUserId, IEnumerable<KeycloakRole> roles, CancellationToken cancellationToken = default)
+    {
+        var request = await CreateAuthorizedRequest(HttpMethod.Delete, $"/admin/realms/{Realm}/users/{keycloakUserId}/role-mappings/realm", cancellationToken);
+        request.Content = new StringContent(JsonSerializer.Serialize(roles), Encoding.UTF8, "application/json");
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Failed to remove roles from Keycloak user {UserId}: {StatusCode} - {Error}", keycloakUserId, response.StatusCode, error);
+        }
+        return response.IsSuccessStatusCode;
+    }
+}
+
+public class KeycloakRole
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("description")]
+    public string? Description { get; set; }
 }
 
 public class KeycloakUser
