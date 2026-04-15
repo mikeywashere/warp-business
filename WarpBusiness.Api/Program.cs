@@ -291,6 +291,9 @@ app.MapBusinessEndpoints();
 // Catalog management API endpoints
 app.MapCatalogEndpoints();
 app.MapCatalogImageEndpoints();
+app.MapCatalogProductTypeEndpoints();
+app.MapCatalogAttributeEndpoints();
+app.MapCatalogWarningEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();

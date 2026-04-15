@@ -17,22 +17,6 @@ public static class CatalogEndpoints
         categories.MapPut("{id:guid}", UpdateCategory).WithName("UpdateCatalogCategory");
         categories.MapDelete("{id:guid}", DeleteCategory).WithName("DeleteCatalogCategory");
 
-        // Colors
-        var colors = app.MapGroup("/api/catalog/colors").RequireAuthorization();
-        colors.MapGet("", GetColors).WithName("GetCatalogColors");
-        colors.MapGet("{id:guid}", GetColor).WithName("GetCatalogColor");
-        colors.MapPost("", CreateColor).WithName("CreateCatalogColor");
-        colors.MapPut("{id:guid}", UpdateColor).WithName("UpdateCatalogColor");
-        colors.MapDelete("{id:guid}", DeleteColor).WithName("DeleteCatalogColor");
-
-        // Sizes
-        var sizes = app.MapGroup("/api/catalog/sizes").RequireAuthorization();
-        sizes.MapGet("", GetSizes).WithName("GetCatalogSizes");
-        sizes.MapGet("{id:guid}", GetSize).WithName("GetCatalogSize");
-        sizes.MapPost("", CreateSize).WithName("CreateCatalogSize");
-        sizes.MapPut("{id:guid}", UpdateSize).WithName("UpdateCatalogSize");
-        sizes.MapDelete("{id:guid}", DeleteSize).WithName("DeleteCatalogSize");
-
         // Products
         var products = app.MapGroup("/api/catalog/products").RequireAuthorization();
         products.MapGet("", GetProducts).WithName("GetCatalogProducts");
@@ -257,281 +241,6 @@ public static class CatalogEndpoints
         }
     }
 
-    // ── Colors ────────────────────────────────────────────────────────────────
-
-    private static async Task<IResult> GetColors(
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var colors = await db.Colors
-            .Where(c => c.TenantId == tenantId.Value)
-            .OrderBy(c => c.Name)
-            .Select(c => new ColorResponse(c.Id, c.TenantId, c.Name, c.HexCode, c.IsActive, c.CreatedAt, c.UpdatedAt))
-            .ToListAsync(cancellationToken);
-
-        return Results.Ok(colors);
-    }
-
-    private static async Task<IResult> GetColor(
-        Guid id,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var color = await db.Colors
-            .Where(c => c.Id == id && c.TenantId == tenantId.Value)
-            .Select(c => new ColorResponse(c.Id, c.TenantId, c.Name, c.HexCode, c.IsActive, c.CreatedAt, c.UpdatedAt))
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return color is null ? Results.NotFound() : Results.Ok(color);
-    }
-
-    private static async Task<IResult> CreateColor(
-        [FromBody] CreateColorRequest request,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return Results.BadRequest(new { message = "Color name is required." });
-
-        if (await db.Colors.AnyAsync(c => c.Name == request.Name && c.TenantId == tenantId.Value, cancellationToken))
-            return Results.Conflict(new { message = "A color with this name already exists." });
-
-        var color = new Color
-        {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId.Value,
-            Name = request.Name,
-            HexCode = request.HexCode,
-            IsActive = true,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
-
-        db.Colors.Add(color);
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Created(
-            $"/api/catalog/colors/{color.Id}",
-            new ColorResponse(color.Id, color.TenantId, color.Name, color.HexCode, color.IsActive, color.CreatedAt, color.UpdatedAt));
-    }
-
-    private static async Task<IResult> UpdateColor(
-        Guid id,
-        [FromBody] UpdateColorRequest request,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var color = await db.Colors
-            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId.Value, cancellationToken);
-        if (color is null)
-            return Results.NotFound();
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return Results.BadRequest(new { message = "Color name is required." });
-
-        if (!string.Equals(color.Name, request.Name, StringComparison.OrdinalIgnoreCase) &&
-            await db.Colors.AnyAsync(c => c.Name == request.Name && c.TenantId == tenantId.Value && c.Id != id, cancellationToken))
-            return Results.Conflict(new { message = "A color with this name already exists." });
-
-        color.Name = request.Name;
-        color.HexCode = request.HexCode;
-        color.IsActive = request.IsActive ?? color.IsActive;
-        color.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(new ColorResponse(color.Id, color.TenantId, color.Name, color.HexCode, color.IsActive, color.CreatedAt, color.UpdatedAt));
-    }
-
-    private static async Task<IResult> DeleteColor(
-        Guid id,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var color = await db.Colors
-            .FirstOrDefaultAsync(c => c.Id == id && c.TenantId == tenantId.Value, cancellationToken);
-        if (color is null)
-            return Results.NotFound();
-
-        var inUse = await db.ProductVariants.AnyAsync(v => v.ColorId == id, cancellationToken);
-        if (inUse)
-        {
-            color.IsActive = false;
-            color.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync(cancellationToken);
-            return Results.Ok(new { message = "Color is used by product variants and was deactivated instead of deleted." });
-        }
-
-        db.Colors.Remove(color);
-        await db.SaveChangesAsync(cancellationToken);
-        return Results.NoContent();
-    }
-
-    // ── Sizes ─────────────────────────────────────────────────────────────────
-
-    private static async Task<IResult> GetSizes(
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var sizes = await db.Sizes
-            .Where(s => s.TenantId == tenantId.Value)
-            .OrderBy(s => s.SizeType)
-            .ThenBy(s => s.SortOrder)
-            .ThenBy(s => s.Name)
-            .Select(s => new SizeResponse(s.Id, s.TenantId, s.Name, s.SizeType, s.SortOrder, s.IsActive, s.CreatedAt, s.UpdatedAt))
-            .ToListAsync(cancellationToken);
-
-        return Results.Ok(sizes);
-    }
-
-    private static async Task<IResult> GetSize(
-        Guid id,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var size = await db.Sizes
-            .Where(s => s.Id == id && s.TenantId == tenantId.Value)
-            .Select(s => new SizeResponse(s.Id, s.TenantId, s.Name, s.SizeType, s.SortOrder, s.IsActive, s.CreatedAt, s.UpdatedAt))
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return size is null ? Results.NotFound() : Results.Ok(size);
-    }
-
-    private static async Task<IResult> CreateSize(
-        [FromBody] CreateSizeRequest request,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return Results.BadRequest(new { message = "Size name is required." });
-
-        if (await db.Sizes.AnyAsync(s => s.Name == request.Name && s.SizeType == request.SizeType && s.TenantId == tenantId.Value, cancellationToken))
-            return Results.Conflict(new { message = "A size with this name already exists in this size type." });
-
-        var size = new Size
-        {
-            Id = Guid.NewGuid(),
-            TenantId = tenantId.Value,
-            Name = request.Name,
-            SizeType = request.SizeType ?? "General",
-            SortOrder = request.SortOrder,
-            IsActive = true,
-            CreatedAt = DateTimeOffset.UtcNow,
-            UpdatedAt = DateTimeOffset.UtcNow
-        };
-
-        db.Sizes.Add(size);
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Created(
-            $"/api/catalog/sizes/{size.Id}",
-            new SizeResponse(size.Id, size.TenantId, size.Name, size.SizeType, size.SortOrder, size.IsActive, size.CreatedAt, size.UpdatedAt));
-    }
-
-    private static async Task<IResult> UpdateSize(
-        Guid id,
-        [FromBody] UpdateSizeRequest request,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var size = await db.Sizes
-            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId.Value, cancellationToken);
-        if (size is null)
-            return Results.NotFound();
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return Results.BadRequest(new { message = "Size name is required." });
-
-        var newSizeType = request.SizeType ?? size.SizeType;
-        if ((!string.Equals(size.Name, request.Name, StringComparison.OrdinalIgnoreCase) || size.SizeType != newSizeType) &&
-            await db.Sizes.AnyAsync(s => s.Name == request.Name && s.SizeType == newSizeType && s.TenantId == tenantId.Value && s.Id != id, cancellationToken))
-            return Results.Conflict(new { message = "A size with this name already exists in this size type." });
-
-        size.Name = request.Name;
-        size.SizeType = newSizeType;
-        size.SortOrder = request.SortOrder ?? size.SortOrder;
-        size.IsActive = request.IsActive ?? size.IsActive;
-        size.UpdatedAt = DateTimeOffset.UtcNow;
-
-        await db.SaveChangesAsync(cancellationToken);
-
-        return Results.Ok(new SizeResponse(size.Id, size.TenantId, size.Name, size.SizeType, size.SortOrder, size.IsActive, size.CreatedAt, size.UpdatedAt));
-    }
-
-    private static async Task<IResult> DeleteSize(
-        Guid id,
-        HttpContext httpContext,
-        CatalogDbContext db,
-        CancellationToken cancellationToken)
-    {
-        var tenantId = httpContext.Items["TenantId"] as Guid?;
-        if (tenantId is null)
-            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
-
-        var size = await db.Sizes
-            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId.Value, cancellationToken);
-        if (size is null)
-            return Results.NotFound();
-
-        var inUse = await db.ProductVariants.AnyAsync(v => v.SizeId == id, cancellationToken);
-        if (inUse)
-        {
-            size.IsActive = false;
-            size.UpdatedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync(cancellationToken);
-            return Results.Ok(new { message = "Size is used by product variants and was deactivated instead of deleted." });
-        }
-
-        db.Sizes.Remove(size);
-        await db.SaveChangesAsync(cancellationToken);
-        return Results.NoContent();
-    }
-
     // ── Products ──────────────────────────────────────────────────────────────
 
     private static async Task<IResult> GetProducts(
@@ -543,20 +252,18 @@ public static class CatalogEndpoints
         if (tenantId is null)
             return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
 
-        var products = await db.Products
+        var rawProducts = await db.Products
             .Where(p => p.TenantId == tenantId.Value)
+            .Include(p => p.Category)
+            .Include(p => p.ProductType)
+            .Include(p => p.Warnings).ThenInclude(pw => pw.Warning)
+            .Include(p => p.Media)
+            .Include(p => p.Variants)
             .OrderBy(p => p.Name)
-            .Select(p => new ProductResponse(
-                p.Id, p.TenantId, p.CategoryId,
-                p.Category != null ? p.Category.Name : null,
-                p.Name, p.Description, p.Brand, p.SKU,
-                p.BasePrice, p.Currency, p.IsActive,
-                p.CreatedAt, p.UpdatedAt,
-                p.Variants.Count(v => v.TenantId == tenantId.Value),
-                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
-        return Results.Ok(products);
+        return Results.Ok(rawProducts.Select(p => MapProductResponse(p, tenantId.Value)).ToList());
     }
 
     private static async Task<IResult> GetProduct(
@@ -571,17 +278,15 @@ public static class CatalogEndpoints
 
         var product = await db.Products
             .Where(p => p.Id == id && p.TenantId == tenantId.Value)
-            .Select(p => new ProductResponse(
-                p.Id, p.TenantId, p.CategoryId,
-                p.Category != null ? p.Category.Name : null,
-                p.Name, p.Description, p.Brand, p.SKU,
-                p.BasePrice, p.Currency, p.IsActive,
-                p.CreatedAt, p.UpdatedAt,
-                p.Variants.Count(v => v.TenantId == tenantId.Value),
-                p.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
+            .Include(p => p.Category)
+            .Include(p => p.ProductType)
+            .Include(p => p.Warnings).ThenInclude(pw => pw.Warning)
+            .Include(p => p.Media)
+            .Include(p => p.Variants)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(cancellationToken);
 
-        return product is null ? Results.NotFound() : Results.Ok(product);
+        return product is null ? Results.NotFound() : Results.Ok(MapProductResponse(product, tenantId.Value));
     }
 
     private static async Task<IResult> CreateProduct(
@@ -600,7 +305,6 @@ public static class CatalogEndpoints
         if (string.IsNullOrWhiteSpace(request.Currency))
             return Results.BadRequest(new { message = "Currency is required." });
 
-        // Validate category belongs to this tenant
         if (request.CategoryId.HasValue)
         {
             var categoryExists = await db.Categories.AnyAsync(
@@ -610,16 +314,36 @@ public static class CatalogEndpoints
                 return Results.BadRequest(new { message = "Category not found in this tenant." });
         }
 
-        // Validate SKU uniqueness within tenant
+        if (request.ProductTypeId.HasValue)
+        {
+            var typeExists = await db.ProductTypes.AnyAsync(
+                pt => pt.Id == request.ProductTypeId.Value && pt.TenantId == tenantId.Value,
+                cancellationToken);
+            if (!typeExists)
+                return Results.BadRequest(new { message = "Product type not found in this tenant." });
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SKU) &&
             await db.Products.AnyAsync(p => p.SKU == request.SKU && p.TenantId == tenantId.Value, cancellationToken))
             return Results.Conflict(new { message = "A product with this SKU already exists." });
+
+        if (request.WarningIds is { Count: > 0 })
+        {
+            foreach (var wid in request.WarningIds)
+            {
+                var warningExists = await db.Warnings.AnyAsync(
+                    w => w.Id == wid && w.TenantId == tenantId.Value, cancellationToken);
+                if (!warningExists)
+                    return Results.BadRequest(new { message = $"Warning {wid} not found in this tenant." });
+            }
+        }
 
         var product = new Product
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId.Value,
             CategoryId = request.CategoryId,
+            ProductTypeId = request.ProductTypeId,
             Name = request.Name,
             Description = request.Description,
             Brand = request.Brand,
@@ -634,12 +358,20 @@ public static class CatalogEndpoints
         db.Products.Add(product);
         await db.SaveChangesAsync(cancellationToken);
 
+        if (request.WarningIds is { Count: > 0 })
+        {
+            foreach (var wid in request.WarningIds)
+                db.ProductWarnings.Add(new ProductWarning { ProductId = product.Id, WarningId = wid });
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         return Results.Created(
             $"/api/catalog/products/{product.Id}",
             new ProductResponse(product.Id, product.TenantId, product.CategoryId, null,
                 product.Name, product.Description, product.Brand, product.SKU,
                 product.BasePrice, product.Currency, product.IsActive,
-                product.CreatedAt, product.UpdatedAt, 0, null));
+                product.CreatedAt, product.UpdatedAt, 0, null,
+                product.ProductTypeId, null, []));
     }
 
     private static async Task<IResult> UpdateProduct(
@@ -673,12 +405,33 @@ public static class CatalogEndpoints
                 return Results.BadRequest(new { message = "Category not found in this tenant." });
         }
 
+        if (request.ProductTypeId.HasValue)
+        {
+            var typeExists = await db.ProductTypes.AnyAsync(
+                pt => pt.Id == request.ProductTypeId.Value && pt.TenantId == tenantId.Value,
+                cancellationToken);
+            if (!typeExists)
+                return Results.BadRequest(new { message = "Product type not found in this tenant." });
+        }
+
         var newSku = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU;
         if (newSku is not null && newSku != product.SKU &&
             await db.Products.AnyAsync(p => p.SKU == newSku && p.TenantId == tenantId.Value && p.Id != id, cancellationToken))
             return Results.Conflict(new { message = "A product with this SKU already exists." });
 
+        if (request.WarningIds is { Count: > 0 })
+        {
+            foreach (var wid in request.WarningIds)
+            {
+                var warningExists = await db.Warnings.AnyAsync(
+                    w => w.Id == wid && w.TenantId == tenantId.Value, cancellationToken);
+                if (!warningExists)
+                    return Results.BadRequest(new { message = $"Warning {wid} not found in this tenant." });
+            }
+        }
+
         product.CategoryId = request.CategoryId;
+        product.ProductTypeId = request.ProductTypeId;
         product.Name = request.Name;
         product.Description = request.Description;
         product.Brand = request.Brand;
@@ -688,22 +441,43 @@ public static class CatalogEndpoints
         product.IsActive = request.IsActive ?? product.IsActive;
         product.UpdatedAt = DateTimeOffset.UtcNow;
 
+        // Replace warnings
+        var existingWarnings = await db.ProductWarnings
+            .Where(pw => pw.ProductId == id)
+            .ToListAsync(cancellationToken);
+        db.ProductWarnings.RemoveRange(existingWarnings);
+
+        if (request.WarningIds is { Count: > 0 })
+        {
+            foreach (var wid in request.WarningIds)
+                db.ProductWarnings.Add(new ProductWarning { ProductId = id, WarningId = wid });
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         var variantCount = await db.ProductVariants.CountAsync(v => v.ProductId == id, cancellationToken);
         var categoryName = product.CategoryId.HasValue
             ? await db.Categories.Where(c => c.Id == product.CategoryId.Value).Select(c => c.Name).FirstOrDefaultAsync(cancellationToken)
             : null;
+        var productTypeName = product.ProductTypeId.HasValue
+            ? await db.ProductTypes.Where(pt => pt.Id == product.ProductTypeId.Value).Select(pt => pt.Name).FirstOrDefaultAsync(cancellationToken)
+            : null;
         var thumbnailKey = await db.ProductMedia
             .Where(m => m.ProductId == id && m.TenantId == tenantId.Value && m.MediaType == MediaType.Image)
             .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
             .Select(m => (Guid?)m.Id)
             .FirstOrDefaultAsync(cancellationToken);
+        var warnings = await db.ProductWarnings
+            .Where(pw => pw.ProductId == id)
+            .Include(pw => pw.Warning)
+            .Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description))
+            .ToListAsync(cancellationToken);
 
         return Results.Ok(new ProductResponse(product.Id, product.TenantId, product.CategoryId, categoryName,
             product.Name, product.Description, product.Brand, product.SKU,
             product.BasePrice, product.Currency, product.IsActive,
-            product.CreatedAt, product.UpdatedAt, variantCount, thumbnailKey));
+            product.CreatedAt, product.UpdatedAt, variantCount, thumbnailKey,
+            product.ProductTypeId, productTypeName, warnings));
     }
 
     private static async Task<IResult> DeleteProduct(
@@ -746,17 +520,14 @@ public static class CatalogEndpoints
 
         var variants = await db.ProductVariants
             .Where(v => v.ProductId == productId && v.TenantId == tenantId.Value)
-            .OrderBy(v => v.Color != null ? v.Color.Name : "")
-            .ThenBy(v => v.Size != null ? v.Size.SortOrder : 0)
-            .Select(v => new ProductVariantResponse(
-                v.Id, v.ProductId, v.TenantId,
-                v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
-                v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
-                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt,
-                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.Media)
+            .OrderBy(v => v.CreatedAt)
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
-        return Results.Ok(variants);
+        return Results.Ok(variants.Select(MapVariantResponse).ToList());
     }
 
     private static async Task<IResult> GetVariant(
@@ -772,15 +543,13 @@ public static class CatalogEndpoints
 
         var variant = await db.ProductVariants
             .Where(v => v.Id == variantId && v.ProductId == productId && v.TenantId == tenantId.Value)
-            .Select(v => new ProductVariantResponse(
-                v.Id, v.ProductId, v.TenantId,
-                v.ColorId, v.Color != null ? v.Color.Name : null, v.Color != null ? v.Color.HexCode : null,
-                v.SizeId, v.Size != null ? v.Size.Name : null, v.Size != null ? v.Size.SizeType : null,
-                v.SKU, v.Price, v.StockQuantity, v.IsActive, v.CreatedAt, v.UpdatedAt,
-                v.Media.Where(m => m.MediaType == MediaType.Image).OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt).Select(m => (Guid?)m.Id).FirstOrDefault()))
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.Media)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(cancellationToken);
 
-        return variant is null ? Results.NotFound() : Results.Ok(variant);
+        return variant is null ? Results.NotFound() : Results.Ok(MapVariantResponse(variant));
     }
 
     private static async Task<IResult> CreateVariant(
@@ -799,35 +568,26 @@ public static class CatalogEndpoints
         if (product is null)
             return Results.NotFound();
 
-        // Validate color and size belong to this tenant
-        if (request.ColorId.HasValue)
-        {
-            var colorExists = await db.Colors.AnyAsync(
-                c => c.Id == request.ColorId.Value && c.TenantId == tenantId.Value, cancellationToken);
-            if (!colorExists)
-                return Results.BadRequest(new { message = "Color not found in this tenant." });
-        }
-
-        if (request.SizeId.HasValue)
-        {
-            var sizeExists = await db.Sizes.AnyAsync(
-                s => s.Id == request.SizeId.Value && s.TenantId == tenantId.Value, cancellationToken);
-            if (!sizeExists)
-                return Results.BadRequest(new { message = "Size not found in this tenant." });
-        }
-
         var newSku = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU;
         if (newSku is not null &&
             await db.ProductVariants.AnyAsync(v => v.SKU == newSku && v.TenantId == tenantId.Value, cancellationToken))
             return Results.Conflict(new { message = "A variant with this SKU already exists in this tenant." });
+
+        // Check attribute combination uniqueness
+        var requestFingerprint = ComputeRequestFingerprint(request.Attributes ?? []);
+        var existingVariants = await db.ProductVariants
+            .Where(v => v.ProductId == productId && v.TenantId == tenantId.Value)
+            .Include(v => v.AttributeValues)
+            .ToListAsync(cancellationToken);
+
+        if (existingVariants.Any(ev => ComputeAttributeFingerprint(ev.AttributeValues) == requestFingerprint))
+            return Results.Conflict(new { message = "A variant with this attribute combination already exists for this product." });
 
         var variant = new ProductVariant
         {
             Id = Guid.NewGuid(),
             ProductId = productId,
             TenantId = tenantId.Value,
-            ColorId = request.ColorId,
-            SizeId = request.SizeId,
             SKU = newSku,
             Price = request.Price,
             StockQuantity = request.StockQuantity,
@@ -837,23 +597,35 @@ public static class CatalogEndpoints
         };
 
         db.ProductVariants.Add(variant);
-        try
+        await db.SaveChangesAsync(cancellationToken);
+
+        foreach (var attr in request.Attributes ?? [])
         {
+            db.VariantAttributeValues.Add(new ProductVariantAttributeValue
+            {
+                VariantId = variant.Id,
+                AttributeTypeId = attr.AttributeTypeId,
+                AttributeOptionId = attr.AttributeOptionId,
+                TextValue = attr.TextValue,
+                NumberValue = attr.NumberValue
+            });
+        }
+
+        if (request.Attributes is { Count: > 0 })
             await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            return Results.Conflict(new { message = "A variant with this color/size combination already exists for this product." });
-        }
+
+        // Reload with navigation for response
+        var created = await db.ProductVariants
+            .Where(v => v.Id == variant.Id)
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.Media)
+            .AsSplitQuery()
+            .FirstAsync(cancellationToken);
 
         return Results.Created(
             $"/api/catalog/products/{productId}/variants/{variant.Id}",
-            new ProductVariantResponse(
-                variant.Id, variant.ProductId, variant.TenantId,
-                variant.ColorId, null, null,
-                variant.SizeId, null, null,
-                variant.SKU, variant.Price, variant.StockQuantity, variant.IsActive,
-                variant.CreatedAt, variant.UpdatedAt, null));
+            MapVariantResponse(created));
     }
 
     private static async Task<IResult> UpdateVariant(
@@ -873,62 +645,57 @@ public static class CatalogEndpoints
         if (variant is null)
             return Results.NotFound();
 
-        if (request.ColorId.HasValue)
-        {
-            var colorExists = await db.Colors.AnyAsync(
-                c => c.Id == request.ColorId.Value && c.TenantId == tenantId.Value, cancellationToken);
-            if (!colorExists)
-                return Results.BadRequest(new { message = "Color not found in this tenant." });
-        }
-
-        if (request.SizeId.HasValue)
-        {
-            var sizeExists = await db.Sizes.AnyAsync(
-                s => s.Id == request.SizeId.Value && s.TenantId == tenantId.Value, cancellationToken);
-            if (!sizeExists)
-                return Results.BadRequest(new { message = "Size not found in this tenant." });
-        }
-
         var newSku = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU;
         if (newSku is not null && newSku != variant.SKU &&
             await db.ProductVariants.AnyAsync(v => v.SKU == newSku && v.TenantId == tenantId.Value && v.Id != variantId, cancellationToken))
             return Results.Conflict(new { message = "A variant with this SKU already exists in this tenant." });
 
-        variant.ColorId = request.ColorId;
-        variant.SizeId = request.SizeId;
+        // Check attribute combination uniqueness (excluding self)
+        var requestFingerprint = ComputeRequestFingerprint(request.Attributes ?? []);
+        var sibling = await db.ProductVariants
+            .Where(v => v.ProductId == productId && v.TenantId == tenantId.Value && v.Id != variantId)
+            .Include(v => v.AttributeValues)
+            .ToListAsync(cancellationToken);
+
+        if (sibling.Any(ev => ComputeAttributeFingerprint(ev.AttributeValues) == requestFingerprint))
+            return Results.Conflict(new { message = "A variant with this attribute combination already exists for this product." });
+
         variant.SKU = newSku;
         variant.Price = request.Price;
         variant.StockQuantity = request.StockQuantity ?? variant.StockQuantity;
         variant.IsActive = request.IsActive ?? variant.IsActive;
         variant.UpdatedAt = DateTimeOffset.UtcNow;
 
-        try
+        // Replace attribute values
+        var existingAttrs = await db.VariantAttributeValues
+            .Where(av => av.VariantId == variantId)
+            .ToListAsync(cancellationToken);
+        db.VariantAttributeValues.RemoveRange(existingAttrs);
+
+        foreach (var attr in request.Attributes ?? [])
         {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            return Results.Conflict(new { message = "A variant with this color/size combination already exists for this product." });
+            db.VariantAttributeValues.Add(new ProductVariantAttributeValue
+            {
+                VariantId = variantId,
+                AttributeTypeId = attr.AttributeTypeId,
+                AttributeOptionId = attr.AttributeOptionId,
+                TextValue = attr.TextValue,
+                NumberValue = attr.NumberValue
+            });
         }
 
-        var colorName = variant.ColorId.HasValue
-            ? await db.Colors.Where(c => c.Id == variant.ColorId.Value).Select(c => c.Name).FirstOrDefaultAsync(cancellationToken)
-            : null;
-        var sizeName = variant.SizeId.HasValue
-            ? await db.Sizes.Where(s => s.Id == variant.SizeId.Value).Select(s => s.Name).FirstOrDefaultAsync(cancellationToken)
-            : null;
-        var variantThumbnailKey = await db.ProductMedia
-            .Where(m => m.VariantId == variantId && m.TenantId == tenantId.Value && m.MediaType == MediaType.Image)
-            .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
-            .Select(m => (Guid?)m.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
 
-        return Results.Ok(new ProductVariantResponse(
-            variant.Id, variant.ProductId, variant.TenantId,
-            variant.ColorId, colorName, null,
-            variant.SizeId, sizeName, null,
-            variant.SKU, variant.Price, variant.StockQuantity, variant.IsActive,
-            variant.CreatedAt, variant.UpdatedAt, variantThumbnailKey));
+        // Reload with navigation for response
+        var updated = await db.ProductVariants
+            .Where(v => v.Id == variantId)
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
+            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.Media)
+            .AsSplitQuery()
+            .FirstAsync(cancellationToken);
+
+        return Results.Ok(MapVariantResponse(updated));
     }
 
     private static async Task<IResult> DeleteVariant(
@@ -951,6 +718,55 @@ public static class CatalogEndpoints
         await db.SaveChangesAsync(cancellationToken);
         return Results.NoContent();
     }
+
+    // ── Mapping helpers ───────────────────────────────────────────────────────
+
+    private static ProductResponse MapProductResponse(Product p, Guid tenantId) => new(
+        p.Id, p.TenantId, p.CategoryId,
+        p.Category?.Name,
+        p.Name, p.Description, p.Brand, p.SKU,
+        p.BasePrice, p.Currency, p.IsActive,
+        p.CreatedAt, p.UpdatedAt,
+        p.Variants.Count(v => v.TenantId == tenantId),
+        p.Media.Where(m => m.MediaType == MediaType.Image)
+            .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
+            .Select(m => (Guid?)m.Id).FirstOrDefault(),
+        p.ProductTypeId,
+        p.ProductType?.Name,
+        p.Warnings.Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description)).ToList());
+
+    private static ProductVariantResponse MapVariantResponse(ProductVariant v) => new(
+        v.Id, v.ProductId, v.TenantId,
+        v.AttributeValues
+            .OrderBy(av => av.AttributeType.SortOrder)
+            .ThenBy(av => av.AttributeType.Name)
+            .Select(av => new VariantAttributeValueResponse(
+                av.AttributeTypeId,
+                av.AttributeType.Name,
+                av.AttributeType.ValueType.ToString(),
+                av.AttributeType.Unit,
+                av.AttributeType.HasColorPicker,
+                av.AttributeOptionId,
+                av.AttributeOption?.Value,
+                av.AttributeOption?.HexCode,
+                av.TextValue,
+                av.NumberValue))
+            .ToList(),
+        v.SKU, v.Price, v.StockQuantity, v.IsActive,
+        v.CreatedAt, v.UpdatedAt,
+        v.Media.Where(m => m.MediaType == MediaType.Image)
+            .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
+            .Select(m => (Guid?)m.Id).FirstOrDefault());
+
+    private static string ComputeAttributeFingerprint(IEnumerable<ProductVariantAttributeValue> values) =>
+        string.Join("|", values
+            .OrderBy(av => av.AttributeTypeId)
+            .Select(av => $"{av.AttributeTypeId}:{av.AttributeOptionId?.ToString() ?? ""}:{av.TextValue ?? ""}:{av.NumberValue?.ToString("G") ?? ""}"));
+
+    private static string ComputeRequestFingerprint(IEnumerable<VariantAttributeValueRequest> values) =>
+        string.Join("|", values
+            .OrderBy(av => av.AttributeTypeId)
+            .Select(av => $"{av.AttributeTypeId}:{av.AttributeOptionId?.ToString() ?? ""}:{av.TextValue ?? ""}:{av.NumberValue?.ToString("G") ?? ""}"));
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
@@ -972,31 +788,16 @@ public record UpdateCategoryRequest(
     Guid? ParentCategoryId = null,
     bool? IsActive = null);
 
-public record ColorResponse(
-    Guid Id, Guid TenantId,
-    string Name, string? HexCode, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
-
-public record CreateColorRequest(string Name, string? HexCode = null);
-
-public record UpdateColorRequest(string Name, string? HexCode = null, bool? IsActive = null);
-
-public record SizeResponse(
-    Guid Id, Guid TenantId,
-    string Name, string SizeType, int SortOrder, bool IsActive,
-    DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
-
-public record CreateSizeRequest(string Name, string? SizeType = null, int SortOrder = 0);
-
-public record UpdateSizeRequest(string Name, string? SizeType = null, int? SortOrder = null, bool? IsActive = null);
-
 public record ProductResponse(
     Guid Id, Guid TenantId, Guid? CategoryId, string? CategoryName,
     string Name, string? Description, string? Brand, string? SKU,
     decimal BasePrice, string Currency, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     int VariantCount,
-    Guid? ThumbnailMediaId);
+    Guid? ThumbnailMediaId,
+    Guid? ProductTypeId,
+    string? ProductTypeName,
+    List<ProductWarningResponse> Warnings);
 
 public record CreateProductRequest(
     string Name,
@@ -1005,7 +806,9 @@ public record CreateProductRequest(
     string? Description = null,
     string? Brand = null,
     string? SKU = null,
-    Guid? CategoryId = null);
+    Guid? CategoryId = null,
+    Guid? ProductTypeId = null,
+    List<Guid>? WarningIds = null);
 
 public record UpdateProductRequest(
     string Name,
@@ -1015,27 +818,49 @@ public record UpdateProductRequest(
     string? Brand = null,
     string? SKU = null,
     Guid? CategoryId = null,
-    bool? IsActive = null);
+    bool? IsActive = null,
+    Guid? ProductTypeId = null,
+    List<Guid>? WarningIds = null);
 
 public record ProductVariantResponse(
     Guid Id, Guid ProductId, Guid TenantId,
-    Guid? ColorId, string? ColorName, string? ColorHex,
-    Guid? SizeId, string? SizeName, string? SizeType,
+    List<VariantAttributeValueResponse> Attributes,
     string? SKU, decimal? Price, int StockQuantity, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     Guid? ThumbnailMediaId);
 
 public record CreateProductVariantRequest(
-    Guid? ColorId = null,
-    Guid? SizeId = null,
     string? SKU = null,
     decimal? Price = null,
-    int StockQuantity = 0);
+    int StockQuantity = 0,
+    List<VariantAttributeValueRequest>? Attributes = null);
 
 public record UpdateProductVariantRequest(
-    Guid? ColorId = null,
-    Guid? SizeId = null,
     string? SKU = null,
     decimal? Price = null,
     int? StockQuantity = null,
-    bool? IsActive = null);
+    bool? IsActive = null,
+    List<VariantAttributeValueRequest>? Attributes = null);
+
+public record VariantAttributeValueResponse(
+    Guid AttributeTypeId,
+    string AttributeTypeName,
+    string ValueType,
+    string? Unit,
+    bool HasColorPicker,
+    Guid? AttributeOptionId,
+    string? OptionValue,
+    string? OptionHexCode,
+    string? TextValue,
+    decimal? NumberValue);
+
+public record VariantAttributeValueRequest(
+    Guid AttributeTypeId,
+    Guid? AttributeOptionId = null,
+    string? TextValue = null,
+    decimal? NumberValue = null);
+
+public record ProductWarningResponse(
+    Guid WarningId,
+    string Name,
+    string? Description);
