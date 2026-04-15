@@ -28,8 +28,7 @@ public class StorageBucketInitializer : IHostedService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to ensure bucket '{Bucket}' exists", bucket);
-                throw;
+                _logger.LogWarning(ex, "Failed to ensure bucket '{Bucket}' exists; storage features may be unavailable", bucket);
             }
         }
 

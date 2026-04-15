@@ -8,11 +8,17 @@ public static class StorageServiceExtensions
 {
     public static IServiceCollection AddMinioStorage(this IServiceCollection services, IConfiguration configuration)
     {
+        var connectionString = configuration.GetConnectionString("minio");
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            // No MinIO configured (e.g. running without Aspire). Register a no-op so the API
+            // starts cleanly; storage endpoints will return 503 when invoked.
+            services.AddSingleton<IFileStorageService, NoOpFileStorageService>();
+            return services;
+        }
+
         services.AddSingleton<IMinioClient>(sp =>
         {
-            var connectionString = configuration.GetConnectionString("minio")
-                ?? throw new InvalidOperationException("MinIO connection string 'minio' is not configured");
-
             // Aspire injects MinIO as a plain endpoint URL (e.g. "http://localhost:9000").
             // Credentials are not embedded — read separately with dev-safe defaults.
             string endpoint;
