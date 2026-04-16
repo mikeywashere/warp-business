@@ -137,6 +137,12 @@ builder.Services.AddHostedService<StorageBucketInitializer>();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// Serialize enums as strings in all JSON responses
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

@@ -16,38 +16,7 @@ namespace WarpBusiness.Catalog.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Map legacy emoji values stored before the NotationIcon enum was introduced.
-            migrationBuilder.Sql("""
-                UPDATE catalog."Notations"
-                SET "Icon" = 'Warning'
-                WHERE "Icon" IN ('⚠', '⚠️', '!', 'warning', 'Warning');
-                """);
-
-            migrationBuilder.Sql("""
-                UPDATE catalog."Notations"
-                SET "Icon" = 'Info'
-                WHERE "Icon" IN ('ℹ', 'ℹ️', 'info', 'Info');
-                """);
-
-            migrationBuilder.Sql("""
-                UPDATE catalog."Notations"
-                SET "Icon" = 'Note'
-                WHERE "Icon" IN ('📝', 'note', 'Note');
-                """);
-
-            migrationBuilder.Sql("""
-                UPDATE catalog."Notations"
-                SET "Icon" = 'Caution'
-                WHERE "Icon" IN ('⚡', 'caution', 'Caution');
-                """);
-
-            migrationBuilder.Sql("""
-                UPDATE catalog."Notations"
-                SET "Icon" = 'Danger'
-                WHERE "Icon" IN ('☠', '☠️', 'danger', 'Danger');
-                """);
-
-            // NULL out any remaining unrecognised values so EF's converter doesn't throw.
+            // Remove all legacy/unrecognised icon values — callers can re-select a valid icon.
             migrationBuilder.Sql($"""
                 UPDATE catalog."Notations"
                 SET "Icon" = NULL
