@@ -519,3 +519,35 @@ Completed full backend Warning→Notation rename:
 **Build:** ✅ 0 errors, 5 pre-existing warnings
 
 **Handoff:** Ready for Geordi to update frontend API client and UI components.
+
+## Task: nginx Reverse Proxy for Subdomain Routing
+
+**Date:** 2026-04-16  
+**Requested by:** Michael R. Schmidt
+
+### Implementation Summary
+
+Added an nginx reverse proxy container to the Aspire AppHost for subdomain-based routing in preparation for warp-business.com DNS wiring.
+
+**Files created:**
+- `nginx/nginx.conf.template` — subdomain routing config using `${VAR}` envsubst placeholders, one `server {}` block per subdomain, with `/_health` location and WebSocket support on Blazor/portal services
+- `nginx/README.md` — routing table, env var reference, production usage guide
+
+**Files modified:**
+- `WarpBusiness.AppHost/AppHost.cs` — captured web, customerPortal, tenantPortal, marketingSite as named variables; added nginx container with `nginx:alpine`, bind-mount of template, port 80 endpoint, all upstream env vars injected via `GetEndpoint("http")`, and `WaitFor` all upstream services
+
+**AppHost pattern used:**
+```csharp
+builder.AddContainer("nginx", "nginx", "alpine")
+    .WithBindMount("../nginx/nginx.conf.template", "/etc/nginx/templates/nginx.conf.template")
+    .WithHttpEndpoint(targetPort: 80, name: "http")
+    .WithEnvironment("API_UPSTREAM", api.GetEndpoint("http"))
+    ...
+```
+
+## Learnings
+- nginx docker's `/etc/nginx/templates/` directory is the idiomatic entrypoint for envsubst templating — files placed there are processed at container start, output written to `/etc/nginx/conf.d/`
+- `AddContainer(name, image, tag)` is the correct three-argument Aspire overload for containers with explicit tags (e.g., `nginx:alpine`)
+- Blazor Server and portals need `Upgrade`/`Connection` WebSocket headers in proxy config; marketing and API do not
+- All four portal/web projects needed to be captured as `var` to enable `GetEndpoint()` calls — previously only `api` was assigned to a variable
+- `WaitFor` on all upstreams prevents nginx from starting before backends are ready (avoids 502 on first request)
