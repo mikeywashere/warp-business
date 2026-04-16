@@ -1,4 +1,4 @@
-@page "/catalog/warnings"
+@page "/catalog/notations"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 @using WarpBusiness.Web.Services
@@ -6,9 +6,9 @@
 @inject CatalogApiClient CatalogApi
 @inject NavigationManager Navigation
 
-<PageTitle>Catalog Warnings</PageTitle>
+<PageTitle>Catalog Notations</PageTitle>
 
-<h1 class="mb-4">Catalog Warnings</h1>
+<h1 class="mb-4">Catalog Notations</h1>
 
 <AuthorizeView>
     <Authorized Context="authContext">
@@ -43,11 +43,11 @@
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">@(editingId.HasValue ? "Edit Warning" : "Add Warning")</h5>
+                                <h5 class="modal-title">@(editingId.HasValue ? "Edit Notation" : "Add Notation")</h5>
                                 <button type="button" class="btn-close" @onclick="CloseModal"></button>
                             </div>
                             <div class="modal-body">
-                                <EditForm Model="formModel" OnValidSubmit="HandleSubmit" FormName="warningForm">
+                                <EditForm Model="formModel" OnValidSubmit="HandleSubmit" FormName="notationForm">
                                     <DataAnnotationsValidator />
                                     <ValidationSummary class="text-danger mb-3" />
                                     <div class="row g-3">
@@ -57,16 +57,32 @@
                                             <ValidationMessage For="() => formModel.Name" class="text-danger" />
                                         </div>
                                         <div class="col-12">
-                                            <label class="form-label">Icon / Prefix</label>
-                                            <InputText @bind-Value="formModel.Icon" class="form-control" placeholder="e.g. ⚠ WARNING: or ⚠ CA WARNING:" />
-                                            <div class="form-text">Emoji or short text shown before the warning name (e.g. ⚠ WARNING:, ⚠ CA WARNING:, ⚠ CALIFORNIA WARNING:).</div>
-                                            @if (!string.IsNullOrWhiteSpace(formModel.Icon))
-                                            {
-                                                <div class="mt-2 p-2 rounded" style="background:rgba(255,200,0,0.08); border:1px solid rgba(255,200,0,0.25);">
-                                                    <span class="fw-semibold">Preview: </span>
-                                                    <span>@formModel.Icon @formModel.Name</span>
-                                                </div>
-                                            }
+                                            <label class="form-label">Icon</label>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <InputSelect @bind-Value="formModel.Icon" class="form-select">
+                                                    <option value="">(No Icon)</option>
+                                                    <option value="Warning">Warning</option>
+                                                    <option value="Info">Info</option>
+                                                    <option value="Note">Note</option>
+                                                    <option value="Caution">Caution</option>
+                                                    <option value="Danger">Danger</option>
+                                                    <option value="Prohibited">Prohibited</option>
+                                                    <option value="Flammable">Flammable</option>
+                                                    <option value="Chemical">Chemical Hazard</option>
+                                                    <option value="ElectricalHazard">Electrical Hazard</option>
+                                                    <option value="Recyclable">Recyclable</option>
+                                                    <option value="EcoFriendly">Eco Friendly</option>
+                                                    <option value="FoodAllergen">Food Allergen</option>
+                                                    <option value="Prop65">CA Prop 65</option>
+                                                    <option value="Compliance">Compliance</option>
+                                                    <option value="Temperature">Temperature</option>
+                                                </InputSelect>
+                                                @if (!string.IsNullOrEmpty(formModel.Icon) && formModel.Icon != "None")
+                                                {
+                                                    <i class="bi @GetIconClass(formModel.Icon)" style="font-size: 1.5rem; color: var(--clr-text);"></i>
+                                                }
+                                            </div>
+                                            <div class="form-text">Icon displayed with the notation in catalogs</div>
                                         </div>
                                         <div class="col-12">
                                             <label class="form-label">Description</label>
@@ -76,8 +92,8 @@
                                         {
                                             <div class="col-12">
                                                 <div class="form-check form-switch">
-                                                    <InputCheckbox @bind-Value="formModel.IsActive" class="form-check-input" id="warnActiveSwitch" />
-                                                    <label class="form-check-label" for="warnActiveSwitch">
+                                                    <InputCheckbox @bind-Value="formModel.IsActive" class="form-check-input" id="notationActiveSwitch" />
+                                                    <label class="form-check-label" for="notationActiveSwitch">
                                                         @(formModel.IsActive ? "Active" : "Inactive")
                                                     </label>
                                                 </div>
@@ -87,7 +103,7 @@
                                     <div class="mt-3">
                                         <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
                                             @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
-                                            @(editingId.HasValue ? "Update Warning" : "Create Warning")
+                                            @(editingId.HasValue ? "Update Notation" : "Create Notation")
                                         </button>
                                         <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CloseModal">Cancel</button>
                                     </div>
@@ -108,7 +124,7 @@
                                 <button type="button" class="btn-close" @onclick="CancelDelete"></button>
                             </div>
                             <div class="modal-body">
-                                <p>Delete warning <strong>@deleteCandidate.Name</strong>?</p>
+                                <p>Delete notation <strong>@deleteCandidate.Name</strong>?</p>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
@@ -123,9 +139,9 @@
             }
 
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="mb-0">Warnings (@(warnings?.Count ?? 0))</h5>
+                <h5 class="mb-0">Notations (@(notations?.Count ?? 0))</h5>
                 <button class="btn btn-primary" @onclick="ShowAddModal">
-                    <span class="bi bi-plus-lg me-1"></span> Add Warning
+                    <span class="bi bi-plus-lg me-1"></span> Add Notation
                 </button>
             </div>
 
@@ -141,29 +157,38 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @if (warnings is { Count: > 0 })
+                        @if (notations is { Count: > 0 })
                         {
-                            @foreach (var w in warnings.OrderBy(w => w.Name))
+                            @foreach (var n in notations.OrderBy(n => n.Name))
                             {
                                 <tr>
-                                    <td class="text-nowrap">@(string.IsNullOrWhiteSpace(w.Icon) ? "—" : w.Icon)</td>
-                                    <td>@w.Name</td>
-                                    <td class="text-truncate" style="max-width:300px;">@(w.Description ?? "—")</td>
+                                    <td class="text-nowrap">
+                                        @if (!string.IsNullOrWhiteSpace(n.Icon))
+                                        {
+                                            <i class="bi @GetIconClass(n.Icon)" style="font-size: 1.2rem;"></i>
+                                        }
+                                        else
+                                        {
+                                            <span>—</span>
+                                        }
+                                    </td>
+                                    <td>@n.Name</td>
+                                    <td class="text-truncate" style="max-width:300px;">@(n.Description ?? "—")</td>
                                     <td>
-                                        <span class="badge @(w.IsActive ? "bg-success" : "bg-secondary")">
-                                            @(w.IsActive ? "Active" : "Inactive")
+                                        <span class="badge @(n.IsActive ? "bg-success" : "bg-secondary")">
+                                            @(n.IsActive ? "Active" : "Inactive")
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditModal(w)">Edit</button>
-                                        <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => ConfirmDelete(w)">Delete</button>
+                                        <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditModal(n)">Edit</button>
+                                        <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => ConfirmDelete(n)">Delete</button>
                                     </td>
                                 </tr>
                             }
                         }
                         else
                         {
-                            <tr><td colspan="5" class="text-center text-muted py-4">No warnings defined yet.</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-4">No notations defined yet.</td></tr>
                         }
                     </tbody>
                 </table>
@@ -176,16 +201,16 @@
 </AuthorizeView>
 
 @code {
-    private List<CatalogWarningResponse>? warnings;
+    private List<CatalogNotationResponse>? notations;
     private bool isLoading = true;
     private bool isSubmitting;
     private bool showFormModal;
     private bool showDeleteConfirm;
     private Guid? editingId;
-    private CatalogWarningResponse? deleteCandidate;
+    private CatalogNotationResponse? deleteCandidate;
     private string? errorMessage;
     private string? successMessage;
-    private WarningFormModel formModel = new();
+    private NotationFormModel formModel = new();
 
     protected override async Task OnAuthenticatedInitializedAsync()
     {
@@ -194,27 +219,27 @@
             Navigation.NavigateTo("/select-tenant");
             return;
         }
-        await LoadWarnings();
+        await LoadNotations();
         isLoading = false;
     }
 
-    private async Task LoadWarnings()
+    private async Task LoadNotations()
     {
-        try { warnings = await CatalogApi.GetWarningsAsync(); }
-        catch (Exception ex) { errorMessage = $"Failed to load warnings: {ex.Message}"; }
+        try { notations = await CatalogApi.GetNotationsAsync(); }
+        catch (Exception ex) { errorMessage = $"Failed to load notations: {ex.Message}"; }
     }
 
     private void ShowAddModal()
     {
-        formModel = new WarningFormModel();
+        formModel = new NotationFormModel();
         editingId = null;
         showFormModal = true;
     }
 
-    private void ShowEditModal(CatalogWarningResponse w)
+    private void ShowEditModal(CatalogNotationResponse n)
     {
-        formModel = new WarningFormModel { Name = w.Name, Description = w.Description, Icon = w.Icon, IsActive = w.IsActive };
-        editingId = w.Id;
+        formModel = new NotationFormModel { Name = n.Name, Description = n.Description, Icon = n.Icon, IsActive = n.IsActive };
+        editingId = n.Id;
         showFormModal = true;
     }
 
@@ -222,7 +247,7 @@
     {
         showFormModal = false;
         editingId = null;
-        formModel = new WarningFormModel();
+        formModel = new NotationFormModel();
     }
 
     private async Task HandleSubmit()
@@ -234,26 +259,26 @@
         {
             if (editingId.HasValue)
             {
-                await CatalogApi.UpdateWarningAsync(editingId.Value,
-                    new UpdateCatalogWarningRequest(formModel.Name!, formModel.Description, formModel.Icon, formModel.IsActive));
-                successMessage = "Warning updated.";
+                await CatalogApi.UpdateNotationAsync(editingId.Value,
+                    new UpdateCatalogNotationRequest(formModel.Name!, formModel.Description, formModel.Icon, formModel.IsActive));
+                successMessage = "Notation updated.";
             }
             else
             {
-                await CatalogApi.CreateWarningAsync(new CreateCatalogWarningRequest(formModel.Name!, formModel.Description, formModel.Icon));
-                successMessage = "Warning created.";
+                await CatalogApi.CreateNotationAsync(new CreateCatalogNotationRequest(formModel.Name!, formModel.Description, formModel.Icon));
+                successMessage = "Notation created.";
             }
             CloseModal();
-            await LoadWarnings();
+            await LoadNotations();
         }
         catch (ApiException ex) { errorMessage = ex.Message; }
         catch (Exception ex) { errorMessage = $"Unexpected error: {ex.Message}"; }
         finally { isSubmitting = false; }
     }
 
-    private void ConfirmDelete(CatalogWarningResponse w)
+    private void ConfirmDelete(CatalogNotationResponse n)
     {
-        deleteCandidate = w;
+        deleteCandidate = n;
         showDeleteConfirm = true;
     }
 
@@ -271,17 +296,37 @@
         successMessage = null;
         try
         {
-            var msg = await CatalogApi.DeleteWarningAsync(deleteCandidate.Id);
-            successMessage = msg ?? "Warning deleted.";
+            var msg = await CatalogApi.DeleteNotationAsync(deleteCandidate.Id);
+            successMessage = msg ?? "Notation deleted.";
             CancelDelete();
-            await LoadWarnings();
+            await LoadNotations();
         }
         catch (ApiException ex) { errorMessage = ex.Message; }
         catch (Exception ex) { errorMessage = $"Unexpected error: {ex.Message}"; }
         finally { isSubmitting = false; }
     }
 
-    private class WarningFormModel
+    private static string GetIconClass(string? icon) => icon switch
+    {
+        "Warning" => "bi-exclamation-triangle-fill",
+        "Info" => "bi-info-circle-fill",
+        "Note" => "bi-journal-text",
+        "Caution" => "bi-exclamation-circle-fill",
+        "Danger" => "bi-x-octagon-fill",
+        "Prohibited" => "bi-slash-circle",
+        "Flammable" => "bi-fire",
+        "Chemical" => "bi-droplet-fill",
+        "ElectricalHazard" => "bi-lightning-fill",
+        "Recyclable" => "bi-recycle",
+        "EcoFriendly" => "bi-leaf-fill",
+        "FoodAllergen" => "bi-egg-fill",
+        "Prop65" => "bi-exclamation-diamond-fill",
+        "Compliance" => "bi-shield-check-fill",
+        "Temperature" => "bi-thermometer-half",
+        _ => ""
+    };
+
+    private class NotationFormModel
     {
         [System.ComponentModel.DataAnnotations.Required]
         [System.ComponentModel.DataAnnotations.MaxLength(200)]

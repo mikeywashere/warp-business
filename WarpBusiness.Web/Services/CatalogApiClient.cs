@@ -65,18 +65,18 @@ public record UpdateCatalogAttributeTypeRequest(
 public record CreateCatalogAttributeOptionRequest(string Value, string? HexCode = null, int SortOrder = 0);
 public record UpdateCatalogAttributeOptionRequest(string Value, string? HexCode = null, int? SortOrder = null, bool? IsActive = null);
 
-// ── Warning DTOs ──────────────────────────────────────────────────────────────
+// ── Notation DTOs ─────────────────────────────────────────────────────────────
 
-public record CatalogWarningResponse(
+public record CatalogNotationResponse(
     Guid Id, Guid TenantId, string Name, string? Description, string? Icon, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 
-public record CreateCatalogWarningRequest(string Name, string? Description = null, string? Icon = null);
-public record UpdateCatalogWarningRequest(string Name, string? Description = null, string? Icon = null, bool? IsActive = null);
+public record CreateCatalogNotationRequest(string Name, string? Description = null, string? Icon = null);
+public record UpdateCatalogNotationRequest(string Name, string? Description = null, string? Icon = null, bool? IsActive = null);
 
 // ── Product DTOs ──────────────────────────────────────────────────────────────
 
-public record CatalogProductWarningResponse(Guid WarningId, string Name, string? Description, string? Icon);
+public record CatalogProductNotationResponse(Guid NotationId, string Name, string? Description, string? Icon);
 
 public record CatalogProductResponse(
     Guid Id, Guid TenantId, Guid? CategoryId, string? CategoryName,
@@ -85,7 +85,7 @@ public record CatalogProductResponse(
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     int VariantCount, Guid? ThumbnailMediaId = null,
     Guid? ProductTypeId = null, string? ProductTypeName = null,
-    List<CatalogProductWarningResponse>? Warnings = null);
+    List<CatalogProductNotationResponse>? Notations = null);
 
 public record CreateCatalogProductRequest(
     string Name,
@@ -96,7 +96,7 @@ public record CreateCatalogProductRequest(
     string? SKU = null,
     Guid? CategoryId = null,
     Guid? ProductTypeId = null,
-    List<Guid>? WarningIds = null);
+    List<Guid>? NotationIds = null);
 
 public record UpdateCatalogProductRequest(
     string Name,
@@ -108,7 +108,7 @@ public record UpdateCatalogProductRequest(
     Guid? CategoryId = null,
     bool? IsActive = null,
     Guid? ProductTypeId = null,
-    List<Guid>? WarningIds = null);
+    List<Guid>? NotationIds = null);
 
 // ── Variant DTOs ──────────────────────────────────────────────────────────────
 
@@ -369,55 +369,55 @@ public class CatalogApiClient
         return null;
     }
 
-    // Warnings
-    public async Task<List<CatalogWarningResponse>> GetWarningsAsync()
+    // Notations
+    public async Task<List<CatalogNotationResponse>> GetNotationsAsync()
     {
-        using var request = CreateRequest(HttpMethod.Get, "api/catalog/warnings");
+        using var request = CreateRequest(HttpMethod.Get, "api/catalog/notations");
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<List<CatalogWarningResponse>>() ?? [];
+        return await response.Content.ReadFromJsonAsync<List<CatalogNotationResponse>>() ?? [];
     }
 
-    public async Task<CatalogWarningResponse> CreateWarningAsync(CreateCatalogWarningRequest req)
+    public async Task<CatalogNotationResponse> CreateNotationAsync(CreateCatalogNotationRequest req)
     {
-        using var msg = CreateRequest(HttpMethod.Post, "api/catalog/warnings", JsonContent.Create(req));
+        using var msg = CreateRequest(HttpMethod.Post, "api/catalog/notations", JsonContent.Create(req));
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "CreateWarning");
-        return (await response.Content.ReadFromJsonAsync<CatalogWarningResponse>())!;
+        await ThrowOnErrorAsync(response, "CreateNotation");
+        return (await response.Content.ReadFromJsonAsync<CatalogNotationResponse>())!;
     }
 
-    public async Task UpdateWarningAsync(Guid id, UpdateCatalogWarningRequest req)
+    public async Task UpdateNotationAsync(Guid id, UpdateCatalogNotationRequest req)
     {
-        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/warnings/{id}", JsonContent.Create(req));
+        using var msg = CreateRequest(HttpMethod.Put, $"api/catalog/notations/{id}", JsonContent.Create(req));
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "UpdateWarning");
+        await ThrowOnErrorAsync(response, "UpdateNotation");
     }
 
-    public async Task<string?> DeleteWarningAsync(Guid id)
+    public async Task<string?> DeleteNotationAsync(Guid id)
     {
-        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/warnings/{id}");
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/notations/{id}");
         var response = await _httpClient.SendAsync(msg);
         if (response.StatusCode == System.Net.HttpStatusCode.OK)
         {
             var body = await response.Content.ReadFromJsonAsync<ApiMessageResponse>();
             return body?.Message;
         }
-        await ThrowOnErrorAsync(response, "DeleteWarning");
+        await ThrowOnErrorAsync(response, "DeleteNotation");
         return null;
     }
 
-    public async Task AddProductWarningAsync(Guid productId, Guid warningId)
+    public async Task AddProductNotationAsync(Guid productId, Guid notationId)
     {
-        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/products/{productId}/warnings/{warningId}");
+        using var msg = CreateRequest(HttpMethod.Post, $"api/catalog/products/{productId}/notations/{notationId}");
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "AddProductWarning");
+        await ThrowOnErrorAsync(response, "AddProductNotation");
     }
 
-    public async Task RemoveProductWarningAsync(Guid productId, Guid warningId)
+    public async Task RemoveProductNotationAsync(Guid productId, Guid notationId)
     {
-        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/products/{productId}/warnings/{warningId}");
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/catalog/products/{productId}/notations/{notationId}");
         var response = await _httpClient.SendAsync(msg);
-        await ThrowOnErrorAsync(response, "RemoveProductWarning");
+        await ThrowOnErrorAsync(response, "RemoveProductNotation");
     }
 
     // Products

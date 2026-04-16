@@ -120,7 +120,7 @@ else
             previewDate = DateTime.Now.ToString("MMMM d, yyyy"),
             hasVariants = variants.Count > 0,
             variantCount = variants.Count,
-            hasWarnings = product.Warnings is { Count: > 0 },
+            hasNotations = product.Notations is { Count: > 0 },
             product = new
             {
                 name = product.Name,
@@ -136,11 +136,12 @@ else
                 thumbnailUrl = product.ThumbnailMediaId.HasValue
                     ? CatalogApi.GetMediaUrl(product.ThumbnailMediaId.Value)
                     : (string?)null,
-                warnings = product.Warnings?.Select(w => new
+                notations = product.Notations?.Select(n => new
                 {
-                    icon = w.Icon,
-                    name = w.Name,
-                    description = w.Description
+                    icon = n.Icon,
+                    iconClass = GetIconClass(n.Icon),
+                    name = n.Name,
+                    description = n.Description
                 }).ToList() ?? []
             },
             variants = variants.Select(v =>
@@ -175,4 +176,24 @@ else
     {
         await JS.InvokeVoidAsync("eval", "document.querySelector('.catalog-preview-iframe').contentWindow.print()");
     }
+
+    private static string GetIconClass(string? icon) => icon switch
+    {
+        "Warning" => "bi-exclamation-triangle-fill",
+        "Info" => "bi-info-circle-fill",
+        "Note" => "bi-journal-text",
+        "Caution" => "bi-exclamation-circle-fill",
+        "Danger" => "bi-x-octagon-fill",
+        "Prohibited" => "bi-slash-circle",
+        "Flammable" => "bi-fire",
+        "Chemical" => "bi-droplet-fill",
+        "ElectricalHazard" => "bi-lightning-fill",
+        "Recyclable" => "bi-recycle",
+        "EcoFriendly" => "bi-leaf-fill",
+        "FoodAllergen" => "bi-egg-fill",
+        "Prop65" => "bi-exclamation-diamond-fill",
+        "Compliance" => "bi-shield-check-fill",
+        "Temperature" => "bi-thermometer-half",
+        _ => ""
+    };
 }

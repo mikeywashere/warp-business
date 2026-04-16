@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{product.name}} — Catalog Preview</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Source+Sans+3:wght@400;600&display=swap');
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -47,12 +48,12 @@
   .attr-chip .attr-val { font-weight: 600; color: #333; }
   .price-cell { font-weight: 600; }
   .stock-low { color: #b94a4a; font-weight: 600; }
-  /* Warnings */
-  .warnings-list { display: flex; flex-direction: column; gap: 8px; }
-  .warning-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: #fffbf0; border: 1px solid #f5dfa0; border-radius: 4px; }
-  .warning-icon { font-size: 16px; line-height: 1; }
-  .warning-text strong { font-size: 13px; }
-  .warning-text p { font-size: 12px; color: #666; margin-top: 2px; }
+  /* Notations */
+  .notations-list { display: flex; flex-direction: column; gap: 8px; }
+  .notation-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; background: #fffbf0; border: 1px solid #f5dfa0; border-radius: 4px; }
+  .notation-icon { font-size: 16px; line-height: 1; }
+  .notation-text strong { font-size: 13px; }
+  .notation-text p { font-size: 12px; color: #666; margin-top: 2px; }
   /* Footer */
   .page-footer { background: #f5f4f0; padding: 12px 32px; text-align: right; font-size: 10px; color: #aaa; }
   @media print {
@@ -152,15 +153,15 @@
   </div>
   {{/if}}
 
-  <!-- Warnings -->
-  {{#if hasWarnings}}
+  <!-- Notations -->
+  {{#if hasNotations}}
   <div class="section">
-    <div class="section-title">Warnings &amp; Notices</div>
-    <div class="warnings-list">
-      {{#each product.warnings}}
-      <div class="warning-item">
-        {{#if icon}}<div class="warning-icon">{{icon}}</div>{{/if}}
-        <div class="warning-text">
+    <div class="section-title">Notations &amp; Notices</div>
+    <div class="notations-list">
+      {{#each product.notations}}
+      <div class="notation-item">
+        {{#if iconClass}}<div class="notation-icon"><i class="bi {{iconClass}}"></i></div>{{/if}}
+        <div class="notation-text">
           <strong>{{name}}</strong>
           {{#if description}}<p>{{description}}</p>{{/if}}
         </div>
