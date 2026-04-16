@@ -558,3 +558,20 @@ builder.AddContainer("nginx", "nginx", "alpine")
 - WarpBusiness.Taxonomy uses its own `taxonomy` schema with TaxonomyNode, ExternalTaxonomyCache, and ExternalTaxonomyNode entities; nodes store materialized paths based on slugged names for hierarchy navigation.
 - Taxonomy providers include Google (public), Amazon PA-API (credential-gated), eBay OAuth, and Etsy API key; downloads are orchestrated by TaxonomyDownloadService and imports are handled by TaxonomyImportService with source tracking.
 - Provider keys for taxonomy sources are now strings (static constants) instead of enums, keeping the model open for extension without schema changes.
+
+### Taxonomy: Targeted Import + Cascade Delete (2026-04-17)
+
+- **Feature 1 (targeted import):** `TaxonomyImportService.ImportAsync` already accepted `Guid? targetParentId` and `ImportNodesRequest` already carried `TargetParentId`. Feature was fully implemented — verified, no changes required.
+- **Feature 2 (cascade delete):** New `DELETE /api/taxonomy/nodes/{id}?cascade=true` endpoint added in `WarpBusiness.Api/Endpoints/TaxonomyNodeEndpoints.cs`.
+  - Loads the target node and all descendants via `MaterializedPath LIKE '{path}/%'` prefix query.
+  - Returns `400 Bad Request` if node has children and `cascade=false`.
+  - Runs catalog conflict check stub (`GetCatalogConflictsAsync`) — returns empty until catalog gains a `TaxonomyNodeId` FK.
+  - Returns `409 Conflict` with `conflictingNodeIds` array if any nodes in the subtree are in use.
+  - Deletes subtree in a single `RemoveRange` + `SaveChangesAsync`.
+- **New GET endpoints:** `GET /api/taxonomy/nodes/roots` (root-level nodes for tenant) and `GET /api/taxonomy/nodes/{id}/children` (direct children for lazy-load tree picker) — both added to the same endpoint file.
+- **Architecture decision:** New endpoints placed in `WarpBusiness.Api/Endpoints/TaxonomyNodeEndpoints.cs` (not in the Taxonomy library) to allow injection of both `TaxonomyDbContext` and `CatalogDbContext` without creating a cross-module project reference.
+- **Registration:** `app.MapTaxonomyNodeEndpoints()` added to `Program.cs` after `app.MapTaxonomyEndpoints()`.
+- **Key files:**
+  - `WarpBusiness.Api/Endpoints/TaxonomyNodeEndpoints.cs` (new)
+  - `WarpBusiness.Api/Program.cs` (updated)
+- **Build status:** ✅ 0 errors, 2 pre-existing warnings.
