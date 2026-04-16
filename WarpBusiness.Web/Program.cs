@@ -32,6 +32,9 @@ builder.Services.AddAuthentication(options =>
         ?? builder.Configuration["services:keycloak:https:0"]
         ?? "http://localhost:8080";
 
+    Console.WriteLine($"[Web Startup] Keycloak URL resolved to: {keycloakUrl}");
+    Console.WriteLine($"[Web Startup] OIDC Authority: {keycloakUrl}/realms/warpbusiness");
+
     options.Authority = $"{keycloakUrl}/realms/warpbusiness";
     options.ClientId = "warpbusiness-web";
     options.ResponseType = OpenIdConnectResponseType.Code;
@@ -123,6 +126,7 @@ Action<HttpClient> configureApiClient = client =>
     var apiUrl = builder.Configuration["services:api:https:0"]
         ?? builder.Configuration["services:api:http:0"]
         ?? "http://localhost:5000";
+    Console.WriteLine($"[Web Startup] API base URL resolved to: {apiUrl}");
     client.BaseAddress = new Uri(apiUrl);
 };
 

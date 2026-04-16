@@ -102,6 +102,62 @@ builder.Services.AddOptions<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBea
         };
     });
 
+// Diagnostic logging for JWT authentication failures
+builder.Services.AddOptions<Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerOptions>(
+    Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)
+    .Configure<ILoggerFactory>((options, loggerFactory) =>
+    {
+        var logger = loggerFactory.CreateLogger("JwtBearerAuth");
+        options.Events ??= new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents();
+
+        options.Events.OnAuthenticationFailed = context =>
+        {
+            logger.LogError(context.Exception,
+                "[JWT] Authentication FAILED for {Path}: {Error}",
+                context.Request.Path, context.Exception.Message);
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnTokenValidated = context =>
+        {
+            var claims = context.Principal?.Claims
+                .Select(c => $"{c.Type}={c.Value[..Math.Min(30, c.Value.Length)]}")
+                .Take(10);
+            logger.LogInformation("[JWT] Token VALIDATED for {Path}. Claims: {Claims}",
+                context.Request.Path, string.Join(", ", claims ?? []));
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnChallenge = context =>
+        {
+            logger.LogWarning("[JWT] Challenge issued for {Path}. Error: {Error}, Description: {Desc}. " +
+                "Auth header present: {HasAuth}",
+                context.Request.Path,
+                context.Error ?? "none",
+                context.ErrorDescription ?? "none",
+                context.Request.Headers.Authorization.Count > 0);
+            return Task.CompletedTask;
+        };
+
+        options.Events.OnMessageReceived = context =>
+        {
+            var token = context.Token ?? context.Request.Headers.Authorization.FirstOrDefault();
+            if (!string.IsNullOrEmpty(token))
+            {
+                var display = token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                    ? token[7..Math.Min(27, token.Length)] + "..."
+                    : token[..Math.Min(20, token.Length)] + "...";
+                logger.LogDebug("[JWT] Token received for {Path}: {Prefix}",
+                    context.Request.Path, display);
+            }
+            else
+            {
+                logger.LogWarning("[JWT] No token received for {Path}", context.Request.Path);
+            }
+            return Task.CompletedTask;
+        };
+    });
+
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("SystemAdministrator", policy =>
     {
