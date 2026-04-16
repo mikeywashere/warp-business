@@ -77,14 +77,13 @@ server {
         proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header  X-Forwarded-Proto $scheme;
         proxy_http_version 1.1;
-        proxy_set_header  Connection        "";
         # Support Blazor SignalR / WebSockets
         proxy_set_header  Upgrade           $http_upgrade;
         proxy_set_header  Connection        "upgrade";
     }
 }
 
-# ── api.warp-business.com → REST API ────────────────────────────────────────
+# ── api.warp-business.com→ REST API ────────────────────────────────────────
 server {
     listen 80;
     server_name api.warp-business.com;
@@ -143,13 +142,12 @@ server {
         proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header  X-Forwarded-Proto $scheme;
         proxy_http_version 1.1;
-        proxy_set_header  Connection        "";
         proxy_set_header  Upgrade           $http_upgrade;
         proxy_set_header  Connection        "upgrade";
     }
 }
 
-# ── customer.warp-business.com → customer portal ────────────────────────────
+# ── customer.warp-business.com→ customer portal ────────────────────────────
 server {
     listen 80;
     server_name customer.warp-business.com;
@@ -166,13 +164,12 @@ server {
         proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header  X-Forwarded-Proto $scheme;
         proxy_http_version 1.1;
-        proxy_set_header  Connection        "";
         proxy_set_header  Upgrade           $http_upgrade;
         proxy_set_header  Connection        "upgrade";
     }
 }
 
-# ── auth.warp-business.com → Keycloak ───────────────────────────────────────
+# ── auth.warp-business.com→ Keycloak ───────────────────────────────────────
 server {
     listen 80;
     server_name auth.warp-business.com;
@@ -212,7 +209,6 @@ server {
         proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header  X-Forwarded-Proto $scheme;
         proxy_http_version 1.1;
-        proxy_set_header  Connection        "";
         # Grafana uses WebSockets for live dashboards
         proxy_set_header  Upgrade           $http_upgrade;
         proxy_set_header  Connection        "upgrade";
