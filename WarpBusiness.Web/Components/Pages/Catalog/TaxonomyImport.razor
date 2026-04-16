@@ -83,132 +83,139 @@
                 </div>
             }
 
-            <ul class="nav nav-tabs mb-3">
-                @foreach (var provider in Providers)
-                {
-                    <li class="nav-item">
-                        <button class="nav-link @(provider.Equals(selectedProvider, StringComparison.OrdinalIgnoreCase) ? "active" : "")"
-                                type="button" @onclick="() => SelectProvider(provider)">
-                            @provider
-                        </button>
-                    </li>
-                }
-            </ul>
-
-            <div class="card mb-3">
-                <div class="card-body">
-                    <div class="d-flex flex-wrap justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-1">@selectedProvider Taxonomy</h5>
-                            <div class="text-muted small">
-                                Last download: @(FormatDate(CurrentStatus?.LastDownload))
-                                • @(CurrentStatus?.NodeCount ?? 0) nodes
-                                @if (!string.IsNullOrWhiteSpace(CurrentStatus?.Version))
-                                {
-                                    <span>• Version @CurrentStatus!.Version</span>
-                                }
-                            </div>
-                            <div class="mt-2">
-                                <span class="badge @GetStatusBadgeClass(CurrentStatus)">@GetStatusText(CurrentStatus)</span>
-                            </div>
-                        </div>
-                        <button class="btn btn-outline-info" @onclick="() => DownloadProviderAsync(selectedProvider)"
-                                disabled="@(!IsProviderEnabled(CurrentStatus) || isDownloading)">
-                            @if (isDownloading) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
-                            Download Now
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            @if (CurrentStatus is { RequiresApiKey: true, Enabled: false })
+            @if (ProviderTabs.Count == 0)
             {
-                <div class="alert alert-info">
-                    This provider requires API credentials. Configure Taxonomy:@selectedProvider in appsettings.
-                </div>
-            }
-
-            <div class="mb-3">
-                <label class="form-label">Search</label>
-                <input class="form-control" placeholder="Search by name or path" value="@searchText" @oninput="OnSearchInput" />
-            </div>
-
-            @if (isLoadingExternal)
-            {
-                <div class="d-flex justify-content-center my-4">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                </div>
+                <div class="alert alert-info">No taxonomy providers are configured.</div>
             }
             else
             {
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>Node</th>
-                                <th>Path</th>
-                                <th style="width: 250px;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (VisibleExternalNodes.Any())
-                            {
-                                @foreach (var node in VisibleExternalNodes)
-                                {
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center" style="padding-left: @(node.Level * 20)px;">
-                                                @if (HasExternalChildren(node))
-                                                {
-                                                    <button type="button" class="btn btn-sm btn-link p-0 me-2"
-                                                            style="color: var(--clr-accent);" @onclick="() => ToggleExternalNode(node)">
-                                                        @(CurrentCollapsedSet.Contains(node.ExternalId) ? "▶" : "▼")
-                                                    </button>
-                                                }
-                                                else
-                                                {
-                                                    <span class="me-4"></span>
-                                                }
+                <ul class="nav nav-tabs mb-3">
+                    @foreach (var provider in ProviderTabs)
+                    {
+                        <li class="nav-item">
+                            <button class="nav-link @(provider.Equals(selectedProvider, StringComparison.OrdinalIgnoreCase) ? "active" : "")"
+                                    type="button" @onclick="() => SelectProvider(provider)">
+                                @provider
+                            </button>
+                        </li>
+                    }
+                </ul>
 
-                                                @if (node.IsImported)
-                                                {
-                                                    <span class="badge bg-secondary me-2">✓ Imported</span>
-                                                }
-                                                else
-                                                {
-                                                    <input class="form-check-input me-2" type="checkbox" checked="@IsSelected(node)"
-                                                           @onchange="(e => ToggleNodeSelection(node, e))" />
-                                                }
-                                                <span>@node.Name</span>
-                                            </div>
-                                        </td>
-                                        <td class="text-muted small">@node.FullPath</td>
-                                        <td>
-                                            <button class="btn btn-sm mt-2 btn-outline-secondary"
-                                                    @onclick="() => SelectAllChildren(node)" disabled="@node.IsLeaf">
-                                                Select All Children
-                                            </button>
-                                        </td>
-                                    </tr>
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-1">@selectedProvider Taxonomy</h5>
+                                <div class="text-muted small">
+                                    Last download: @(FormatDate(CurrentStatus?.LastDownload))
+                                    • @(CurrentStatus?.NodeCount ?? 0) nodes
+                                    @if (!string.IsNullOrWhiteSpace(CurrentStatus?.Version))
+                                    {
+                                        <span>• Version @CurrentStatus!.Version</span>
+                                    }
+                                </div>
+                                <div class="mt-2">
+                                    <span class="badge @GetStatusBadgeClass(CurrentStatus)">@GetStatusText(CurrentStatus)</span>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-info" @onclick="() => DownloadProviderAsync(selectedProvider)"
+                                    disabled="@(!IsProviderEnabled(CurrentStatus) || isDownloading)">
+                                @if (isDownloading) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
+                                Download Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                @if (CurrentStatus is { RequiresApiKey: true, Enabled: false })
+                {
+                    <div class="alert alert-info">
+                        This provider requires API credentials. Configure Taxonomy:@selectedProvider in appsettings.
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Search</label>
+                    <input class="form-control" placeholder="Search by name or path" value="@searchText" @oninput="OnSearchInput" />
+                </div>
+
+                @if (isLoadingExternal)
+                {
+                    <div class="d-flex justify-content-center my-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Node</th>
+                                    <th>Path</th>
+                                    <th style="width: 250px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (VisibleExternalNodes.Any())
+                                {
+                                    @foreach (var node in VisibleExternalNodes)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center" style="padding-left: @(node.Level * 20)px;">
+                                                    @if (HasExternalChildren(node))
+                                                    {
+                                                        <button type="button" class="btn btn-sm btn-link p-0 me-2"
+                                                                style="color: var(--clr-accent);" @onclick="() => ToggleExternalNode(node)">
+                                                            @(CurrentCollapsedSet.Contains(node.ExternalId) ? "▶" : "▼")
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="me-4"></span>
+                                                    }
+
+                                                    @if (node.IsImported)
+                                                    {
+                                                        <span class="badge bg-secondary me-2">✓ Imported</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <input class="form-check-input me-2" type="checkbox" checked="@IsSelected(node)"
+                                                               @onchange="(e => ToggleNodeSelection(node, e))" />
+                                                    }
+                                                    <span>@node.Name</span>
+                                                </div>
+                                            </td>
+                                            <td class="text-muted small">@node.FullPath</td>
+                                            <td>
+                                                <button class="btn btn-sm mt-2 btn-outline-secondary"
+                                                        @onclick="() => SelectAllChildren(node)" disabled="@node.IsLeaf">
+                                                    Select All Children
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
                                 }
-                            }
-                            else
-                            {
-                                <tr><td colspan="3" class="text-center text-muted py-4">No external nodes loaded yet.</td></tr>
-                            }
-                        </tbody>
-                    </table>
+                                else
+                                {
+                                    <tr><td colspan="3" class="text-center text-muted py-4">No external nodes loaded yet.</td></tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="text-muted">Selected: <strong>@SelectedCount</strong> nodes</div>
+                    <button class="btn btn-primary" @onclick="ShowImportModal" disabled="@(SelectedCount == 0 || isImporting)">
+                        Import Selected
+                    </button>
                 </div>
             }
-
-            <div class="d-flex justify-content-between align-items-center mt-3">
-                <div class="text-muted">Selected: <strong>@SelectedCount</strong> nodes</div>
-                <button class="btn btn-primary" @onclick="ShowImportModal" disabled="@(SelectedCount == 0 || isImporting)">
-                    Import Selected
-                </button>
-            </div>
         }
     </Authorized>
     <NotAuthorized>
@@ -220,8 +227,7 @@
 </AuthorizeView>
 
 @code {
-    private static readonly List<string> Providers = ["Google", "Amazon", "eBay", "Etsy"];
-    private string selectedProvider = Providers[0];
+    private string selectedProvider = string.Empty;
     private bool isLoading = true;
     private bool isLoadingExternal;
     private bool isDownloading;
@@ -239,11 +245,23 @@
     private readonly Dictionary<string, HashSet<string>> collapsedExternalNodes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, Dictionary<string, List<ExternalNodeResponse>>> externalChildrenLookup = new(StringComparer.OrdinalIgnoreCase);
 
+    private List<string> ProviderTabs =>
+        providerStatuses
+            .Select(s => s.Provider)
+            .Where(p => !string.IsNullOrWhiteSpace(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(p => p)
+            .ToList();
+
     private ProviderStatusResponse? CurrentStatus =>
-        providerStatuses.FirstOrDefault(s => s.Provider.Equals(selectedProvider, StringComparison.OrdinalIgnoreCase));
+        string.IsNullOrWhiteSpace(selectedProvider)
+            ? null
+            : providerStatuses.FirstOrDefault(s => s.Provider.Equals(selectedProvider, StringComparison.OrdinalIgnoreCase));
 
     private IEnumerable<ExternalNodeResponse> CurrentExternalNodes =>
-        externalTrees.TryGetValue(selectedProvider, out var nodes) ? nodes : [];
+        string.IsNullOrWhiteSpace(selectedProvider)
+            ? []
+            : externalTrees.TryGetValue(selectedProvider, out var nodes) ? nodes : [];
 
     private HashSet<string> CurrentSelectedSet
     {
@@ -306,8 +324,12 @@
         }
 
         await LoadProviderStatusAsync();
+        EnsureSelectedProvider();
         await LoadWarpNodesAsync();
-        await LoadExternalNodesAsync(selectedProvider, forceReload: true);
+        if (!string.IsNullOrWhiteSpace(selectedProvider))
+        {
+            await LoadExternalNodesAsync(selectedProvider, forceReload: true);
+        }
         isLoading = false;
     }
 
@@ -316,10 +338,26 @@
         try
         {
             providerStatuses = await TaxonomyApi.GetProviderStatusAsync();
+            EnsureSelectedProvider();
         }
         catch (Exception ex)
         {
             errorMessage = $"Failed to load provider status: {ex.Message}";
+        }
+    }
+
+    private void EnsureSelectedProvider()
+    {
+        if (ProviderTabs.Count == 0)
+        {
+            selectedProvider = string.Empty;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(selectedProvider)
+            || !ProviderTabs.Contains(selectedProvider, StringComparer.OrdinalIgnoreCase))
+        {
+            selectedProvider = ProviderTabs[0];
         }
     }
 
