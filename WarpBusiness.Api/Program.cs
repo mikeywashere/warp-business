@@ -375,6 +375,7 @@ app.MapCatalogNotationEndpoints();
 
 // Taxonomy management API endpoints
 app.MapTaxonomyEndpoints();
+app.MapTaxonomyNodeEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();
