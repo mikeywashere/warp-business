@@ -10,6 +10,7 @@
   <Project Path="WarpBusiness.Crm.Tests/WarpBusiness.Crm.Tests.csproj" />
   <Project Path="WarpBusiness.Crm/WarpBusiness.Crm.csproj" />
   <Project Path="WarpBusiness.Catalog/WarpBusiness.Catalog.csproj" />
+  <Project Path="WarpBusiness.Taxonomy/WarpBusiness.Taxonomy.csproj" />
   <Project Path="WarpBusiness.CustomerPortal/WarpBusiness.CustomerPortal.csproj" />
   <Project Path="WarpBusiness.TenantPortal/WarpBusiness.TenantPortal.csproj" />
   <Project Path="WarpBusiness.Cli/WarpBusiness.Cli.csproj" />

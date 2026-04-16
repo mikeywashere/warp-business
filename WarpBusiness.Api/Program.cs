@@ -8,6 +8,9 @@ using WarpBusiness.Crm.Data;
 using WarpBusiness.Employees.Data;
 using WarpBusiness.Employees.Endpoints;
 using WarpBusiness.Employees.Services;
+using WarpBusiness.Taxonomy.Data;
+using WarpBusiness.Taxonomy.Endpoints;
+using WarpBusiness.Taxonomy.Services;
 using WarpBusiness.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +22,7 @@ builder.AddNpgsqlDbContext<WarpBusinessDbContext>("warpdb");
 builder.AddNpgsqlDbContext<EmployeeDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CrmDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CatalogDbContext>("warpdb");
+builder.AddNpgsqlDbContext<TaxonomyDbContext>("warpdb");
 
 builder.Services.AddScoped<IUserValidator, UserValidator>();
 
@@ -129,6 +133,18 @@ builder.Services.AddHostedService<DbInitializer>();
 builder.Services.AddHostedService<EmployeeDbInitializer>();
 builder.Services.AddHostedService<CrmDbInitializer>();
 builder.Services.AddHostedService<CatalogDbInitializer>();
+builder.Services.AddHostedService<TaxonomyDbInitializer>();
+
+builder.Services.AddHttpClient<GoogleTaxonomyDownloader>();
+builder.Services.AddHttpClient<AmazonTaxonomyDownloader>();
+builder.Services.AddHttpClient<EbayTaxonomyDownloader>();
+builder.Services.AddHttpClient<EtsyTaxonomyDownloader>();
+builder.Services.AddScoped<ITaxonomyDownloader, GoogleTaxonomyDownloader>();
+builder.Services.AddScoped<ITaxonomyDownloader, AmazonTaxonomyDownloader>();
+builder.Services.AddScoped<ITaxonomyDownloader, EbayTaxonomyDownloader>();
+builder.Services.AddScoped<ITaxonomyDownloader, EtsyTaxonomyDownloader>();
+builder.Services.AddScoped<TaxonomyDownloadService>();
+builder.Services.AddScoped<TaxonomyImportService>();
 
 // MinIO Storage
 builder.Services.AddMinioStorage(builder.Configuration);
@@ -300,6 +316,9 @@ app.MapCatalogImageEndpoints();
 app.MapCatalogProductTypeEndpoints();
 app.MapCatalogAttributeEndpoints();
 app.MapCatalogNotationEndpoints();
+
+// Taxonomy management API endpoints
+app.MapTaxonomyEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();

@@ -551,3 +551,9 @@ builder.AddContainer("nginx", "nginx", "alpine")
 - Blazor Server and portals need `Upgrade`/`Connection` WebSocket headers in proxy config; marketing and API do not
 - All four portal/web projects needed to be captured as `var` to enable `GetEndpoint()` calls — previously only `api` was assigned to a variable
 - `WaitFor` on all upstreams prevents nginx from starting before backends are ready (avoids 502 on first request)
+- `set -xe` in the shell entrypoint traces every command to stderr before execution and exits on first error — essential for debugging silent container failures
+- `nginx -t` before starting nginx surfaces config syntax errors in container logs instead of a silent crash
+- `exec nginx` replaces the shell process, giving nginx PID 1 and proper SIGTERM/SIGINT signal handling for clean shutdown
+- Duplicate `proxy_set_header Connection` directives (first `""` then `"upgrade"`) cause config errors in some nginx versions; WebSocket blocks need only the `"upgrade"` version
+- WarpBusiness.Taxonomy uses its own `taxonomy` schema with TaxonomyNode, ExternalTaxonomyCache, and ExternalTaxonomyNode entities; nodes store materialized paths based on slugged names for hierarchy navigation.
+- Taxonomy providers include Google (public), Amazon PA-API (credential-gated), eBay OAuth, and Etsy API key; downloads are orchestrated by TaxonomyDownloadService and imports are handled by TaxonomyImportService with source tracking.
