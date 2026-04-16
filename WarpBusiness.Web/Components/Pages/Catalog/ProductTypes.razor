@@ -176,7 +176,7 @@
                                                         </td>
                                                         <td>@a.SortOrder</td>
                                                         <td>
-                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveAttribute(a.AttributeTypeId)">Remove</button>
+                                                            <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => RemoveAttribute(a.AttributeTypeId)">Remove</button>
                                                         </td>
                                                     </tr>
                                                 }
@@ -252,9 +252,9 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditModal(pt)">Edit</button>
-                                        <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => OpenAttributesModal(pt)">Attributes</button>
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(pt)">Delete</button>
+                                        <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditModal(pt)">Edit</button>
+                                        <button class="btn btn-sm mt-2 btn-outline-secondary me-1" @onclick="() => OpenAttributesModal(pt)">Attributes</button>
+                                        <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => ConfirmDelete(pt)">Delete</button>
                                     </td>
                                 </tr>
                             }

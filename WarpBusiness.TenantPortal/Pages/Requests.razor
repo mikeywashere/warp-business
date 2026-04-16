@@ -147,12 +147,12 @@ else
                         <td>@(request.AssignedToName ?? "Unassigned")</td>
                         <td>@request.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-info" @onclick="() => ToggleDetails(request.Id)">
+                            <button class="btn btn-sm mt-2 btn-outline-info" @onclick="() => ToggleDetails(request.Id)">
                                 @(expandedRequestId == request.Id ? "Hide" : "View") Details
                             </button>
                             @if (CanCancelRequest(request.Status))
                             {
-                                <button class="btn btn-sm btn-outline-danger ms-2" @onclick="() => CancelRequest(request.Id)">
+                                <button class="btn btn-sm mt-2 btn-outline-danger ms-2" @onclick="() => CancelRequest(request.Id)">
                                     Cancel
                                 </button>
                             }

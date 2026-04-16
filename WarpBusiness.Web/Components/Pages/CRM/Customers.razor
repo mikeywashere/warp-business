@@ -191,21 +191,21 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditModal(customer)" title="Edit">
+                                        <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditModal(customer)" title="Edit">
                                             Edit
                                         </button>
-                                        <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ViewDetails(customer.Id)" title="View Details">
+                                        <button class="btn btn-sm mt-2 btn-outline-info me-1" @onclick="() => ViewDetails(customer.Id)" title="View Details">
                                             Details
                                         </button>
                                         @if (customer.IsActive)
                                         {
-                                            <button class="btn btn-sm btn-outline-warning" @onclick="() => ConfirmDeactivate(customer)" title="Deactivate">
+                                            <button class="btn btn-sm mt-2 btn-outline-warning" @onclick="() => ConfirmDeactivate(customer)" title="Deactivate">
                                                 Deactivate
                                             </button>
                                         }
                                         else
                                         {
-                                            <button class="btn btn-sm btn-outline-success" @onclick="() => ConfirmActivate(customer)" title="Activate">
+                                            <button class="btn btn-sm mt-2 btn-outline-success" @onclick="() => ConfirmActivate(customer)" title="Activate">
                                                 Activate
                                             </button>
                                         }

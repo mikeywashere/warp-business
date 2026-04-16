@@ -174,7 +174,7 @@
                                                 </button>
                                                 @if (editingOptionId.HasValue)
                                                 {
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" @onclick="CancelOptionEdit">Cancel Edit</button>
+                                                    <button type="button" class="btn btn-sm mt-2 btn-outline-secondary ms-2" @onclick="CancelOptionEdit">Cancel Edit</button>
                                                 }
                                             </div>
                                         </EditForm>
@@ -220,8 +220,8 @@
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditOption(opt)">Edit</button>
-                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteOption(opt)">Delete</button>
+                                                            <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => EditOption(opt)">Edit</button>
+                                                            <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => DeleteOption(opt)">Delete</button>
                                                         </td>
                                                     </tr>
                                                 }
@@ -308,12 +308,12 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditModal(at)">Edit</button>
+                                        <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditModal(at)">Edit</button>
                                         @if (at.ValueType == "Select")
                                         {
-                                            <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => OpenOptionsModal(at)">Options</button>
+                                            <button class="btn btn-sm mt-2 btn-outline-secondary me-1" @onclick="() => OpenOptionsModal(at)">Options</button>
                                         }
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(at)">Delete</button>
+                                        <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => ConfirmDelete(at)">Delete</button>
                                     </td>
                                 </tr>
                             }

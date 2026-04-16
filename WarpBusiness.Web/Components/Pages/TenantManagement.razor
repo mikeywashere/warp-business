@@ -149,13 +149,13 @@ else
                             </td>
                             <td>@tenant.CreatedAt.ToString("yyyy-MM-dd")</td>
                             <td>
-                                <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ToggleMembers(tenant)" title="Members">
+                                <button class="btn btn-sm mt-2 btn-outline-info me-1" @onclick="() => ToggleMembers(tenant)" title="Members">
                                     Members
                                 </button>
-                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditForm(tenant)" title="Edit">
+                                <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditForm(tenant)" title="Edit">
                                     Edit
                                 </button>
-                                <button class="btn btn-sm btn-outline-danger me-1" @onclick="() => ConfirmDelete(tenant)" title="Delete">
+                                <button class="btn btn-sm mt-2 btn-outline-danger me-1" @onclick="() => ConfirmDelete(tenant)" title="Delete">
                                     Delete
                                 </button>
                             </td>
@@ -169,7 +169,7 @@ else
                                     <div class="card border-info">
                                         <div class="card-header bg-info bg-opacity-10 d-flex justify-content-between align-items-center">
                                             <strong>Members of @tenant.Name</strong>
-                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ShowAddMember(tenant.Id)">
+                                            <button class="btn btn-sm mt-2 btn-outline-primary" @onclick="() => ShowAddMember(tenant.Id)">
                                                 <span class="bi bi-plus-lg me-1"></span> Add Member
                                             </button>
                                         </div>
@@ -234,7 +234,7 @@ else
                                                                     </td>
                                                                     <td>@member.JoinedAt.ToString("yyyy-MM-dd")</td>
                                                                     <td>
-                                                                        <button class="btn btn-sm btn-outline-danger"
+                                                                        <button class="btn btn-sm mt-2 btn-outline-danger"
                                                                                 @onclick="() => ConfirmRemoveMember(tenant.Id, member)"
                                                                                 title="Remove">
                                                                             Remove

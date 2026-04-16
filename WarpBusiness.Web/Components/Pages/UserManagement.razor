@@ -165,7 +165,7 @@
                                                         <option value="@role">@role</option>
                                                     }
                                                 </select>
-                                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                                <button type="button" class="btn btn-sm mt-2 btn-outline-primary"
                                                         @onclick="AddRoleAsync"
                                                         disabled="@(string.IsNullOrEmpty(roleToAdd) || isRoleChanging)">
                                                     Add
@@ -301,10 +301,10 @@
                                     <td>
                                         <AuthorizeView Roles="SystemAdministrator">
                                             <Authorized>
-                                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => HandleEditUser(user)" title="Edit">
+                                                <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => HandleEditUser(user)" title="Edit">
                                                     Edit
                                                 </button>
-                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(user)" title="Delete">
+                                                <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => ConfirmDelete(user)" title="Delete">
                                                     Delete
                                                 </button>
                                             </Authorized>
