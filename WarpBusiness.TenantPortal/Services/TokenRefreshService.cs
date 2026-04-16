@@ -78,13 +78,14 @@ public class TokenRefreshService
                 return false;
             }
 
-            authResult.Properties!.UpdateTokenValue("access_token", newAccessToken);
-            authResult.Properties.UpdateTokenValue("refresh_token", newRefreshToken);
-            authResult.Properties.UpdateTokenValue("expires_at",
+            var props = authResult.Properties!;
+            props.UpdateTokenValue("access_token", newAccessToken);
+            props.UpdateTokenValue("refresh_token", newRefreshToken);
+            props.UpdateTokenValue("expires_at",
                 DateTimeOffset.UtcNow.AddSeconds(expiresIn).ToString("o"));
 
             await httpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                authResult.Principal, authResult.Properties);
+                authResult.Principal, props);
 
             _logger.LogInformation("[TokenRefresh] Successfully refreshed tokens");
             return true;
