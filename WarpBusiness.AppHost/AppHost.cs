@@ -61,7 +61,7 @@ var marketingSite = builder.AddProject<Projects.WarpBusiness_MarketingSite>("mar
 // nginx reverse proxy — subdomain-based routing for warp-business.com
 // See nginx/README.md for the full routing table and production usage.
 builder.AddContainer("nginx", "nginx", "alpine")
-    .WithBindMount("../nginx/nginx.conf.template", "/etc/nginx/templates/nginx.conf.template")
+    .WithBindMount("../nginx/nginx.conf.template", "/tmp/nginx.conf.template", isReadOnly: true)
     .WithHttpEndpoint(targetPort: 80, name: "http")
     .WithEnvironment("MARKETING_UPSTREAM", marketingSite.GetEndpoint("http"))
     .WithEnvironment("WEB_UPSTREAM", web.GetEndpoint("http"))
@@ -70,6 +70,8 @@ builder.AddContainer("nginx", "nginx", "alpine")
     .WithEnvironment("CUSTOMER_PORTAL_UPSTREAM", customerPortal.GetEndpoint("http"))
     .WithEnvironment("GRAFANA_UPSTREAM", grafana.GetEndpoint("grafana-ui"))
     .WithEnvironment("KEYCLOAK_UPSTREAM", keycloak.GetEndpoint("http"))
+    .WithEntrypoint("/bin/sh")
+    .WithArgs("-c", "envsubst '$MARKETING_UPSTREAM $WEB_UPSTREAM $API_UPSTREAM $TENANT_PORTAL_UPSTREAM $CUSTOMER_PORTAL_UPSTREAM $GRAFANA_UPSTREAM $KEYCLOAK_UPSTREAM' < /tmp/nginx.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'")
     .WaitFor(api)
     .WaitFor(web)
     .WaitFor(customerPortal)
