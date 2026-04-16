@@ -5,6 +5,8 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.ServiceDiscovery;
 using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -85,6 +87,29 @@ public static class Extensions
         if (useOtlpExporter)
         {
             builder.Services.AddOpenTelemetry().UseOtlpExporter();
+        }
+
+        // Also export to Grafana LGTM stack when running under Aspire
+        var grafanaEndpoint = builder.Configuration["GRAFANA_OTLP_ENDPOINT"];
+        if (!string.IsNullOrWhiteSpace(grafanaEndpoint))
+        {
+            var grafanaUri = new Uri(grafanaEndpoint);
+            builder.Services.AddOpenTelemetry()
+                .WithMetrics(metrics => metrics.AddOtlpExporter(opts =>
+                {
+                    opts.Endpoint = grafanaUri;
+                    opts.Protocol = OtlpExportProtocol.Grpc;
+                }))
+                .WithTracing(tracing => tracing.AddOtlpExporter(opts =>
+                {
+                    opts.Endpoint = grafanaUri;
+                    opts.Protocol = OtlpExportProtocol.Grpc;
+                }))
+                .WithLogging(logging => logging.AddOtlpExporter(opts =>
+                {
+                    opts.Endpoint = grafanaUri;
+                    opts.Protocol = OtlpExportProtocol.Grpc;
+                }));
         }
 
         // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
