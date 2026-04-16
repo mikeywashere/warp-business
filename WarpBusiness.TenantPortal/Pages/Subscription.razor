@@ -1,8 +1,8 @@
 @page "/subscription"
+@rendermode InteractiveServer
 @using WarpBusiness.Api.Models
 @using WarpBusiness.TenantPortal.Services
 @inject TenantPortalApiClient ApiClient
-@inject AuthService AuthService
 @attribute [Authorize]
 
 <PageTitle>Subscription - Tenant Portal</PageTitle>
@@ -142,6 +142,7 @@ else
 
 @code {
     private TenantResponse? tenant;
+    private Guid tenantId;
     private bool isLoading = true;
     private bool isSaving = false;
     private string? errorMessage;
@@ -159,12 +160,15 @@ else
         try
         {
             isLoading = true;
-            var tenantId = AuthService.GetTenantIdFromJwt();
-            tenant = await ApiClient.GetTenantAsync(tenantId);
-
-            updateModel.MaxUsers = GetMaxUsers(tenant) ?? 1;
-            updateModel.SubscriptionPlan = GetSubscriptionPlan(tenant) ?? "Starter";
-            updateModel.EnabledFeatures = GetEnabledFeatures(tenant) ?? "";
+            var tenants = await ApiClient.GetMyTenantsAsync();
+            tenant = tenants.FirstOrDefault();
+            if (tenant is not null)
+            {
+                tenantId = tenant.Id;
+                updateModel.MaxUsers = tenant.MaxUsers ?? 1;
+                updateModel.SubscriptionPlan = tenant.SubscriptionPlan ?? "Starter";
+                updateModel.EnabledFeatures = tenant.EnabledFeatures ?? "";
+            }
         }
         catch (Exception ex)
         {
@@ -184,7 +188,6 @@ else
             errorMessage = null;
             successMessage = null;
 
-            var tenantId = AuthService.GetTenantIdFromJwt();
             var dto = new UpdateTenantRequest(
                 tenant!.Name,
                 tenant.Slug,
@@ -208,20 +211,9 @@ else
         }
     }
 
-    private int? GetMaxUsers(TenantResponse? tenant)
-    {
-        return tenant?.GetType().GetProperty("MaxUsers")?.GetValue(tenant) as int?;
-    }
-
-    private string? GetSubscriptionPlan(TenantResponse? tenant)
-    {
-        return tenant?.GetType().GetProperty("SubscriptionPlan")?.GetValue(tenant) as string;
-    }
-
-    private string? GetEnabledFeatures(TenantResponse? tenant)
-    {
-        return tenant?.GetType().GetProperty("EnabledFeatures")?.GetValue(tenant) as string;
-    }
+    private int? GetMaxUsers(TenantResponse? tenant) => tenant?.MaxUsers;
+    private string? GetSubscriptionPlan(TenantResponse? tenant) => tenant?.SubscriptionPlan;
+    private string? GetEnabledFeatures(TenantResponse? tenant) => tenant?.EnabledFeatures;
 
     private class UpdateSubscriptionModel
     {

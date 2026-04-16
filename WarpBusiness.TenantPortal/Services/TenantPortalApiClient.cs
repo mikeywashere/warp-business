@@ -80,6 +80,22 @@ public class TenantPortalApiClient
         return request;
     }
 
+    public async Task<List<TenantResponse>> GetMyTenantsAsync()
+    {
+        try
+        {
+            using var request = CreateRequest(HttpMethod.Get, "api/tenants");
+            var response = await _httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<List<TenantResponse>>() ?? [];
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "[TenantPortalApiClient] GetMyTenants failed");
+            throw new ApiException((int?)ex.StatusCode ?? 500, ex.Message);
+        }
+    }
+
     public async Task<TenantResponse?> GetTenantAsync(Guid tenantId)
     {
         try
@@ -125,8 +141,8 @@ public class TenantPortalApiClient
     {
         try
         {
-            var dto = new { LogoBase64 = base64, LogoMimeType = mimeType };
-            using var request = CreateRequest(HttpMethod.Post, $"api/tenants/{tenantId}/logo",
+            var dto = new UpdateTenantLogoRequest(base64, mimeType);
+            using var request = CreateRequest(HttpMethod.Put, $"api/tenants/{tenantId}/logo",
                 JsonContent.Create(dto));
             var response = await _httpClient.SendAsync(request);
 

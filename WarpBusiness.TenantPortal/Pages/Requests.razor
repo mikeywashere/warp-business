@@ -1,8 +1,8 @@
 @page "/requests"
+@rendermode InteractiveServer
 @using WarpBusiness.Api.Models
 @using WarpBusiness.TenantPortal.Services
 @inject TenantPortalApiClient ApiClient
-@inject AuthService AuthService
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @attribute [Authorize]
@@ -199,6 +199,7 @@ else
 
 @code {
     private List<TenantRequestResponse> requests = new();
+    private Guid tenantId;
     private bool isLoading = true;
     private bool showNewRequestForm = false;
     private bool isSubmitting = false;
@@ -238,7 +239,12 @@ else
         try
         {
             isLoading = true;
-            var tenantId = AuthService.GetTenantIdFromJwt();
+            if (tenantId == Guid.Empty)
+            {
+                var tenants = await ApiClient.GetMyTenantsAsync();
+                tenantId = tenants.FirstOrDefault()?.Id ?? Guid.Empty;
+            }
+            if (tenantId == Guid.Empty) return;
             requests = await ApiClient.GetRequestsAsync(tenantId, null, 
                 filterStatus != "All" ? filterStatus : null, 
                 filterType != "All" ? filterType : null);
@@ -269,7 +275,6 @@ else
         {
             isSubmitting = true;
             errorMessage = null;
-            var tenantId = AuthService.GetTenantIdFromJwt();
             var dto = new CreateTenantRequestRequest(
                 newRequest.Title!,
                 newRequest.Description!,
@@ -298,7 +303,6 @@ else
 
         try
         {
-            var tenantId = AuthService.GetTenantIdFromJwt();
             await ApiClient.CancelRequestAsync(tenantId, requestId);
             await LoadRequests();
         }

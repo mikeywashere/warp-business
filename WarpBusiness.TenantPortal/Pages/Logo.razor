@@ -1,9 +1,9 @@
 @page "/logo"
+@rendermode InteractiveServer
 @using WarpBusiness.Api.Models
 @using WarpBusiness.TenantPortal.Services
 @using Microsoft.AspNetCore.Components.Forms
 @inject TenantPortalApiClient ApiClient
-@inject AuthService AuthService
 @inject IJSRuntime JS
 @attribute [Authorize]
 
@@ -106,6 +106,7 @@ else
 
 @code {
     private TenantResponse? tenant;
+    private Guid tenantId;
     private bool isLoading = true;
     private bool isProcessing = false;
     private string? errorMessage;
@@ -129,11 +130,14 @@ else
         try
         {
             isLoading = true;
-            var tenantId = AuthService.GetTenantIdFromJwt();
-            tenant = await ApiClient.GetTenantAsync(tenantId);
-            
-            currentLogoBase64 = GetLogoBase64(tenant);
-            currentLogoMimeType = GetLogoMimeType(tenant);
+            var tenants = await ApiClient.GetMyTenantsAsync();
+            tenant = tenants.FirstOrDefault();
+            if (tenant is not null)
+            {
+                tenantId = tenant.Id;
+                currentLogoBase64 = tenant.LogoBase64;
+                currentLogoMimeType = tenant.LogoMimeType;
+            }
         }
         catch (Exception ex)
         {
@@ -179,12 +183,11 @@ else
             errorMessage = null;
             successMessage = null;
 
-            var tenantId = AuthService.GetTenantIdFromJwt();
             var updated = await ApiClient.UploadLogoAsync(tenantId, selectedFileBase64, selectedFileMimeType!);
             
             tenant = updated;
-            currentLogoBase64 = GetLogoBase64(tenant);
-            currentLogoMimeType = GetLogoMimeType(tenant);
+            currentLogoBase64 = tenant.LogoBase64;
+            currentLogoMimeType = tenant.LogoMimeType;
             
             selectedFileName = null;
             selectedFileSize = 0;
@@ -215,7 +218,6 @@ else
             errorMessage = null;
             successMessage = null;
 
-            var tenantId = AuthService.GetTenantIdFromJwt();
             await ApiClient.DeleteLogoAsync(tenantId);
             
             currentLogoBase64 = null;
@@ -240,15 +242,5 @@ else
         if (bytes < 1024 * 1024)
             return $"{bytes / 1024.0:F1} KB";
         return $"{bytes / (1024.0 * 1024):F1} MB";
-    }
-
-    private string? GetLogoBase64(TenantResponse? tenant)
-    {
-        return tenant?.GetType().GetProperty("LogoBase64")?.GetValue(tenant) as string;
-    }
-
-    private string? GetLogoMimeType(TenantResponse? tenant)
-    {
-        return tenant?.GetType().GetProperty("LogoMimeType")?.GetValue(tenant) as string;
     }
 }
