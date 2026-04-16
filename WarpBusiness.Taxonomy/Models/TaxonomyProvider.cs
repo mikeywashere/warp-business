@@ -1,9 +1,9 @@
 namespace WarpBusiness.Taxonomy.Models;
 
-public enum TaxonomyProvider
+public static class TaxonomyProvider
 {
-    Google,
-    Amazon,
-    Ebay,
-    Etsy
+    public const string Google = "Google";
+    public const string Amazon = "Amazon";
+    public const string Ebay = "Ebay";
+    public const string Etsy = "Etsy";
 }

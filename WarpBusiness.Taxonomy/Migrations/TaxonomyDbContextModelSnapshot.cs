@@ -44,7 +44,8 @@ namespace WarpBusiness.Taxonomy.Migrations
 
                     b.Property<string>("Provider")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("SourceChecksum")
                         .HasMaxLength(64)
@@ -103,7 +104,8 @@ namespace WarpBusiness.Taxonomy.Migrations
 
                     b.Property<string>("Provider")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -163,7 +165,8 @@ namespace WarpBusiness.Taxonomy.Migrations
                         .HasColumnType("character varying(1000)");
 
                     b.Property<string>("SourceProvider")
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");

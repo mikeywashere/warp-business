@@ -32,9 +32,9 @@ public class TaxonomyDbContext : DbContext
             entity.Property(e => e.Name).HasMaxLength(300).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
             entity.Property(e => e.MaterializedPath).HasMaxLength(1000);
+            entity.Property(e => e.SourceProvider).HasMaxLength(100);
             entity.Property(e => e.SourceExternalId).HasMaxLength(100);
             entity.Property(e => e.SourcePath).HasMaxLength(1000);
-            entity.Property(e => e.SourceProvider).HasConversion<string>();
 
             entity.HasOne(e => e.ParentNode)
                 .WithMany(e => e.Children)
@@ -48,7 +48,7 @@ public class TaxonomyDbContext : DbContext
             entity.HasIndex(e => e.Provider);
             entity.HasIndex(e => new { e.Provider, e.DownloadedAt });
 
-            entity.Property(e => e.Provider).HasConversion<string>();
+            entity.Property(e => e.Provider).HasMaxLength(100);
             entity.Property(e => e.Status).HasConversion<string>();
             entity.Property(e => e.SourceVersion).HasMaxLength(100);
             entity.Property(e => e.SourceChecksum).HasMaxLength(64);
@@ -62,7 +62,7 @@ public class TaxonomyDbContext : DbContext
             entity.HasIndex(e => new { e.Provider, e.ExternalId });
             entity.HasIndex(e => new { e.CacheId, e.ParentExternalId });
 
-            entity.Property(e => e.Provider).HasConversion<string>();
+            entity.Property(e => e.Provider).HasMaxLength(100);
             entity.Property(e => e.ExternalId).HasMaxLength(100).IsRequired();
             entity.Property(e => e.ParentExternalId).HasMaxLength(100);
             entity.Property(e => e.Name).HasMaxLength(300).IsRequired();

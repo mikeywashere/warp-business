@@ -16,7 +16,7 @@ public class TaxonomyNode
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 
-    public TaxonomyProvider? SourceProvider { get; set; }
+    public string? SourceProvider { get; set; }
     public string? SourceExternalId { get; set; }
     public string? SourcePath { get; set; }
     public DateTime? SourceImportedAt { get; set; }

@@ -30,7 +30,7 @@ public class AmazonTaxonomyDownloader : ITaxonomyDownloader
         _logger = logger;
     }
 
-    public TaxonomyProvider Provider => TaxonomyProvider.Amazon;
+    public string Provider => TaxonomyProvider.Amazon;
     public bool RequiresApiKey => true;
 
     public async Task<TaxonomyDownloadResult> DownloadAsync(CancellationToken cancellationToken = default)

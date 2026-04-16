@@ -75,3 +75,4 @@ Supported providers match the updated requirements:
 
 - Materialized paths use slugged name segments (`/segment1/segment2/...`) for readability.
 - Amazon downloader is credential-gated and returns a friendly error if missing config.
+- Provider identifiers are string keys (static constants) to allow future sources without model or migration changes.

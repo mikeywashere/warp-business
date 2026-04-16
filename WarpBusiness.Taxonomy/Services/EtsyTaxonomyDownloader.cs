@@ -19,7 +19,7 @@ public class EtsyTaxonomyDownloader : ITaxonomyDownloader
         _configuration = configuration;
     }
 
-    public TaxonomyProvider Provider => TaxonomyProvider.Etsy;
+    public string Provider => TaxonomyProvider.Etsy;
     public bool RequiresApiKey => true;
 
     public async Task<TaxonomyDownloadResult> DownloadAsync(CancellationToken cancellationToken = default)

@@ -22,10 +22,10 @@ public class TaxonomyDownloadService
     }
 
     public async Task<ExternalTaxonomyCache> DownloadAsync(
-        TaxonomyProvider provider,
+        string provider,
         CancellationToken cancellationToken = default)
     {
-        var downloader = _downloaders.FirstOrDefault(d => d.Provider == provider)
+        var downloader = _downloaders.FirstOrDefault(d => string.Equals(d.Provider, provider, StringComparison.Ordinal))
             ?? throw new InvalidOperationException($"No downloader registered for {provider}.");
 
         var cache = new ExternalTaxonomyCache

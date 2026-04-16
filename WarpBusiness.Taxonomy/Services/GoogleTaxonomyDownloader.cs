@@ -18,7 +18,7 @@ public class GoogleTaxonomyDownloader : ITaxonomyDownloader
         _httpClient = httpClient;
     }
 
-    public TaxonomyProvider Provider => TaxonomyProvider.Google;
+    public string Provider => TaxonomyProvider.Google;
     public bool RequiresApiKey => false;
 
     public async Task<TaxonomyDownloadResult> DownloadAsync(CancellationToken cancellationToken = default)

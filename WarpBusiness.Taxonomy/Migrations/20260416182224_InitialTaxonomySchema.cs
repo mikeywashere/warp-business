@@ -20,7 +20,7 @@ namespace WarpBusiness.Taxonomy.Migrations
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
-                    Provider = table.Column<string>(type: "text", nullable: false),
+                    Provider = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     DownloadedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     NodeCount = table.Column<int>(type: "integer", nullable: false),
                     SourceVersion = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
@@ -48,7 +48,7 @@ namespace WarpBusiness.Taxonomy.Migrations
                     MaterializedPath = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
                     SortOrder = table.Column<int>(type: "integer", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    SourceProvider = table.Column<string>(type: "text", nullable: true),
+                    SourceProvider = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     SourceExternalId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     SourcePath = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
                     SourceImportedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
@@ -74,7 +74,7 @@ namespace WarpBusiness.Taxonomy.Migrations
                 {
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     CacheId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Provider = table.Column<string>(type: "text", nullable: false),
+                    Provider = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     ExternalId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     ParentExternalId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
                     Name = table.Column<string>(type: "character varying(300)", maxLength: 300, nullable: false),

@@ -6,7 +6,7 @@ public class ExternalTaxonomyNode
     public Guid CacheId { get; set; }
     public ExternalTaxonomyCache Cache { get; set; } = null!;
 
-    public TaxonomyProvider Provider { get; set; }
+    public string Provider { get; set; } = string.Empty;
     public required string ExternalId { get; set; }
     public string? ParentExternalId { get; set; }
 

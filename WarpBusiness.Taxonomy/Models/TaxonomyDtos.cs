@@ -9,7 +9,7 @@ public record TaxonomyNodeResponse(
     int Level,
     string MaterializedPath,
     bool IsActive,
-    TaxonomyProvider? SourceProvider,
+    string? SourceProvider,
     string? SourceExternalId,
     DateTime? SourceImportedAt,
     int ChildCount,
@@ -29,7 +29,7 @@ public record UpdateTaxonomyNodeRequest(
 public record MoveTaxonomyNodeRequest(Guid? NewParentId);
 
 public record ProviderStatusResponse(
-    TaxonomyProvider Provider,
+    string Provider,
     bool Enabled,
     bool RequiresApiKey,
     DateTime? LastDownload,
@@ -47,7 +47,7 @@ public record ExternalNodeResponse(
     bool IsImported);
 
 public record ImportNodesRequest(
-    TaxonomyProvider Provider,
+    string Provider,
     IReadOnlyList<string> ExternalIds,
     Guid? TargetParentId);
 

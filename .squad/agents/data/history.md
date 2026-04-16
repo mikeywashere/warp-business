@@ -557,3 +557,4 @@ builder.AddContainer("nginx", "nginx", "alpine")
 - Duplicate `proxy_set_header Connection` directives (first `""` then `"upgrade"`) cause config errors in some nginx versions; WebSocket blocks need only the `"upgrade"` version
 - WarpBusiness.Taxonomy uses its own `taxonomy` schema with TaxonomyNode, ExternalTaxonomyCache, and ExternalTaxonomyNode entities; nodes store materialized paths based on slugged names for hierarchy navigation.
 - Taxonomy providers include Google (public), Amazon PA-API (credential-gated), eBay OAuth, and Etsy API key; downloads are orchestrated by TaxonomyDownloadService and imports are handled by TaxonomyImportService with source tracking.
+- Provider keys for taxonomy sources are now strings (static constants) instead of enums, keeping the model open for extension without schema changes.

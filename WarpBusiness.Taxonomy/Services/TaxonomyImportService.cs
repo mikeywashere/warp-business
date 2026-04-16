@@ -22,7 +22,7 @@ public class TaxonomyImportService
     }
 
     public async Task<ImportResult> ImportAsync(
-        TaxonomyProvider provider,
+        string provider,
         IReadOnlyList<string> externalIds,
         Guid tenantId,
         Guid? targetParentId,
@@ -44,7 +44,7 @@ public class TaxonomyImportService
     }
 
     public async Task<IReadOnlyList<TaxonomyNodeResponse>> PreviewImportAsync(
-        TaxonomyProvider provider,
+        string provider,
         IReadOnlyList<string> externalIds,
         Guid tenantId,
         Guid? targetParentId,
@@ -55,12 +55,15 @@ public class TaxonomyImportService
     }
 
     private async Task<ImportPlan> BuildImportPlanAsync(
-        TaxonomyProvider provider,
+        string provider,
         IReadOnlyList<string> externalIds,
         Guid tenantId,
         Guid? targetParentId,
         CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(provider))
+            throw new InvalidOperationException("Provider is required.");
+
         var ids = externalIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id.Trim())
@@ -151,7 +154,7 @@ public class TaxonomyImportService
     }
 
     private async Task<Dictionary<string, ExternalTaxonomyNode>> LoadExternalNodesAsync(
-        TaxonomyProvider provider,
+        string provider,
         IReadOnlyList<string> externalIds,
         CancellationToken ct)
     {

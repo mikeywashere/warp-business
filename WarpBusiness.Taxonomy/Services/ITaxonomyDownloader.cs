@@ -4,7 +4,7 @@ namespace WarpBusiness.Taxonomy.Services;
 
 public interface ITaxonomyDownloader
 {
-    TaxonomyProvider Provider { get; }
+    string Provider { get; }
     bool RequiresApiKey { get; }
 
     Task<TaxonomyDownloadResult> DownloadAsync(CancellationToken cancellationToken = default);

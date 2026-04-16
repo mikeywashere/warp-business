@@ -335,23 +335,30 @@ public static class TaxonomyEndpoints
 
         var cacheLookup = latestCaches
             .Where(c => c is not null)
-            .ToDictionary(c => c!.Provider);
+            .ToDictionary(c => c!.Provider, StringComparer.Ordinal);
 
-        var downloaderLookup = downloaders.ToDictionary(d => d.Provider);
+        var downloaderLookup = downloaders.ToDictionary(d => d.Provider, StringComparer.Ordinal);
 
-        var responses = Enum.GetValues<TaxonomyProvider>()
+        var providerKeys = new HashSet<string>(StringComparer.Ordinal);
+        providerKeys.UnionWith(downloaderLookup.Keys);
+        providerKeys.UnionWith(cacheLookup.Keys);
+
+        var responses = providerKeys
+            .OrderBy(p => p, StringComparer.Ordinal)
             .Select(provider =>
             {
                 cacheLookup.TryGetValue(provider, out var cache);
                 downloaderLookup.TryGetValue(provider, out var downloader);
-                var enabled = provider switch
-                {
-                    TaxonomyProvider.Google => true,
-                    TaxonomyProvider.Amazon => IsAmazonConfigured(configuration),
-                    TaxonomyProvider.Ebay => IsEbayConfigured(configuration),
-                    TaxonomyProvider.Etsy => IsEtsyConfigured(configuration),
-                    _ => false
-                };
+
+                var enabled = downloader is not null;
+                if (string.Equals(provider, TaxonomyProvider.Google, StringComparison.Ordinal))
+                    enabled = true;
+                else if (string.Equals(provider, TaxonomyProvider.Amazon, StringComparison.Ordinal))
+                    enabled = IsAmazonConfigured(configuration);
+                else if (string.Equals(provider, TaxonomyProvider.Ebay, StringComparison.Ordinal))
+                    enabled = IsEbayConfigured(configuration);
+                else if (string.Equals(provider, TaxonomyProvider.Etsy, StringComparison.Ordinal))
+                    enabled = IsEtsyConfigured(configuration);
 
                 return new ProviderStatusResponse(
                     provider,
@@ -368,16 +375,26 @@ public static class TaxonomyEndpoints
     }
 
     private static async Task<IResult> TriggerDownload(
-        TaxonomyProvider provider,
+        string provider,
         TaxonomyDownloadService downloadService,
         CancellationToken cancellationToken)
     {
-        var cache = await downloadService.DownloadAsync(provider, cancellationToken);
-        return Results.Ok(cache);
+        if (string.IsNullOrWhiteSpace(provider))
+            return Results.BadRequest(new { message = "Provider is required." });
+
+        try
+        {
+            var cache = await downloadService.DownloadAsync(provider, cancellationToken);
+            return Results.Ok(cache);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
     }
 
     private static async Task<IResult> GetExternalTree(
-        TaxonomyProvider provider,
+        string provider,
         [FromQuery] string? parentExternalId,
         HttpContext httpContext,
         TaxonomyDbContext db,
@@ -386,6 +403,9 @@ public static class TaxonomyEndpoints
         var tenantId = GetTenantId(httpContext);
         if (tenantId is null)
             return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        if (string.IsNullOrWhiteSpace(provider))
+            return Results.BadRequest(new { message = "Provider is required." });
 
         var importedIds = await db.TaxonomyNodes
             .AsNoTracking()
@@ -424,7 +444,7 @@ public static class TaxonomyEndpoints
     }
 
     private static async Task<IResult> SearchExternalNodes(
-        TaxonomyProvider provider,
+        string provider,
         [FromQuery] string? q,
         HttpContext httpContext,
         TaxonomyDbContext db,
@@ -433,6 +453,9 @@ public static class TaxonomyEndpoints
         var tenantId = GetTenantId(httpContext);
         if (tenantId is null)
             return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        if (string.IsNullOrWhiteSpace(provider))
+            return Results.BadRequest(new { message = "Provider is required." });
 
         if (string.IsNullOrWhiteSpace(q))
             return Results.BadRequest(new { message = "Search query is required." });
@@ -480,6 +503,9 @@ public static class TaxonomyEndpoints
         if (tenantId is null)
             return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
 
+        if (string.IsNullOrWhiteSpace(request.Provider))
+            return Results.BadRequest(new { message = "Provider is required." });
+
         if (request.ExternalIds is null || request.ExternalIds.Count == 0)
             return Results.BadRequest(new { message = "External node IDs are required." });
 
@@ -502,6 +528,9 @@ public static class TaxonomyEndpoints
         var tenantId = GetTenantId(httpContext);
         if (tenantId is null)
             return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        if (string.IsNullOrWhiteSpace(request.Provider))
+            return Results.BadRequest(new { message = "Provider is required." });
 
         if (request.ExternalIds is null || request.ExternalIds.Count == 0)
             return Results.BadRequest(new { message = "External node IDs are required." });

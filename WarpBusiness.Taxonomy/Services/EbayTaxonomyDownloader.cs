@@ -23,7 +23,7 @@ public class EbayTaxonomyDownloader : ITaxonomyDownloader
         _configuration = configuration;
     }
 
-    public TaxonomyProvider Provider => TaxonomyProvider.Ebay;
+    public string Provider => TaxonomyProvider.Ebay;
     public bool RequiresApiKey => true;
 
     public async Task<TaxonomyDownloadResult> DownloadAsync(CancellationToken cancellationToken = default)
