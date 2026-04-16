@@ -11,6 +11,7 @@
 #   TENANT_PORTAL_UPSTREAM  e.g. http://localhost:5003
 #   CUSTOMER_PORTAL_UPSTREAM e.g. http://localhost:5004
 #   GRAFANA_UPSTREAM        e.g. http://localhost:3000
+#   KEYCLOAK_UPSTREAM       e.g. http://localhost:8080
 
 proxy_connect_timeout   10s;
 proxy_send_timeout      60s;
@@ -104,10 +105,31 @@ server {
     }
 }
 
-# ── portal.warp-business.com → tenant portal ────────────────────────────────
+# ── about.warp-business.com → marketing site ────────────────────────────────
 server {
     listen 80;
-    server_name portal.warp-business.com;
+    server_name about.warp-business.com;
+
+    location /_health {
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    location / {
+        proxy_pass        ${MARKETING_UPSTREAM};
+        proxy_set_header  Host              $host;
+        proxy_set_header  X-Real-IP         $remote_addr;
+        proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header  X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header  Connection        "";
+    }
+}
+
+# ── my.warp-business.com → tenant portal ────────────────────────────────────
+server {
+    listen 80;
+    server_name my.warp-business.com;
 
     location /_health {
         return 200 "OK\n";
@@ -147,6 +169,29 @@ server {
         proxy_set_header  Connection        "";
         proxy_set_header  Upgrade           $http_upgrade;
         proxy_set_header  Connection        "upgrade";
+    }
+}
+
+# ── auth.warp-business.com → Keycloak ───────────────────────────────────────
+server {
+    listen 80;
+    server_name auth.warp-business.com;
+
+    location /_health {
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    location / {
+        proxy_pass        ${KEYCLOAK_UPSTREAM};
+        proxy_set_header  Host              $host;
+        proxy_set_header  X-Real-IP         $remote_addr;
+        proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header  X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header  Connection        "";
+        proxy_buffer_size 128k;
+        proxy_buffers     4 256k;
     }
 }
 
