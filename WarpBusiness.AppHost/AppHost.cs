@@ -79,4 +79,7 @@ builder.AddContainer("nginx", "nginx", "alpine")
     .WaitFor(marketingSite)
     .WaitFor(grafana);
 
+builder.AddProject<Projects.WarpBusiness_MarketingSite>("marketing-site")
+    .WithExternalHttpEndpoints();
+
 builder.Build().Run();
