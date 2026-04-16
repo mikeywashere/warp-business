@@ -50,8 +50,9 @@ public record ExternalNodeResponse(
     bool IsLeaf,
     bool IsImported);
 
-public record ImportNodesRequest(string Provider, List<string> ExternalIds, Guid? TargetParentId);
+public record ImportNodesRequest(string Provider, List<string> ExternalIds, Guid? TargetParentNodeId);
 public record ImportResult(int NodesCreated, int NodesSkipped, List<TaxonomyNodeResponse> CreatedNodes);
+public record DeleteBranchResult(bool Success, string? ErrorMessage, List<Guid>? ConflictingNodeIds);
 
 // ── Client ────────────────────────────────────────────────────────────────────
 
@@ -189,5 +190,44 @@ public class TaxonomyApiClient
         var response = await _httpClient.SendAsync(msg, ct);
         await ThrowOnErrorAsync(response, "ImportNodes", ct);
         return (await response.Content.ReadFromJsonAsync<ImportResult>(cancellationToken: ct))!;
+    }
+
+    // Nodes — roots / children / branch delete
+    public async Task<List<TaxonomyNodeResponse>> GetRootNodesAsync(CancellationToken ct = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/taxonomy/nodes/roots");
+        var response = await _httpClient.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<TaxonomyNodeResponse>>(cancellationToken: ct) ?? [];
+    }
+
+    public async Task<List<TaxonomyNodeResponse>> GetNodeChildrenAsync(Guid nodeId, CancellationToken ct = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/taxonomy/nodes/{nodeId}/children");
+        var response = await _httpClient.SendAsync(request, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<TaxonomyNodeResponse>>(cancellationToken: ct) ?? [];
+    }
+
+    public async Task<DeleteBranchResult> DeleteBranchAsync(Guid nodeId, bool cascade = true, CancellationToken ct = default)
+    {
+        using var msg = CreateRequest(HttpMethod.Delete, $"api/taxonomy/nodes/{nodeId}?cascade={cascade.ToString().ToLower()}");
+        var response = await _httpClient.SendAsync(msg, ct);
+
+        if (response.IsSuccessStatusCode)
+            return new DeleteBranchResult(true, null, null);
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        _logger.LogWarning("[TaxonomyApiClient] DeleteBranch {NodeId} failed {Status}: {Body}", nodeId, (int)response.StatusCode, body);
+
+        if ((int)response.StatusCode == 409)
+        {
+            List<Guid>? conflictIds = null;
+            try { conflictIds = System.Text.Json.JsonSerializer.Deserialize<List<Guid>>(body); } catch { }
+            // Use empty list (not null) to signal 409 even if body parse fails
+            return new DeleteBranchResult(false, body, conflictIds ?? []);
+        }
+
+        return new DeleteBranchResult(false, body, null);
     }
 }

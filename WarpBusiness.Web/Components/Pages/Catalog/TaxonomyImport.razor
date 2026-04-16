@@ -60,14 +60,18 @@
                                 }
 
                                 <div class="mt-3">
-                                    <label class="form-label">Import into...</label>
-                                    <select class="form-select" @bind="importParentId">
-                                        <option value="">— Root level —</option>
-                                        @foreach (var node in WarpNodeOptions)
-                                        {
-                                            <option value="@node.Id">@GetWarpNodeLabel(node)</option>
-                                        }
-                                    </select>
+                                    @if (targetParentNodeId.HasValue && !string.IsNullOrEmpty(targetParentNodeName))
+                                    {
+                                        <div class="alert alert-info py-2 mb-0 small">
+                                            Destination: <strong>@targetParentNodeName</strong>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="alert alert-info py-2 mb-0 small">
+                                            Destination: <strong>Root (top level)</strong>
+                                        </div>
+                                    }
                                 </div>
 
                                 <div class="mt-3">
@@ -209,6 +213,88 @@
                     </div>
                 }
 
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6 class="card-title mb-3">Import destination</h6>
+                        <div class="mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" id="destRoot" name="importDest"
+                                       checked="@(importDestination == "root")"
+                                       @onclick="@(() => importDestination = "root")" />
+                                <label class="form-check-label" for="destRoot">Root (top level)</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" id="destBranch" name="importDest"
+                                       checked="@(importDestination == "branch")"
+                                       @onclick="HandleBranchOptionClicked" />
+                                <label class="form-check-label" for="destBranch">Under a specific branch</label>
+                            </div>
+                        </div>
+                        @if (importDestination == "branch")
+                        {
+                            @if (targetParentNodeId.HasValue && !string.IsNullOrEmpty(targetParentNodeName))
+                            {
+                                <div class="mb-2 small">
+                                    <span class="text-muted">Selected:</span>
+                                    <strong style="color: var(--clr-accent);">@targetParentNodeName</strong>
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2" @onclick="@(() => { targetParentNodeId = null; targetParentNodeName = null; })">✕</button>
+                                </div>
+                            }
+                            @if (isLoadingPickerRoots)
+                            {
+                                <div class="d-flex justify-content-center py-3">
+                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div style="max-height: 300px; overflow-y: scroll; border: 1px solid var(--clr-border); border-radius: 4px; padding: 0.25rem;">
+                                    @if (pickerRoots.Count == 0)
+                                    {
+                                        <div class="text-muted small p-2">No taxonomy nodes available.</div>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var item in GetPickerVisibleNodes())
+                                        {
+                                            var pNode = item.Node;
+                                            var pLevel = item.Level;
+                                            var pSelected = targetParentNodeId == pNode.Id;
+                                            var pExpanded = pickerExpandedNodes.Contains(pNode.Id);
+                                            <div style="display: flex; align-items: center; padding: 0.3rem 0.5rem 0.3rem @PickerPaddingLeft(pLevel); border-radius: 4px; cursor: pointer; @(pSelected ? "border: 1px solid var(--clr-accent); background-color: rgba(0,200,255,0.08);" : "")"
+                                                 @onclick="() => SelectPickerNode(pNode)">
+                                                @if (pNode.ChildCount > 0)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-link p-0 me-2"
+                                                            style="color: var(--clr-accent); min-width: 1.2rem; line-height: 1;"
+                                                            @onclick:stopPropagation
+                                                            @onclick="() => TogglePickerNode(pNode)">
+                                                        @if (pickerLoadingNodes.Contains(pNode.Id))
+                                                        {
+                                                            <span class="spinner-border spinner-border-sm" style="width: 0.75rem; height: 0.75rem;" role="status"></span>
+                                                        }
+                                                        else
+                                                        {
+                                                            @(pExpanded ? "▼" : "▶")
+                                                        }
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <span class="me-2" style="min-width: 1.2rem; display: inline-block;"></span>
+                                                }
+                                                <span class="@(pSelected ? "fw-bold" : "")">@pNode.Name</span>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            }
+                        }
+                    </div>
+                </div>
+
                 <div class="d-flex justify-content-between align-items-center mt-3">
                     <div class="text-muted">Selected: <strong>@SelectedCount</strong> nodes</div>
                     <button class="btn btn-primary" @onclick="ShowImportModal" disabled="@(SelectedCount == 0 || isImporting)">
@@ -236,10 +322,16 @@
     private string? errorMessage;
     private string? successMessage;
     private string? searchText;
-    private string? importParentId;
+    private string importDestination = "root";
+    private Guid? targetParentNodeId;
+    private string? targetParentNodeName;
+    private List<TaxonomyNodeResponse> pickerRoots = [];
+    private bool isLoadingPickerRoots;
+    private readonly HashSet<Guid> pickerExpandedNodes = new();
+    private readonly Dictionary<Guid, List<TaxonomyNodeResponse>> pickerChildrenCache = new();
+    private readonly HashSet<Guid> pickerLoadingNodes = new();
 
     private List<ProviderStatusResponse> providerStatuses = [];
-    private List<TaxonomyNodeResponse> warpNodes = [];
     private readonly Dictionary<string, List<ExternalNodeResponse>> externalTrees = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, HashSet<string>> selectedExternalNodes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, HashSet<string>> collapsedExternalNodes = new(StringComparer.OrdinalIgnoreCase);
@@ -300,9 +392,6 @@
 
     private int SelectedCount => CurrentSelectedSet.Count;
 
-    private IEnumerable<TaxonomyNodeResponse> WarpNodeOptions =>
-        warpNodes.OrderBy(n => n.MaterializedPath);
-
     private IEnumerable<ExternalNodeResponse> VisibleExternalNodes
     {
         get
@@ -325,7 +414,6 @@
 
         await LoadProviderStatusAsync();
         EnsureSelectedProvider();
-        await LoadWarpNodesAsync();
         if (!string.IsNullOrWhiteSpace(selectedProvider))
         {
             await LoadExternalNodesAsync(selectedProvider, forceReload: true);
@@ -358,18 +446,6 @@
             || !ProviderTabs.Contains(selectedProvider, StringComparer.OrdinalIgnoreCase))
         {
             selectedProvider = ProviderTabs[0];
-        }
-    }
-
-    private async Task LoadWarpNodesAsync()
-    {
-        try
-        {
-            warpNodes = await TaxonomyApi.GetTaxonomyTreeAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Failed to load Warp taxonomy: {ex.Message}";
         }
     }
 
@@ -554,7 +630,6 @@
     private void CloseImportModal()
     {
         showImportModal = false;
-        importParentId = null;
     }
 
     private async Task ConfirmImport()
@@ -566,16 +641,14 @@
         successMessage = null;
         try
         {
-            var parentId = Guid.TryParse(importParentId, out var parsed) ? (Guid?)parsed : null;
             var result = await TaxonomyApi.ImportNodesAsync(new ImportNodesRequest(
                 selectedProvider,
                 CurrentSelectedSet.ToList(),
-                parentId));
+                targetParentNodeId));
 
             successMessage = $"{result.NodesCreated} nodes created, {result.NodesSkipped} already existed.";
             CurrentSelectedSet.Clear();
             CloseImportModal();
-            await LoadWarpNodesAsync();
             await LoadExternalNodesAsync(selectedProvider, forceReload: true);
         }
         catch (ApiException ex)
@@ -599,4 +672,91 @@
     {
         searchText = args.Value?.ToString();
     }
+
+    // ── Branch destination picker ─────────────────────────────────────────────
+
+    private async Task HandleBranchOptionClicked()
+    {
+        importDestination = "branch";
+        if (pickerRoots.Count == 0)
+            await LoadPickerRootsAsync();
+    }
+
+    private async Task LoadPickerRootsAsync()
+    {
+        isLoadingPickerRoots = true;
+        try
+        {
+            pickerRoots = await TaxonomyApi.GetRootNodesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load taxonomy nodes: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingPickerRoots = false;
+        }
+    }
+
+    private async Task TogglePickerNode(TaxonomyNodeResponse node)
+    {
+        if (pickerExpandedNodes.Contains(node.Id))
+        {
+            pickerExpandedNodes.Remove(node.Id);
+            return;
+        }
+
+        pickerExpandedNodes.Add(node.Id);
+        if (!pickerChildrenCache.ContainsKey(node.Id) && node.ChildCount > 0)
+        {
+            pickerLoadingNodes.Add(node.Id);
+            try
+            {
+                var children = await TaxonomyApi.GetNodeChildrenAsync(node.Id);
+                pickerChildrenCache[node.Id] = children;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to load children: {ex.Message}";
+                pickerExpandedNodes.Remove(node.Id);
+            }
+            finally
+            {
+                pickerLoadingNodes.Remove(node.Id);
+            }
+        }
+    }
+
+    private void SelectPickerNode(TaxonomyNodeResponse node)
+    {
+        targetParentNodeId = node.Id;
+        targetParentNodeName = node.Name;
+    }
+
+    private IEnumerable<(TaxonomyNodeResponse Node, int Level)> GetPickerVisibleNodes()
+    {
+        var result = new List<(TaxonomyNodeResponse, int)>();
+        foreach (var root in pickerRoots.OrderBy(n => n.Name))
+        {
+            result.Add((root, 0));
+            if (pickerExpandedNodes.Contains(root.Id))
+                AppendPickerChildren(root.Id, 1, result);
+        }
+        return result;
+    }
+
+    private void AppendPickerChildren(Guid parentId, int level, List<(TaxonomyNodeResponse, int)> result)
+    {
+        if (!pickerChildrenCache.TryGetValue(parentId, out var children)) return;
+        foreach (var child in children.OrderBy(n => n.Name))
+        {
+            result.Add((child, level));
+            if (pickerExpandedNodes.Contains(child.Id))
+                AppendPickerChildren(child.Id, level + 1, result);
+        }
+    }
+
+    private static string PickerPaddingLeft(int level) =>
+        (0.5 + level * 1.5).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + "rem";
 }

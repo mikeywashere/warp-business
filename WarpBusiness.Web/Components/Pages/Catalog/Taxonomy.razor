@@ -92,24 +92,34 @@
                 </div>
             }
 
-            @if (showDeleteModal && deleteTarget is not null)
+            @if (showDeleteBranchModal && deleteBranchTarget is not null)
             {
                 <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
-                                <h5 class="modal-title">Delete Taxonomy Node</h5>
-                                <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                                <h5 class="modal-title" style="color: var(--clr-accent);">Delete Branch</h5>
+                                <button type="button" class="btn-close" @onclick="CloseDeleteBranchModal"></button>
                             </div>
                             <div class="modal-body">
-                                <p>Are you sure you want to delete <strong>@deleteTarget.Name</strong>?</p>
-                                <p class="text-muted small mb-0">Nodes with children must be deleted after their child nodes.</p>
+                                @if (!string.IsNullOrEmpty(deleteBranchError))
+                                {
+                                    <div class="alert alert-danger">@deleteBranchError</div>
+                                }
+                                <p>Are you sure? This will delete <strong>@deleteBranchTarget.Name</strong> and all its children.</p>
+                                <div class="form-check mt-3">
+                                    <InputCheckbox @bind-Value="deleteBranchConfirmed" class="form-check-input" id="deleteBranchCheck" />
+                                    <label class="form-check-label" for="deleteBranchCheck">
+                                        I understand this is permanent
+                                    </label>
+                                </div>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-outline-secondary" @onclick="CloseDeleteModal">Cancel</button>
-                                <button type="button" class="btn btn-danger" @onclick="ConfirmDelete" disabled="@isSubmitting">
+                                <button type="button" class="btn btn-outline-secondary" @onclick="CloseDeleteBranchModal">Cancel</button>
+                                <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteBranch"
+                                        disabled="@(!deleteBranchConfirmed || isSubmitting)">
                                     @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
-                                    Delete
+                                    Delete Branch
                                 </button>
                             </div>
                         </div>
@@ -180,8 +190,8 @@
                                         <button class="btn btn-sm mt-2 btn-outline-info me-1" @onclick="() => ShowAddChildModal(node)">Add Child</button>
                                         <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditModal(node)">Edit</button>
                                         <button class="btn btn-sm mt-2 btn-outline-danger"
-                                                @onclick="() => ShowDeleteModal(node)" disabled="@(node.ChildCount > 0)">
-                                            Delete
+                                                @onclick="() => ShowDeleteBranchModal(node)">
+                                            Delete Branch
                                         </button>
                                     </td>
                                 </tr>
@@ -195,6 +205,17 @@
                 </table>
             </div>
         }
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1200;">
+            @foreach (var toast in toastMessages)
+            {
+                <div class="toast show mb-2" role="alert" aria-live="polite">
+                    <div class="toast-body rounded text-white"
+                         style="background-color: @(toast.Type == "success" ? "#198754" : "#dc3545");">
+                        @toast.Text
+                    </div>
+                </div>
+            }
+        </div>
     </Authorized>
     <NotAuthorized>
         <div class="alert alert-warning">
@@ -210,13 +231,17 @@
     private bool isLoading = true;
     private bool isSubmitting;
     private bool showFormModal;
-    private bool showDeleteModal;
+    private bool showDeleteBranchModal;
+    private bool deleteBranchConfirmed;
+    private TaxonomyNodeResponse? deleteBranchTarget;
+    private string? deleteBranchError;
     private Guid? editingId;
-    private TaxonomyNodeResponse? deleteTarget;
     private string? errorMessage;
     private string? successMessage;
     private TaxonomyFormModel formModel = new();
     private readonly HashSet<Guid> collapsedNodes = new();
+    private record ToastEntry(Guid Id, string Text, string Type);
+    private readonly List<ToastEntry> toastMessages = [];
 
     private IEnumerable<TaxonomyNodeResponse> VisibleNodes =>
         nodes?
@@ -305,16 +330,20 @@
         formModel = new TaxonomyFormModel();
     }
 
-    private void ShowDeleteModal(TaxonomyNodeResponse node)
+    private void ShowDeleteBranchModal(TaxonomyNodeResponse node)
     {
-        deleteTarget = node;
-        showDeleteModal = true;
+        deleteBranchTarget = node;
+        deleteBranchConfirmed = false;
+        deleteBranchError = null;
+        showDeleteBranchModal = true;
     }
 
-    private void CloseDeleteModal()
+    private void CloseDeleteBranchModal()
     {
-        deleteTarget = null;
-        showDeleteModal = false;
+        deleteBranchTarget = null;
+        deleteBranchConfirmed = false;
+        deleteBranchError = null;
+        showDeleteBranchModal = false;
     }
 
     private async Task HandleSubmit()
@@ -354,32 +383,67 @@
         }
     }
 
-    private async Task ConfirmDelete()
+    private async Task ConfirmDeleteBranch()
     {
-        if (deleteTarget is null) return;
+        if (deleteBranchTarget is null || !deleteBranchConfirmed) return;
 
         isSubmitting = true;
-        errorMessage = null;
-        successMessage = null;
+        deleteBranchError = null;
         try
         {
-            await TaxonomyApi.DeleteTaxonomyNodeAsync(deleteTarget.Id);
-            successMessage = "Taxonomy node deleted.";
-            CloseDeleteModal();
-            await LoadNodesAsync();
-        }
-        catch (ApiException ex)
-        {
-            errorMessage = ex.Message;
+            var result = await TaxonomyApi.DeleteBranchAsync(deleteBranchTarget.Id, cascade: true);
+            if (result.Success)
+            {
+                RemoveNodeAndDescendants(deleteBranchTarget.Id);
+                CloseDeleteBranchModal();
+                _ = ShowToastAsync("Branch deleted.");
+            }
+            else if (result.ConflictingNodeIds != null)
+            {
+                deleteBranchError = "Cannot delete — some nodes in this branch are used in the catalog. Remove catalog references first.";
+            }
+            else
+            {
+                deleteBranchError = string.IsNullOrWhiteSpace(result.ErrorMessage)
+                    ? "Failed to delete branch."
+                    : result.ErrorMessage;
+            }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Unexpected error: {ex.Message}";
+            deleteBranchError = $"Unexpected error: {ex.Message}";
         }
         finally
         {
             isSubmitting = false;
         }
+    }
+
+    private void RemoveNodeAndDescendants(Guid nodeId)
+    {
+        if (nodes == null) return;
+        var toRemove = new HashSet<Guid>();
+        CollectDescendants(nodeId, nodes, toRemove);
+        nodes = nodes.Where(n => !toRemove.Contains(n.Id)).ToList();
+        nodeLookup = nodes.ToDictionary(n => n.Id);
+        collapsedNodes.RemoveWhere(id => toRemove.Contains(id));
+    }
+
+    private static void CollectDescendants(Guid nodeId, List<TaxonomyNodeResponse> allNodes, HashSet<Guid> collected)
+    {
+        collected.Add(nodeId);
+        foreach (var child in allNodes.Where(n => n.ParentNodeId == nodeId))
+            CollectDescendants(child.Id, allNodes, collected);
+    }
+
+    private async Task ShowToastAsync(string text, string type = "success")
+    {
+        var toast = new ToastEntry(Guid.NewGuid(), text, type);
+        toastMessages.Add(toast);
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(4000);
+        toastMessages.Remove(toast);
+        await InvokeAsync(StateHasChanged);
     }
 
     private class TaxonomyFormModel
