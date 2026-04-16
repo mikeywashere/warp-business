@@ -78,6 +78,7 @@
 - **Tenant selection on user creation**: Add User form includes required tenant dropdown with type-ahead search; uses `TenantApiClient.GetTenantsAsync()` to populate options
 - **Type-ahead pattern**: Use `value="@field"` + `@oninput` (not `@bind` + `@oninput` together) to avoid Blazor RZ10008 duplicate attribute error
 - **Dropdown blur handling**: `@onmousedown` with `@onmousedown:preventDefault` on list items + `Task.Delay(200)` in blur handler allows click events to fire before hiding dropdown
+- Taxonomy UI (`/catalog/taxonomy`, `/catalog/taxonomy/import`) uses flat MaterializedPath ordering with collapsible tree rows; `TaxonomyApiClient` mirrors CatalogApiClient and includes CRUD/external/import methods with tenant header forwarding
 - **CreateUserRequest**: Now includes optional `Guid? TenantId = null` parameter for tenant assignment during user creation
 
 ### Multi-Tenant User Onboarding (2026-04-12)
