@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WarpBusiness.Catalog.Models;
 
 namespace WarpBusiness.Catalog.Data;
@@ -165,7 +166,11 @@ public class CatalogDbContext : DbContext
 
             entity.Property(e => e.Name).HasMaxLength(300).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
-            entity.Property(e => e.Icon).HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.Icon)
+                .HasConversion(new ValueConverter<NotationIcon?, string?>(
+                    v => v.HasValue ? v.Value.ToString() : null,
+                    v => NotationIconParser.ParseOrNull(v)))
+                .HasMaxLength(50);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
 
             entity.ToTable("Notations");
