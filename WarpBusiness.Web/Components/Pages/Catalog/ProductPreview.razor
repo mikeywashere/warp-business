@@ -28,7 +28,7 @@ else if (!string.IsNullOrEmpty(errorMessage))
 else
 {
     <div class="d-flex align-items-center gap-2 mb-3">
-        <a href="/catalog/products" class="btn btn-sm btn-outline-secondary">← Products</a>
+        <a href="/catalog/products" class="btn btn-sm mt-2 btn-outline-secondary">← Products</a>
         <div class="ms-2 me-auto">
             <span class="text-muted" style="font-size:.85rem;">Catalog Preview — </span>
             <strong>@productName</strong>
@@ -41,24 +41,19 @@ else
                     <option value="@t">@t</option>
                 }
             </select>
-            <button class="btn btn-sm btn-outline-primary" @onclick="() => PrintPreview()">🖨 Print</button>
+            <button class="btn btn-sm mt-2 btn-outline-primary" @onclick="() => PrintPreview()">🖨 Print</button>
         </div>
     </div>
 
-    <div class="catalog-preview-frame shadow-sm">
-        @((MarkupString)renderedHtml)
-    </div>
+    <iframe class="catalog-preview-iframe shadow-sm"
+            srcdoc="@renderedHtml"
+            style="width:100%; height:85vh; border:none; display:block;"
+            title="Catalog Preview">
+    </iframe>
 }
 
 <style>
-    .catalog-preview-frame {
-        background: #f5f4f0;
-        border-radius: 4px;
-        padding: 0;
-        overflow: hidden;
-    }
     @@media print {
-        .catalog-preview-frame { box-shadow: none !important; }
         nav, header, .d-flex { display: none !important; }
     }
 </style>
@@ -160,6 +155,9 @@ else
                     stockQuantity = v.StockQuantity,
                     lowStock = v.StockQuantity is >= 0 and <= 5,
                     isActive = v.IsActive,
+                    thumbnailUrl = v.ThumbnailMediaId.HasValue
+                        ? CatalogApi.GetMediaUrl(v.ThumbnailMediaId.Value)
+                        : (string?)null,
                     hasAttributes = v.Attributes is { Count: > 0 },
                     attributes = v.Attributes?.Select(a => new
                     {
@@ -175,6 +173,6 @@ else
 
     private async Task PrintPreview()
     {
-        await JS.InvokeVoidAsync("eval", "window.print()");
+        await JS.InvokeVoidAsync("eval", "document.querySelector('.catalog-preview-iframe').contentWindow.print()");
     }
 }

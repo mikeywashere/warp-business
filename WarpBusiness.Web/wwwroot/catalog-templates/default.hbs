@@ -36,6 +36,8 @@
   .variants-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .variants-table th { background: #f5f4f0; padding: 8px 10px; text-align: left; font-weight: 600; color: #555; border-bottom: 2px solid #ddd; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
   .variants-table td { padding: 9px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  .variant-thumb { width: 54px; height: 54px; object-fit: cover; border-radius: 3px; border: 1px solid #ddd; display: block; }
+  .variant-thumb-empty { width: 54px; height: 54px; }
   .variants-table tr:last-child td { border-bottom: none; }
   .variants-table tr:hover td { background: #fafaf8; }
   .color-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.15); margin-right: 5px; vertical-align: middle; }
@@ -106,6 +108,7 @@
     <table class="variants-table">
       <thead>
         <tr>
+          <th style="width:66px;"></th>
           <th>Attributes</th>
           <th>SKU</th>
           <th>Price</th>
@@ -116,6 +119,13 @@
       <tbody>
         {{#each variants}}
         <tr>
+          <td>
+            {{#if thumbnailUrl}}
+              <img class="variant-thumb" src="{{thumbnailUrl}}" alt="Variant image">
+            {{else}}
+              <div class="variant-thumb-empty"></div>
+            {{/if}}
+          </td>
           <td>
             {{#if hasAttributes}}
               <div class="attr-list">

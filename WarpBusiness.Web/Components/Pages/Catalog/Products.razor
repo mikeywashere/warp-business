@@ -305,7 +305,7 @@
                                                 </button>
                                                 @if (editingVariantId.HasValue)
                                                 {
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" @onclick="CancelVariantEdit">Cancel Edit</button>
+                                                    <button type="button" class="btn btn-sm mt-2 btn-outline-secondary ms-2" @onclick="CancelVariantEdit">Cancel Edit</button>
                                                 }
                                             </div>
                                         </EditForm>
@@ -365,11 +365,11 @@
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditVariant(v)">Edit</button>
-                                                            <button class="btn btn-sm btn-outline-info me-1" @onclick="() => ShowVariantImageUpload(v)" title="Manage Media">
+                                                            <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => EditVariant(v)">Edit</button>
+                                                            <button class="btn btn-sm mt-2 btn-outline-info me-1" @onclick="() => ShowVariantImageUpload(v)" title="Manage Media">
                                                                 <span class="bi bi-images"></span>
                                                             </button>
-                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteVariantAsync(v)">Delete</button>
+                                                            <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => DeleteVariantAsync(v)">Delete</button>
                                                         </td>
                                                     </tr>
                                                 }
@@ -447,16 +447,16 @@
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-secondary me-1" @onclick="() => OpenVariantsModal(product)" title="Manage Variants">
+                                        <button class="btn btn-sm mt-2 btn-outline-secondary me-1" @onclick="() => OpenVariantsModal(product)" title="Manage Variants">
                                             Variants
                                         </button>
-                                        <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => ShowEditProductModal(product)" title="Edit">
+                                        <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditProductModal(product)" title="Edit">
                                             Edit
                                         </button>
-                                        <button class="btn btn-sm btn-outline-info me-1" @onclick="() => NavigateToPreview(product.Id)" title="Catalog Preview">
+                                        <button class="btn btn-sm mt-2 btn-outline-info me-1" @onclick="() => NavigateToPreview(product.Id)" title="Catalog Preview">
                                             Preview
                                         </button>
-                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteProduct(product)" title="Delete">
+                                        <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => ConfirmDeleteProduct(product)" title="Delete">
                                             Delete
                                         </button>
                                     </td>
@@ -610,7 +610,7 @@
                                             <option value="@t">@t</option>
                                         }
                                     </select>
-                                    <button class="btn btn-sm btn-outline-primary" @onclick="PrintPreviewAsync">🖨 Print</button>
+                                    <button class="btn btn-sm mt-2 btn-outline-primary" @onclick="PrintPreviewAsync">🖨 Print</button>
                                 </div>
                             </div>
                             <button type="button" class="btn-close ms-2" @onclick="ClosePreviewModal"></button>
@@ -630,9 +630,10 @@
                             }
                             else
                             {
-                                <div class="catalog-preview-frame">
-                                    @((MarkupString)previewRenderedHtml)
-                                </div>
+                                <iframe class="catalog-preview-iframe"
+                                        srcdoc="@previewRenderedHtml"
+                                        style="width:100%; height:72vh; border:none; display:block;"
+                                        title="Catalog Preview"></iframe>
                             }
                         </div>
                     </div>
@@ -1029,7 +1030,7 @@
 
     private async Task RefreshPreviewAsync() => await LoadPreviewAsync();
 
-    private async Task PrintPreviewAsync() => await JS.InvokeVoidAsync("eval", "window.print()");
+    private async Task PrintPreviewAsync() => await JS.InvokeVoidAsync("eval", "document.querySelector('.catalog-preview-iframe').contentWindow.print()");
 
     private string? GetProductImageUrl(Guid? mediaId)
         => mediaId.HasValue ? CatalogApi.GetMediaUrl(mediaId.Value) : null;
@@ -1075,6 +1076,9 @@
                     stockQuantity = v.StockQuantity,
                     lowStock = v.StockQuantity is >= 0 and <= 5,
                     isActive = v.IsActive,
+                    thumbnailUrl = v.ThumbnailMediaId.HasValue
+                        ? CatalogApi.GetMediaUrl(v.ThumbnailMediaId.Value)
+                        : (string?)null,
                     hasAttributes = v.Attributes is { Count: > 0 },
                     attributes = v.Attributes?.Select(a => new
                     {
@@ -1365,14 +1369,7 @@
         max-height: 80vh;
     }
 
-    .catalog-preview-frame {
-        background: #f5f4f0;
-        padding: 0;
-        overflow: auto;
-    }
-
     @@media print {
-        .catalog-preview-frame { box-shadow: none !important; }
         .catalog-preview-modal .modal-header,
         .catalog-preview-modal .modal-footer { display: none !important; }
     }
