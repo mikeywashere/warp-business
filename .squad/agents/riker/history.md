@@ -111,3 +111,58 @@
 - Bucket creation should be lazy (first upload) not startup — MinIO may not be ready
 - CORS must be configured before first presigned PUT from browser
 - Always pass explicit contentType on upload
+
+### 2026-04-15: Warp Taxonomy System Architecture
+
+**Architecture Document Written:** `~/.copilot/session-state/.../files/taxonomy-architecture.md`
+**Decision Written:** `.squad/decisions/inbox/riker-taxonomy-architecture.md`
+
+**Context:**
+Michael requested product taxonomy with external imports from Amazon, Newegg, and Etsy.
+
+**Key Findings & Decisions:**
+
+1. **External Providers Changed:** Amazon and Newegg have no public taxonomy APIs. Replaced with:
+   - **Google Product Taxonomy** — public URL, no auth, industry standard (~6,000 categories)
+   - **eBay Taxonomy API** — OAuth app token, free tier (5,000/day)
+   - **Etsy Taxonomy API** — API key required, free tier available
+
+2. **New Module:** `WarpBusiness.Taxonomy` following existing module pattern
+   - Schema: `taxonomy`
+   - Entities: `TaxonomyNode` (per-tenant), `ExternalTaxonomyCache`, `ExternalTaxonomyNode`
+
+3. **Data Model:** Adjacency list + MaterializedPath
+   - `ParentNodeId` for CRUD and navigation properties
+   - `MaterializedPath` (e.g., `/001/003/007`) for breadcrumb display
+   - `Level` cached to avoid recursion
+
+4. **Import Tracking:** On `TaxonomyNode`:
+   - `SourceProvider` (enum: Google, eBay, Etsy)
+   - `SourceExternalId` (original ID from provider)
+   - `SourceImportedAt` (timestamp)
+   - Enables future re-sync and audit trail
+
+5. **Separate External Cache:** `ExternalTaxonomyNode` table stores downloaded external nodes
+   - Keeps external data separate from tenant data
+   - Enables side-by-side comparison
+   - Change detection via checksum comparison
+
+6. **Downloader Interface:** `ITaxonomyDownloader` with per-provider implementations
+   - `GoogleTaxonomyDownloader` — parses plain text format
+   - `EbayTaxonomyDownloader` — OAuth + JSON tree traversal
+   - `EtsyTaxonomyDownloader` — API key + JSON tree traversal
+
+7. **UI Pages:**
+   - `/catalog/taxonomy` — manage Warp taxonomy (tree CRUD)
+   - `/catalog/taxonomy/import` — browse external, select nodes, import
+
+**Files to Create:**
+- `WarpBusiness.Taxonomy/` project (17+ files)
+- `Taxonomy.razor`, `TaxonomyImport.razor` UI pages
+- `TaxonomyApiClient.cs` HTTP client
+
+**Files to Modify:**
+- `WarpBusiness.slnx` — add project
+- `WarpBusiness.Api/Program.cs` — register DbContext, services, endpoints
+- `WarpBusiness.Api.csproj` — add project reference
+- `NavMenu.razor` — add navigation links
