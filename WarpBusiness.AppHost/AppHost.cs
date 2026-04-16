@@ -36,26 +36,44 @@ var api = builder.AddProject<Projects.WarpBusiness_Api>("api")
     .WithEnvironment("Keycloak__AdminPassword", keycloak.Resource.AdminPasswordParameter)
     .WithEnvironment("GRAFANA_OTLP_ENDPOINT", grafana.GetEndpoint("otlp-grpc"));
 
-builder.AddProject<Projects.WarpBusiness_Web>("web")
+var web = builder.AddProject<Projects.WarpBusiness_Web>("web")
     .WithExternalHttpEndpoints()
     .WithReference(api)
     .WithReference(keycloak)
     .WithEnvironment("GRAFANA_OTLP_ENDPOINT", grafana.GetEndpoint("otlp-grpc"));
 
-builder.AddProject<Projects.WarpBusiness_CustomerPortal>("customer-portal")
+var customerPortal = builder.AddProject<Projects.WarpBusiness_CustomerPortal>("customer-portal")
     .WithExternalHttpEndpoints()
     .WithReference(api)
     .WithReference(keycloak)
     .WithEnvironment("GRAFANA_OTLP_ENDPOINT", grafana.GetEndpoint("otlp-grpc"));
 
-builder.AddProject<Projects.WarpBusiness_TenantPortal>("tenant-portal")
+var tenantPortal = builder.AddProject<Projects.WarpBusiness_TenantPortal>("tenant-portal")
     .WithExternalHttpEndpoints()
     .WithReference(api)
     .WithReference(keycloak)
     .WithEnvironment("GRAFANA_OTLP_ENDPOINT", grafana.GetEndpoint("otlp-grpc"));
 
-builder.AddProject<Projects.WarpBusiness_MarketingSite>("marketing-site")
+var marketingSite = builder.AddProject<Projects.WarpBusiness_MarketingSite>("marketing-site")
     .WithExternalHttpEndpoints()
     .WithEnvironment("GRAFANA_OTLP_ENDPOINT", grafana.GetEndpoint("otlp-grpc"));
+
+// nginx reverse proxy — subdomain-based routing for warp-business.com
+// See nginx/README.md for the full routing table and production usage.
+builder.AddContainer("nginx", "nginx", "alpine")
+    .WithBindMount("../nginx/nginx.conf.template", "/etc/nginx/templates/nginx.conf.template")
+    .WithHttpEndpoint(targetPort: 80, name: "http")
+    .WithEnvironment("MARKETING_UPSTREAM", marketingSite.GetEndpoint("http"))
+    .WithEnvironment("WEB_UPSTREAM", web.GetEndpoint("http"))
+    .WithEnvironment("API_UPSTREAM", api.GetEndpoint("http"))
+    .WithEnvironment("TENANT_PORTAL_UPSTREAM", tenantPortal.GetEndpoint("http"))
+    .WithEnvironment("CUSTOMER_PORTAL_UPSTREAM", customerPortal.GetEndpoint("http"))
+    .WithEnvironment("GRAFANA_UPSTREAM", grafana.GetEndpoint("grafana-ui"))
+    .WaitFor(api)
+    .WaitFor(web)
+    .WaitFor(customerPortal)
+    .WaitFor(tenantPortal)
+    .WaitFor(marketingSite)
+    .WaitFor(grafana);
 
 builder.Build().Run();
