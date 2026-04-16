@@ -239,3 +239,42 @@
 - MainLayout navbar shows "⚡ TENANT PORTAL" brand and links to Dashboard, Requests, Logo, Subscription, Logout
 - Cancel request action uses JS interop (`IJSRuntime.InvokeAsync<bool>("confirm", ...)`) for confirmation dialogs
 - All pages follow consistent card-based layout, loading spinner, error/success alert pattern
+## Learnings
+
+### Warnings → Notations Rename + Bootstrap Icons (2026-04-15)
+
+- **Renamed throughout frontend:** "Warnings" → "Notations" (page title, nav menu, API DTOs, route /catalog/warnings → /catalog/notations, form labels, table headers, variable names)
+- **Bootstrap Icons integrated:** Added CDN link to App.razor (https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css)
+- **Icon dropdown:** Replaced free-text Icon field with <select> dropdown showing 15 curated NotationIcon enum values (Warning, Info, Note, Caution, Danger, Prohibited, Flammable, Chemical, ElectricalHazard, Recyclable, EcoFriendly, FoodAllergen, Prop65, Compliance, Temperature)
+- **Icon preview:** Live icon preview next to dropdown in form (uses GetIconClass() helper to map enum names to Bootstrap Icons CSS classes like i-exclamation-triangle-fill)
+- **Table icons:** Table displays Bootstrap Icons instead of text/emoji (<i class="bi @GetIconClass(n.Icon)"></i>)
+- **Product checkboxes:** Notation checkboxes in product form show icon + name (e.g., <i class="bi bi-fire me-1"></i> Flammable)
+- **GetIconClass helper:** Static method mapping enum string values to Bootstrap Icons classes — placed in Notations.razor, Products.razor, and ProductPreview.razor (could be extracted to shared service)
+- **Template data:** BuildPreviewTemplateData and BuildTemplateData now pass iconClass alongside icon for each notation in Handlebars context
+- **Handlebars template:** Updated default.hbs to use {{#if iconClass}}<i class="bi {{iconClass}}"></i>{{/if}} instead of raw {{icon}} text, renamed CSS classes (.warnings-list → .notations-list, .warning-item → .notation-item), section title "Warnings & Notices" → "Notations & Notices"
+- **API client DTOs:** Renamed all CatalogWarningResponse → CatalogNotationResponse, CatalogProductWarningResponse → CatalogProductNotationResponse, CreateCatalogWarningRequest → CreateCatalogNotationRequest, UpdateCatalogWarningRequest → UpdateCatalogNotationRequest
+- **API client methods:** Renamed all methods (GetWarningsAsync → GetNotationsAsync, CreateWarningAsync → CreateNotationAsync, UpdateWarningAsync → UpdateNotationAsync, DeleteWarningAsync → DeleteNotationAsync, AddProductWarningAsync → AddProductNotationAsync, RemoveProductWarningAsync → RemoveProductNotationAsync)
+- **API routes updated:** All methods now call /api/catalog/notations endpoints (was /api/catalog/warnings), product notation routes /api/catalog/products/{id}/notations/{id} (was /warnings)
+- **Products.razor changes:** llWarnings → llNotations, SelectedWarningIds → SelectedNotationIds, ToggleWarning → ToggleNotation, LoadWarnings → LoadNotations, hasWarnings → hasNotations, product.warnings → product.notations in template data
+- **ProductPreview.razor changes:** hasWarnings → hasNotations, product.warnings → product.notations in template data, added GetIconClass helper
+- **NavMenu.razor:** Link text "Warnings" → "Notations", href /catalog/warnings → /catalog/notations
+- **Old file cleanup:** Deleted WarpBusiness.Web/Components/Pages/Catalog/Warnings.razor (replaced by Notations.razor)
+- **Build status:** Changes compile successfully (build failed due to running WarpBusiness.Web process holding file locks, not code errors)
+- **Pattern:** For icon-based enums, pass both the enum string value AND the CSS class to Handlebars templates since templates can't map enums to classes
+- **Status:** ✅ Complete — ready for backend API rename (Data agent responsibility)
+
+## 2026-04-16 — Notations Rename
+
+**Timestamp:** 2026-04-16T04:47:14Z
+
+Completed full frontend Warning→Notation rename:
+- Renamed Warnings.razor→Notations.razor (/catalog/notations)
+- Added Bootstrap Icons v1.11.3 CDN integration
+- Icon field: free-text input → curated dropdown (15 icons with live preview)
+- Updated NavMenu.razor, Products.razor, ProductPreview.razor
+- Updated CatalogApiClient (routes, DTOs)
+- Updated default.hbs template with notations section
+
+**Build:** ✅ 0 errors, 5 pre-existing warnings
+
+**Design notes:** Curated dropdown prevents typos; live preview improves UX. Bootstrap Icons CDN provides zero-footprint solution.

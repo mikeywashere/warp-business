@@ -471,3 +471,51 @@
   - `WarpBusiness.Api/Program.cs` — registered CatalogImageEndpoints
 - **Build status:** ✅ API project builds successfully. Frontend build fails due to missing UI implementation (Geordi's responsibility).
 - **Next step:** Geordi needs to implement frontend media upload UI that references the missing methods in `Products.razor` for both images and videos.
+
+### Catalog Warnings Renamed to Notations (2026-04-16)
+
+- **Feature:** Renamed the "Warnings" concept to "Notations" throughout the Catalog backend and database schema. Upgraded the free-text Icon field to a strongly-typed NotationIcon enum.
+- **NotationIcon enum:** Created WarpBusiness.Catalog/Models/NotationIcon.cs with 16 values, each mapped to a Bootstrap Icons CSS class:
+  - None, Warning (bi-exclamation-triangle-fill), Info (bi-info-circle-fill), Note (bi-journal-text), Caution (bi-exclamation-circle-fill), Danger (bi-x-octagon-fill)
+  - Prohibited (bi-slash-circle), Flammable (bi-fire), Chemical (bi-droplet-fill), ElectricalHazard (bi-lightning-fill), Recyclable (bi-recycle)
+  - EcoFriendly (bi-leaf-fill), FoodAllergen (bi-egg-fill), Prop65 (bi-exclamation-diamond-fill), Compliance (bi-shield-check-fill), Temperature (bi-thermometer-half)
+- **Model changes:**
+  - CatalogWarning → CatalogNotation: Icon property changed from string? to NotationIcon?, stored as string enum with max length 50
+  - ProductWarning → ProductNotation: WarningId → NotationId, Warning nav → Notation nav
+  - Product model: Warnings collection → Notations
+- **Database migration:** Created RenameWarningsToNotations migration (20260416044001) that uses RenameTable and RenameColumn to preserve existing data. Icon column type changed from text to varchar(50).
+- **API endpoints:**
+  - CatalogWarningEndpoints.cs → CatalogNotationEndpoints.cs
+  - Routes changed: /api/catalog/warnings → /api/catalog/notations, /api/catalog/products/{id}/warnings → /api/catalog/products/{id}/notations
+  - DTOs: WarningResponse → NotationResponse, CreateWarningRequest → CreateNotationRequest, UpdateWarningRequest → UpdateNotationRequest
+  - ProductWarningResponse → ProductNotationResponse with NotationIcon? Icon instead of string? Icon
+- **CatalogEndpoints.cs updates:** All product CRUD operations updated to use NotationIds instead of WarningIds, reference db.Notations/ProductNotations instead of db.Warnings/ProductWarnings
+- **Program.cs:** MapCatalogWarningEndpoints() → MapCatalogNotationEndpoints()
+- **Migration strategy:** The generated Drop+Create migration was manually edited to use RenameTable/RenameColumn/RenameIndex to preserve existing data. Existing Icon values (emoji strings) will not map to enum values but remain in DB (acceptable in dev).
+- **Files deleted:** CatalogWarning.cs, ProductWarning.cs, CatalogWarningEndpoints.cs (replaced by new Notation equivalents)
+- **Build status:** ✅ WarpBusiness.Catalog and WarpBusiness.Api both build successfully with no errors.
+- **Key files:**
+  - WarpBusiness.Catalog/Models/NotationIcon.cs (new)
+  - WarpBusiness.Catalog/Models/CatalogNotation.cs (renamed from CatalogWarning.cs)
+  - WarpBusiness.Catalog/Models/ProductNotation.cs (renamed from ProductWarning.cs)
+  - WarpBusiness.Catalog/Data/CatalogDbContext.cs (updated)
+  - WarpBusiness.Catalog/Migrations/20260416044001_RenameWarningsToNotations.cs (new)
+  - WarpBusiness.Api/Endpoints/CatalogNotationEndpoints.cs (renamed from CatalogWarningEndpoints.cs)
+  - WarpBusiness.Api/Endpoints/CatalogEndpoints.cs (updated all Warning refs to Notation)
+  - WarpBusiness.Api/Program.cs (updated endpoint registration)
+
+
+## 2026-04-16 — Notations Rename
+
+**Timestamp:** 2026-04-16T04:47:14Z
+
+Completed full backend Warning→Notation rename:
+- Added NotationIcon enum (16 values, mapped to Bootstrap Icons)
+- Renamed CatalogWarning→CatalogNotation, ProductWarning→ProductNotation
+- Created data-preserving migration: RenameWarningsToNotations
+- Updated API routes: /api/catalog/warnings→/api/catalog/notations
+- Updated CatalogEndpoints.cs for notation CRUD
+
+**Build:** ✅ 0 errors, 5 pre-existing warnings
+
+**Handoff:** Ready for Geordi to update frontend API client and UI components.
