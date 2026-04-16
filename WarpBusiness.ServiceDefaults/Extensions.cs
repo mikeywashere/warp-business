@@ -82,35 +82,52 @@ public static class Extensions
 
     private static TBuilder AddOpenTelemetryExporters<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
     {
-        var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
-
-        if (useOtlpExporter)
-        {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
-        }
-
-        // Also export to Grafana LGTM stack when running under Aspire
+        var aspireEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         var grafanaEndpoint = builder.Configuration["GRAFANA_OTLP_ENDPOINT"];
-        if (!string.IsNullOrWhiteSpace(grafanaEndpoint))
-        {
-            var grafanaUri = new Uri(grafanaEndpoint);
-            builder.Services.AddOpenTelemetry()
-                .WithMetrics(metrics => metrics.AddOtlpExporter(opts =>
-                {
-                    opts.Endpoint = grafanaUri;
-                    opts.Protocol = OtlpExportProtocol.Grpc;
-                }))
-                .WithTracing(tracing => tracing.AddOtlpExporter(opts =>
-                {
-                    opts.Endpoint = grafanaUri;
-                    opts.Protocol = OtlpExportProtocol.Grpc;
-                }))
-                .WithLogging(logging => logging.AddOtlpExporter(opts =>
-                {
-                    opts.Endpoint = grafanaUri;
-                    opts.Protocol = OtlpExportProtocol.Grpc;
-                }));
-        }
+
+        var hasAspire = !string.IsNullOrWhiteSpace(aspireEndpoint);
+        var hasGrafana = !string.IsNullOrWhiteSpace(grafanaEndpoint);
+
+        if (!hasAspire && !hasGrafana)
+            return builder;
+
+        // UseOtlpExporter() (cross-cutting) and AddOtlpExporter() (signal-specific)
+        // cannot be registered on the same IServiceCollection. Use per-signal exporters
+        // for both destinations so that both can coexist without conflict.
+        builder.Services.AddOpenTelemetry()
+            .WithMetrics(metrics =>
+            {
+                if (hasAspire)
+                    metrics.AddOtlpExporter(); // reads OTEL_EXPORTER_OTLP_* env vars
+                if (hasGrafana)
+                    metrics.AddOtlpExporter(opts =>
+                    {
+                        opts.Endpoint = new Uri(grafanaEndpoint!);
+                        opts.Protocol = OtlpExportProtocol.Grpc;
+                    });
+            })
+            .WithTracing(tracing =>
+            {
+                if (hasAspire)
+                    tracing.AddOtlpExporter();
+                if (hasGrafana)
+                    tracing.AddOtlpExporter(opts =>
+                    {
+                        opts.Endpoint = new Uri(grafanaEndpoint!);
+                        opts.Protocol = OtlpExportProtocol.Grpc;
+                    });
+            })
+            .WithLogging(logging =>
+            {
+                if (hasAspire)
+                    logging.AddOtlpExporter();
+                if (hasGrafana)
+                    logging.AddOtlpExporter(opts =>
+                    {
+                        opts.Endpoint = new Uri(grafanaEndpoint!);
+                        opts.Protocol = OtlpExportProtocol.Grpc;
+                    });
+            });
 
         // Uncomment the following lines to enable the Azure Monitor exporter (requires the Azure.Monitor.OpenTelemetry.AspNetCore package)
         //if (!string.IsNullOrEmpty(builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]))
