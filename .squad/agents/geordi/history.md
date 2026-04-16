@@ -279,3 +279,14 @@ Completed full frontend Warning→Notation rename:
 **Build:** ✅ 0 errors, 5 pre-existing warnings
 
 **Design notes:** Curated dropdown prevents typos; live preview improves UX. Bootstrap Icons CDN provides zero-footprint solution.
+
+### Taxonomy UI — Branch Picker + Cascade Delete (2026-04-16)
+
+- **TaxonomyApiClient.cs:** Renamed `ImportNodesRequest.TargetParentId` → `TargetParentNodeId` (matches backend API update); added `DeleteBranchResult(Success, ErrorMessage, ConflictingNodeIds)` record; added `GetRootNodesAsync()` (GET /api/taxonomy/nodes/roots), `GetNodeChildrenAsync(Guid)` (GET /api/taxonomy/nodes/{id}/children), `DeleteBranchAsync(Guid, bool cascade)` (DELETE /api/taxonomy/nodes/{id}?cascade=...)
+- **DeleteBranchAsync pattern:** Returns `DeleteBranchResult` instead of throwing — 409 sets `ConflictingNodeIds` to empty list (never null), 400 leaves it null; caller uses `ConflictingNodeIds != null` to distinguish conflict vs bad request
+- **TaxonomyImport.razor:** Replaced flat "Import into..." dropdown with lazy-loading tree picker in a card section above the Import Selected button; radio toggle (root / branch); picker uses `GetRootNodesAsync` on first expand, `GetNodeChildrenAsync` on chevron click; `@onclick:stopPropagation` on chevron prevents accidental node selection; selected node highlighted with accent border + semi-transparent background; 300px scrollable container; `PickerPaddingLeft(level)` helper uses `InvariantCulture` to prevent locale-specific decimal separators breaking CSS rem values
+- **Taxonomy.razor:** Replaced leaf-only "Delete" (disabled for nodes with children) with universal "Delete Branch" (cascade, always enabled); confirmation modal with permanent-action checkbox (must be checked to enable confirm); 409 → specific "catalog references" error; 400 → response body text; success → optimistic subtree removal without full reload
+- **Subtree removal:** `RemoveNodeAndDescendants` + `CollectDescendants` use ParentNodeId-based DFS traversal (avoids reliance on MaterializedPath format); also prunes `collapsedNodes` to prevent stale state
+- **Toast system:** `ToastEntry(Guid Id, string Text, string Type)` records in `toastMessages` list; fixed bottom-right div; `ShowToastAsync` uses `_ = ShowToastAsync(...)` fire-and-forget + `InvokeAsync(StateHasChanged)` for thread-safe Blazor Server updates; 4s auto-dismiss
+- **Commit:** 96e00cb
+- **Build:** ✅ 0 errors
