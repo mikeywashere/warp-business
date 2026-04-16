@@ -256,7 +256,7 @@ public static class CatalogEndpoints
             .Where(p => p.TenantId == tenantId.Value)
             .Include(p => p.Category)
             .Include(p => p.ProductType)
-            .Include(p => p.Warnings).ThenInclude(pw => pw.Warning)
+            .Include(p => p.Notations).ThenInclude(pn => pn.Notation)
             .Include(p => p.Media)
             .Include(p => p.Variants)
             .OrderBy(p => p.Name)
@@ -280,7 +280,7 @@ public static class CatalogEndpoints
             .Where(p => p.Id == id && p.TenantId == tenantId.Value)
             .Include(p => p.Category)
             .Include(p => p.ProductType)
-            .Include(p => p.Warnings).ThenInclude(pw => pw.Warning)
+            .Include(p => p.Notations).ThenInclude(pn => pn.Notation)
             .Include(p => p.Media)
             .Include(p => p.Variants)
             .AsSplitQuery()
@@ -327,14 +327,14 @@ public static class CatalogEndpoints
             await db.Products.AnyAsync(p => p.SKU == request.SKU && p.TenantId == tenantId.Value, cancellationToken))
             return Results.Conflict(new { message = "A product with this SKU already exists." });
 
-        if (request.WarningIds is { Count: > 0 })
+        if (request.NotationIds is { Count: > 0 })
         {
-            foreach (var wid in request.WarningIds)
+            foreach (var nid in request.NotationIds)
             {
-                var warningExists = await db.Warnings.AnyAsync(
-                    w => w.Id == wid && w.TenantId == tenantId.Value, cancellationToken);
-                if (!warningExists)
-                    return Results.BadRequest(new { message = $"Warning {wid} not found in this tenant." });
+                var notationExists = await db.Notations.AnyAsync(
+                    n => n.Id == nid && n.TenantId == tenantId.Value, cancellationToken);
+                if (!notationExists)
+                    return Results.BadRequest(new { message = $"Notation {nid} not found in this tenant." });
             }
         }
 
@@ -358,10 +358,10 @@ public static class CatalogEndpoints
         db.Products.Add(product);
         await db.SaveChangesAsync(cancellationToken);
 
-        if (request.WarningIds is { Count: > 0 })
+        if (request.NotationIds is { Count: > 0 })
         {
-            foreach (var wid in request.WarningIds)
-                db.ProductWarnings.Add(new ProductWarning { ProductId = product.Id, WarningId = wid });
+            foreach (var nid in request.NotationIds)
+                db.ProductNotations.Add(new ProductNotation { ProductId = product.Id, NotationId = nid });
             await db.SaveChangesAsync(cancellationToken);
         }
 
@@ -419,14 +419,14 @@ public static class CatalogEndpoints
             await db.Products.AnyAsync(p => p.SKU == newSku && p.TenantId == tenantId.Value && p.Id != id, cancellationToken))
             return Results.Conflict(new { message = "A product with this SKU already exists." });
 
-        if (request.WarningIds is { Count: > 0 })
+        if (request.NotationIds is { Count: > 0 })
         {
-            foreach (var wid in request.WarningIds)
+            foreach (var nid in request.NotationIds)
             {
-                var warningExists = await db.Warnings.AnyAsync(
-                    w => w.Id == wid && w.TenantId == tenantId.Value, cancellationToken);
-                if (!warningExists)
-                    return Results.BadRequest(new { message = $"Warning {wid} not found in this tenant." });
+                var notationExists = await db.Notations.AnyAsync(
+                    n => n.Id == nid && n.TenantId == tenantId.Value, cancellationToken);
+                if (!notationExists)
+                    return Results.BadRequest(new { message = $"Notation {nid} not found in this tenant." });
             }
         }
 
@@ -441,16 +441,16 @@ public static class CatalogEndpoints
         product.IsActive = request.IsActive ?? product.IsActive;
         product.UpdatedAt = DateTimeOffset.UtcNow;
 
-        // Replace warnings
-        var existingWarnings = await db.ProductWarnings
-            .Where(pw => pw.ProductId == id)
+        // Replace notations
+        var existingNotations = await db.ProductNotations
+            .Where(pn => pn.ProductId == id)
             .ToListAsync(cancellationToken);
-        db.ProductWarnings.RemoveRange(existingWarnings);
+        db.ProductNotations.RemoveRange(existingNotations);
 
-        if (request.WarningIds is { Count: > 0 })
+        if (request.NotationIds is { Count: > 0 })
         {
-            foreach (var wid in request.WarningIds)
-                db.ProductWarnings.Add(new ProductWarning { ProductId = id, WarningId = wid });
+            foreach (var nid in request.NotationIds)
+                db.ProductNotations.Add(new ProductNotation { ProductId = id, NotationId = nid });
         }
 
         await db.SaveChangesAsync(cancellationToken);
@@ -467,17 +467,17 @@ public static class CatalogEndpoints
             .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
             .Select(m => (Guid?)m.Id)
             .FirstOrDefaultAsync(cancellationToken);
-        var warnings = await db.ProductWarnings
-            .Where(pw => pw.ProductId == id)
-            .Include(pw => pw.Warning)
-            .Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description, pw.Warning.Icon))
+        var notations = await db.ProductNotations
+            .Where(pn => pn.ProductId == id)
+            .Include(pn => pn.Notation)
+            .Select(pn => new ProductNotationResponse(pn.NotationId, pn.Notation.Name, pn.Notation.Description, pn.Notation.Icon))
             .ToListAsync(cancellationToken);
 
         return Results.Ok(new ProductResponse(product.Id, product.TenantId, product.CategoryId, categoryName,
             product.Name, product.Description, product.Brand, product.SKU,
             product.BasePrice, product.Currency, product.IsActive,
             product.CreatedAt, product.UpdatedAt, variantCount, thumbnailKey,
-            product.ProductTypeId, productTypeName, warnings));
+            product.ProductTypeId, productTypeName, notations));
     }
 
     private static async Task<IResult> DeleteProduct(
@@ -733,7 +733,7 @@ public static class CatalogEndpoints
             .Select(m => (Guid?)m.Id).FirstOrDefault(),
         p.ProductTypeId,
         p.ProductType?.Name,
-        p.Warnings.Select(pw => new ProductWarningResponse(pw.WarningId, pw.Warning.Name, pw.Warning.Description, pw.Warning.Icon)).ToList());
+        p.Notations.Select(pn => new ProductNotationResponse(pn.NotationId, pn.Notation.Name, pn.Notation.Description, pn.Notation.Icon)).ToList());
 
     private static ProductVariantResponse MapVariantResponse(ProductVariant v) => new(
         v.Id, v.ProductId, v.TenantId,
@@ -797,7 +797,7 @@ public record ProductResponse(
     Guid? ThumbnailMediaId,
     Guid? ProductTypeId,
     string? ProductTypeName,
-    List<ProductWarningResponse> Warnings);
+    List<ProductNotationResponse> Notations);
 
 public record CreateProductRequest(
     string Name,
@@ -808,7 +808,7 @@ public record CreateProductRequest(
     string? SKU = null,
     Guid? CategoryId = null,
     Guid? ProductTypeId = null,
-    List<Guid>? WarningIds = null);
+    List<Guid>? NotationIds = null);
 
 public record UpdateProductRequest(
     string Name,
@@ -820,7 +820,7 @@ public record UpdateProductRequest(
     Guid? CategoryId = null,
     bool? IsActive = null,
     Guid? ProductTypeId = null,
-    List<Guid>? WarningIds = null);
+    List<Guid>? NotationIds = null);
 
 public record ProductVariantResponse(
     Guid Id, Guid ProductId, Guid TenantId,
@@ -860,8 +860,8 @@ public record VariantAttributeValueRequest(
     string? TextValue = null,
     decimal? NumberValue = null);
 
-public record ProductWarningResponse(
-    Guid WarningId,
+public record ProductNotationResponse(
+    Guid NotationId,
     string Name,
     string? Description,
-    string? Icon);
+    NotationIcon? Icon);

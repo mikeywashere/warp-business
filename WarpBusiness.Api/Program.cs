@@ -293,7 +293,7 @@ app.MapCatalogEndpoints();
 app.MapCatalogImageEndpoints();
 app.MapCatalogProductTypeEndpoints();
 app.MapCatalogAttributeEndpoints();
-app.MapCatalogWarningEndpoints();
+app.MapCatalogNotationEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();

@@ -22,5 +22,5 @@ public class Product
     public ProductType? ProductType { get; set; }
     public ICollection<ProductVariant> Variants { get; set; } = [];
     public ICollection<ProductMedia> Media { get; set; } = [];
-    public ICollection<ProductWarning> Warnings { get; set; } = [];
+    public ICollection<ProductNotation> Notations { get; set; } = [];
 }

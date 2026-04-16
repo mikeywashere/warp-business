@@ -18,8 +18,8 @@ public class CatalogDbContext : DbContext
     public DbSet<CatalogAttributeType> AttributeTypes => Set<CatalogAttributeType>();
     public DbSet<CatalogAttributeOption> AttributeOptions => Set<CatalogAttributeOption>();
     public DbSet<ProductVariantAttributeValue> VariantAttributeValues => Set<ProductVariantAttributeValue>();
-    public DbSet<CatalogWarning> Warnings => Set<CatalogWarning>();
-    public DbSet<ProductWarning> ProductWarnings => Set<ProductWarning>();
+    public DbSet<CatalogNotation> Notations => Set<CatalogNotation>();
+    public DbSet<ProductNotation> ProductNotations => Set<ProductNotation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -157,7 +157,7 @@ public class CatalogDbContext : DbContext
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-        modelBuilder.Entity<CatalogWarning>(entity =>
+        modelBuilder.Entity<CatalogNotation>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.TenantId);
@@ -165,22 +165,27 @@ public class CatalogDbContext : DbContext
 
             entity.Property(e => e.Name).HasMaxLength(300).IsRequired();
             entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.Icon).HasConversion<string>().HasMaxLength(50);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.ToTable("Notations");
         });
 
-        modelBuilder.Entity<ProductWarning>(entity =>
+        modelBuilder.Entity<ProductNotation>(entity =>
         {
-            entity.HasKey(e => new { e.ProductId, e.WarningId });
+            entity.HasKey(e => new { e.ProductId, e.NotationId });
 
             entity.HasOne(e => e.Product)
-                .WithMany(p => p.Warnings)
+                .WithMany(p => p.Notations)
                 .HasForeignKey(e => e.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.Warning)
-                .WithMany(w => w.ProductWarnings)
-                .HasForeignKey(e => e.WarningId)
+            entity.HasOne(e => e.Notation)
+                .WithMany(n => n.ProductNotations)
+                .HasForeignKey(e => e.NotationId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.ToTable("ProductNotations");
         });
 
         modelBuilder.Entity<ProductVariant>(entity =>
