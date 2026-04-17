@@ -6,9 +6,9 @@
 @inject TaxonomyApiClient TaxonomyApi
 @inject NavigationManager Navigation
 
-<PageTitle>Import Taxonomy</PageTitle>
+<PageTitle>Taxonomy Browser</PageTitle>
 
-<h1 class="mb-4">Import Taxonomy</h1>
+<h1 class="mb-4">Taxonomy Browser</h1>
 
 <AuthorizeView Context="authContext">
     <Authorized>
@@ -37,56 +37,6 @@
         }
         else
         {
-            @if (showImportModal && SelectedNodeNames.Count > 0)
-            {
-                <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Import Selected Nodes</h5>
-                                <button type="button" class="btn-close" @onclick="CloseImportModal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <p>You are about to import <strong>@SelectedNodeNames.Count</strong> nodes from <strong>@selectedProvider</strong>.</p>
-                                <ul class="mb-2">
-                                    @foreach (var name in SelectedNodeNames.Take(10))
-                                    {
-                                        <li>@name</li>
-                                    }
-                                </ul>
-                                @if (SelectedNodeNames.Count > 10)
-                                {
-                                    <div class="text-muted small">and @(SelectedNodeNames.Count - 10) more...</div>
-                                }
-
-                                <div class="mt-3">
-                                    @if (targetParentNodeId.HasValue && !string.IsNullOrEmpty(targetParentNodeName))
-                                    {
-                                        <div class="alert alert-info py-2 mb-0 small">
-                                            Destination: <strong>@targetParentNodeName</strong>
-                                        </div>
-                                    }
-                                    else
-                                    {
-                                        <div class="alert alert-info py-2 mb-0 small">
-                                            Destination: <strong>Root (top level)</strong>
-                                        </div>
-                                    }
-                                </div>
-
-                                <div class="mt-3">
-                                    <button type="button" class="btn btn-primary" @onclick="ConfirmImport" disabled="@isImporting">
-                                        @if (isImporting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
-                                        Import Selected
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary ms-2" @onclick="CloseImportModal">Cancel</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }
-
             @if (ProviderTabs.Count == 0)
             {
                 <div class="alert alert-info">No taxonomy providers are configured.</div>
@@ -111,12 +61,8 @@
                             <div>
                                 <h5 class="mb-1">@selectedProvider Taxonomy</h5>
                                 <div class="text-muted small">
-                                    Last download: @(FormatDate(CurrentStatus?.LastDownload))
-                                    • @(CurrentStatus?.NodeCount ?? 0) nodes
-                                    @if (!string.IsNullOrWhiteSpace(CurrentStatus?.Version))
-                                    {
-                                        <span>• Version @CurrentStatus!.Version</span>
-                                    }
+                                    Last download: @(FormatDate(CurrentStatus?.LastDownloadedAt))
+                                    &bull; @(CurrentStatus?.NodeCount ?? 0) nodes
                                 </div>
                                 <div class="mt-2">
                                     <span class="badge @GetStatusBadgeClass(CurrentStatus)">@GetStatusText(CurrentStatus)</span>
@@ -130,13 +76,6 @@
                         </div>
                     </div>
                 </div>
-
-                @if (CurrentStatus is { RequiresApiKey: true, Enabled: false })
-                {
-                    <div class="alert alert-info">
-                        This provider requires API credentials. Configure Taxonomy:@selectedProvider in appsettings.
-                    </div>
-                }
 
                 <div class="mb-3">
                     <label class="form-label">Search</label>
@@ -159,7 +98,6 @@
                                 <tr>
                                     <th>Node</th>
                                     <th>Path</th>
-                                    <th style="width: 250px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -169,138 +107,33 @@
                                     {
                                         <tr>
                                             <td>
-                                                <div class="d-flex align-items-center" style="padding-left: @(node.Level * 20)px;">
+                                                <div class="d-flex align-items-center" style="padding-left: @(node.Depth * 20)px;">
                                                     @if (HasExternalChildren(node))
                                                     {
                                                         <button type="button" class="btn btn-sm btn-link p-0 me-2"
                                                                 style="color: var(--clr-accent);" @onclick="() => ToggleExternalNode(node)">
-                                                            @(CurrentCollapsedSet.Contains(node.ExternalId) ? "▶" : "▼")
+                                                            @(IsExpanded(node.Id) ? "▼" : "▶")
                                                         </button>
                                                     }
                                                     else
                                                     {
                                                         <span class="me-4"></span>
                                                     }
-
-                                                    @if (node.IsImported)
-                                                    {
-                                                        <span class="badge bg-secondary me-2">✓ Imported</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <input class="form-check-input me-2" type="checkbox" checked="@IsSelected(node)"
-                                                               @onchange="(e => ToggleNodeSelection(node, e))" />
-                                                    }
                                                     <span>@node.Name</span>
                                                 </div>
                                             </td>
                                             <td class="text-muted small">@node.FullPath</td>
-                                            <td>
-                                                <button class="btn btn-sm mt-2 btn-outline-secondary"
-                                                        @onclick="() => SelectAllChildren(node)" disabled="@node.IsLeaf">
-                                                    Select All Children
-                                                </button>
-                                            </td>
                                         </tr>
                                     }
                                 }
                                 else
                                 {
-                                    <tr><td colspan="3" class="text-center text-muted py-4">No external nodes loaded yet.</td></tr>
+                                    <tr><td colspan="2" class="text-center text-muted py-4">No external nodes loaded yet.</td></tr>
                                 }
                             </tbody>
                         </table>
                     </div>
                 }
-
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h6 class="card-title mb-3">Import destination</h6>
-                        <div class="mb-2">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="destRoot" name="importDest"
-                                       checked="@(importDestination == "root")"
-                                       @onclick="@(() => importDestination = "root")" />
-                                <label class="form-check-label" for="destRoot">Root (top level)</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="destBranch" name="importDest"
-                                       checked="@(importDestination == "branch")"
-                                       @onclick="HandleBranchOptionClicked" />
-                                <label class="form-check-label" for="destBranch">Under a specific branch</label>
-                            </div>
-                        </div>
-                        @if (importDestination == "branch")
-                        {
-                            @if (targetParentNodeId.HasValue && !string.IsNullOrEmpty(targetParentNodeName))
-                            {
-                                <div class="mb-2 small">
-                                    <span class="text-muted">Selected:</span>
-                                    <strong style="color: var(--clr-accent);">@targetParentNodeName</strong>
-                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2" @onclick="@(() => { targetParentNodeId = null; targetParentNodeName = null; })">✕</button>
-                                </div>
-                            }
-                            @if (isLoadingPickerRoots)
-                            {
-                                <div class="d-flex justify-content-center py-3">
-                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                </div>
-                            }
-                            else
-                            {
-                                <div style="max-height: 300px; overflow-y: scroll; border: 1px solid var(--clr-border); border-radius: 4px; padding: 0.25rem;">
-                                    @if (pickerRoots.Count == 0)
-                                    {
-                                        <div class="text-muted small p-2">No taxonomy nodes available.</div>
-                                    }
-                                    else
-                                    {
-                                        @foreach (var item in GetPickerVisibleNodes())
-                                        {
-                                            var pNode = item.Node;
-                                            var pLevel = item.Level;
-                                            var pSelected = targetParentNodeId == pNode.Id;
-                                            var pExpanded = pickerExpandedNodes.Contains(pNode.Id);
-                                            <div style="display: flex; align-items: center; padding: 0.3rem 0.5rem 0.3rem @PickerPaddingLeft(pLevel); border-radius: 4px; cursor: pointer; @(pSelected ? "border: 1px solid var(--clr-accent); background-color: rgba(0,200,255,0.08);" : "")"
-                                                 @onclick="() => SelectPickerNode(pNode)">
-                                                @if (pNode.ChildCount > 0)
-                                                {
-                                                    <button type="button" class="btn btn-sm btn-link p-0 me-2"
-                                                            style="color: var(--clr-accent); min-width: 1.2rem; line-height: 1;"
-                                                            @onclick:stopPropagation
-                                                            @onclick="() => TogglePickerNode(pNode)">
-                                                        @if (pickerLoadingNodes.Contains(pNode.Id))
-                                                        {
-                                                            <span class="spinner-border spinner-border-sm" style="width: 0.75rem; height: 0.75rem;" role="status"></span>
-                                                        }
-                                                        else
-                                                        {
-                                                            @(pExpanded ? "▼" : "▶")
-                                                        }
-                                                    </button>
-                                                }
-                                                else
-                                                {
-                                                    <span class="me-2" style="min-width: 1.2rem; display: inline-block;"></span>
-                                                }
-                                                <span class="@(pSelected ? "fw-bold" : "")">@pNode.Name</span>
-                                            </div>
-                                        }
-                                    }
-                                </div>
-                            }
-                        }
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center mt-3">
-                    <div class="text-muted">Selected: <strong>@SelectedCount</strong> nodes</div>
-                    <button class="btn btn-primary" @onclick="ShowImportModal" disabled="@(SelectedCount == 0 || isImporting)">
-                        Import Selected
-                    </button>
-                </div>
             }
         }
     </Authorized>
@@ -317,29 +150,18 @@
     private bool isLoading = true;
     private bool isLoadingExternal;
     private bool isDownloading;
-    private bool isImporting;
-    private bool showImportModal;
     private string? errorMessage;
     private string? successMessage;
     private string? searchText;
-    private string importDestination = "root";
-    private Guid? targetParentNodeId;
-    private string? targetParentNodeName;
-    private List<TaxonomyNodeResponse> pickerRoots = [];
-    private bool isLoadingPickerRoots;
-    private readonly HashSet<Guid> pickerExpandedNodes = new();
-    private readonly Dictionary<Guid, List<TaxonomyNodeResponse>> pickerChildrenCache = new();
-    private readonly HashSet<Guid> pickerLoadingNodes = new();
 
     private List<ProviderStatusResponse> providerStatuses = [];
-    private readonly Dictionary<string, List<ExternalNodeResponse>> externalTrees = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, HashSet<string>> selectedExternalNodes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, HashSet<string>> collapsedExternalNodes = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Dictionary<string, List<ExternalNodeResponse>>> externalChildrenLookup = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, List<ExternalNodeResponse>> externalTrees = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, Dictionary<Guid, List<ExternalNodeResponse>>> externalChildrenCache = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, HashSet<Guid>> expandedExternalNodes = new(StringComparer.OrdinalIgnoreCase);
 
     private List<string> ProviderTabs =>
         providerStatuses
-            .Select(s => s.Provider)
+            .Select(s => s.Key)
             .Where(p => !string.IsNullOrWhiteSpace(p))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(p => p)
@@ -348,59 +170,25 @@
     private ProviderStatusResponse? CurrentStatus =>
         string.IsNullOrWhiteSpace(selectedProvider)
             ? null
-            : providerStatuses.FirstOrDefault(s => s.Provider.Equals(selectedProvider, StringComparison.OrdinalIgnoreCase));
-
-    private IEnumerable<ExternalNodeResponse> CurrentExternalNodes =>
-        string.IsNullOrWhiteSpace(selectedProvider)
-            ? []
-            : externalTrees.TryGetValue(selectedProvider, out var nodes) ? nodes : [];
-
-    private HashSet<string> CurrentSelectedSet
-    {
-        get
-        {
-            if (!selectedExternalNodes.TryGetValue(selectedProvider, out var set))
-            {
-                set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                selectedExternalNodes[selectedProvider] = set;
-            }
-            return set;
-        }
-    }
-
-    private HashSet<string> CurrentCollapsedSet
-    {
-        get
-        {
-            if (!collapsedExternalNodes.TryGetValue(selectedProvider, out var set))
-            {
-                set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                collapsedExternalNodes[selectedProvider] = set;
-            }
-            return set;
-        }
-    }
-
-    private Dictionary<string, ExternalNodeResponse> CurrentExternalLookup =>
-        CurrentExternalNodes.ToDictionary(n => n.ExternalId, StringComparer.OrdinalIgnoreCase);
-
-    private IReadOnlyList<string> SelectedNodeNames =>
-        CurrentSelectedSet
-            .Select(id => CurrentExternalLookup.TryGetValue(id, out var node) ? node.Name : id)
-            .OrderBy(name => name)
-            .ToList();
-
-    private int SelectedCount => CurrentSelectedSet.Count;
+            : providerStatuses.FirstOrDefault(s => s.Key.Equals(selectedProvider, StringComparison.OrdinalIgnoreCase));
 
     private IEnumerable<ExternalNodeResponse> VisibleExternalNodes
     {
         get
         {
-            var lookup = CurrentExternalLookup;
-            return FilteredExternalNodes()
-                .OrderBy(n => n.FullPath)
-                .ThenBy(n => n.Name)
-                .Where(n => IsExternalNodeVisible(n, lookup));
+            if (string.IsNullOrWhiteSpace(selectedProvider)) return [];
+            if (!externalTrees.TryGetValue(selectedProvider, out var roots)) return [];
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+                return FilteredExternalNodes();
+
+            var result = new List<ExternalNodeResponse>();
+            foreach (var root in roots.OrderBy(n => n.Name))
+            {
+                result.Add(root);
+                AppendExpandedChildren(root.Id, result);
+            }
+            return result;
         }
     }
 
@@ -456,9 +244,9 @@
         isLoadingExternal = true;
         try
         {
-            var nodes = await TaxonomyApi.GetExternalTreeAsync(provider);
-            externalTrees[provider] = nodes;
-            externalChildrenLookup.Remove(provider);
+            var result = await TaxonomyApi.GetExternalNodesAsync(provider);
+            externalTrees[provider] = result.Nodes;
+            externalChildrenCache.Remove(provider);
         }
         catch (Exception ex)
         {
@@ -504,259 +292,99 @@
         }
     }
 
-    private string FormatDate(DateTime? date) =>
+    private string FormatDate(DateTimeOffset? date) =>
         date.HasValue ? date.Value.ToLocalTime().ToString("g") : "Never";
 
     private bool IsProviderEnabled(ProviderStatusResponse? status) =>
-        status is null || status.Enabled;
+        status is null || status.IsActive;
 
     private string GetStatusText(ProviderStatusResponse? status)
     {
         if (status is null) return "Unknown";
-        if (!string.IsNullOrWhiteSpace(status.Status)) return status.Status;
-        return status.LastDownload.HasValue ? "Downloaded" : "Never downloaded";
+        if (!status.IsActive) return "Inactive";
+        return status.LastDownloadedAt.HasValue ? "Downloaded" : "Never downloaded";
     }
 
     private string GetStatusBadgeClass(ProviderStatusResponse? status)
     {
-        if (status is null) return "bg-secondary";
-
-        var statusValue = status.Status?.ToLowerInvariant() ?? string.Empty;
-        if (statusValue.Contains("downloading") || statusValue.Contains("inprogress") || statusValue.Contains("queued"))
-            return "bg-warning text-dark";
-        if (statusValue.Contains("failed") || statusValue.Contains("error"))
-            return "bg-danger";
-        if (status.LastDownload.HasValue)
-            return "bg-success";
-        return "bg-secondary";
+        if (status is null || !status.IsActive) return "badge bg-secondary";
+        return status.LastDownloadedAt.HasValue ? "badge bg-success" : "badge bg-warning text-dark";
     }
 
     private IEnumerable<ExternalNodeResponse> FilteredExternalNodes()
     {
-        if (string.IsNullOrWhiteSpace(searchText)) return CurrentExternalNodes;
-
+        var allNodes = GetAllCachedNodes();
+        if (string.IsNullOrWhiteSpace(searchText)) return allNodes;
         var term = searchText.Trim();
-        return CurrentExternalNodes.Where(n =>
+        return allNodes.Where(n =>
             n.Name.Contains(term, StringComparison.OrdinalIgnoreCase)
             || n.FullPath.Contains(term, StringComparison.OrdinalIgnoreCase));
     }
 
-    private bool IsExternalNodeVisible(ExternalNodeResponse node, Dictionary<string, ExternalNodeResponse> lookup)
+    private IEnumerable<ExternalNodeResponse> GetAllCachedNodes()
     {
-        var parentId = node.ParentExternalId;
-        while (!string.IsNullOrWhiteSpace(parentId))
-        {
-            if (CurrentCollapsedSet.Contains(parentId)) return false;
-            if (!lookup.TryGetValue(parentId, out var parent)) break;
-            parentId = parent.ParentExternalId;
-        }
-        return true;
+        if (!externalTrees.TryGetValue(selectedProvider, out var roots)) return [];
+        var all = new List<ExternalNodeResponse>(roots);
+        if (externalChildrenCache.TryGetValue(selectedProvider, out var byProvider))
+            foreach (var children in byProvider.Values)
+                all.AddRange(children);
+        return all;
     }
 
-    private Dictionary<string, List<ExternalNodeResponse>> GetExternalChildrenLookup()
-    {
-        if (externalChildrenLookup.TryGetValue(selectedProvider, out var lookup))
-            return lookup;
+    private bool HasExternalChildren(ExternalNodeResponse node) => !node.IsLeaf;
 
-        lookup = new Dictionary<string, List<ExternalNodeResponse>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var node in CurrentExternalNodes)
+    private bool IsExpanded(Guid nodeId) =>
+        expandedExternalNodes.TryGetValue(selectedProvider, out var set) && set.Contains(nodeId);
+
+    private void AppendExpandedChildren(Guid parentId, List<ExternalNodeResponse> result)
+    {
+        if (!IsExpanded(parentId)) return;
+        if (!externalChildrenCache.TryGetValue(selectedProvider, out var byProvider)) return;
+        if (!byProvider.TryGetValue(parentId, out var children)) return;
+        foreach (var child in children.OrderBy(n => n.Name))
         {
-            if (string.IsNullOrWhiteSpace(node.ParentExternalId)) continue;
-            if (!lookup.TryGetValue(node.ParentExternalId, out var children))
+            result.Add(child);
+            AppendExpandedChildren(child.Id, result);
+        }
+    }
+
+    private async Task ToggleExternalNode(ExternalNodeResponse node)
+    {
+        if (!expandedExternalNodes.TryGetValue(selectedProvider, out var set))
+        {
+            set = new HashSet<Guid>();
+            expandedExternalNodes[selectedProvider] = set;
+        }
+
+        if (set.Contains(node.Id))
+        {
+            set.Remove(node.Id);
+            return;
+        }
+
+        // Expand: load children if not cached
+        if (!externalChildrenCache.TryGetValue(selectedProvider, out var byProvider) || !byProvider.ContainsKey(node.Id))
+        {
+            if (!externalChildrenCache.ContainsKey(selectedProvider))
+                externalChildrenCache[selectedProvider] = new();
+
+            try
             {
-                children = new List<ExternalNodeResponse>();
-                lookup[node.ParentExternalId] = children;
+                var result = await TaxonomyApi.GetExternalNodesAsync(selectedProvider, parentId: node.Id);
+                externalChildrenCache[selectedProvider][node.Id] = result.Nodes;
             }
-            children.Add(node);
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to load children: {ex.Message}";
+                return;
+            }
         }
 
-        externalChildrenLookup[selectedProvider] = lookup;
-        return lookup;
+        set.Add(node.Id);
     }
-
-    private bool HasExternalChildren(ExternalNodeResponse node) =>
-        GetExternalChildrenLookup().ContainsKey(node.ExternalId);
-
-    private void ToggleExternalNode(ExternalNodeResponse node)
-    {
-        if (CurrentCollapsedSet.Contains(node.ExternalId))
-            CurrentCollapsedSet.Remove(node.ExternalId);
-        else
-            CurrentCollapsedSet.Add(node.ExternalId);
-    }
-
-    private bool IsSelected(ExternalNodeResponse node) =>
-        CurrentSelectedSet.Contains(node.ExternalId);
-
-    private void ToggleNodeSelection(ExternalNodeResponse node, ChangeEventArgs args)
-    {
-        if (node.IsImported) return;
-
-        var isSelected = args.Value is bool checkedValue
-            ? checkedValue
-            : bool.TryParse(args.Value?.ToString(), out var parsed) && parsed;
-
-        if (isSelected)
-            CurrentSelectedSet.Add(node.ExternalId);
-        else
-            CurrentSelectedSet.Remove(node.ExternalId);
-    }
-
-    private void SelectAllChildren(ExternalNodeResponse node)
-    {
-        var lookup = GetExternalChildrenLookup();
-        AddNodeAndChildren(node, lookup);
-    }
-
-    private void AddNodeAndChildren(ExternalNodeResponse node, Dictionary<string, List<ExternalNodeResponse>> lookup)
-    {
-        if (!node.IsImported)
-            CurrentSelectedSet.Add(node.ExternalId);
-
-        if (!lookup.TryGetValue(node.ExternalId, out var children)) return;
-
-        foreach (var child in children)
-        {
-            AddNodeAndChildren(child, lookup);
-        }
-    }
-
-    private void ShowImportModal()
-    {
-        if (SelectedCount == 0) return;
-        showImportModal = true;
-    }
-
-    private void CloseImportModal()
-    {
-        showImportModal = false;
-    }
-
-    private async Task ConfirmImport()
-    {
-        if (SelectedCount == 0) return;
-
-        isImporting = true;
-        errorMessage = null;
-        successMessage = null;
-        try
-        {
-            var result = await TaxonomyApi.ImportNodesAsync(new ImportNodesRequest(
-                selectedProvider,
-                CurrentSelectedSet.ToList(),
-                targetParentNodeId));
-
-            successMessage = $"{result.NodesCreated} nodes created, {result.NodesSkipped} already existed.";
-            CurrentSelectedSet.Clear();
-            CloseImportModal();
-            await LoadExternalNodesAsync(selectedProvider, forceReload: true);
-        }
-        catch (ApiException ex)
-        {
-            errorMessage = ex.Message;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Unexpected error: {ex.Message}";
-        }
-        finally
-        {
-            isImporting = false;
-        }
-    }
-
-    private string GetWarpNodeLabel(TaxonomyNodeResponse node) =>
-        $"{new string('—', node.Level)} {node.Name}".Trim();
 
     private void OnSearchInput(ChangeEventArgs args)
     {
         searchText = args.Value?.ToString();
     }
-
-    // ── Branch destination picker ─────────────────────────────────────────────
-
-    private async Task HandleBranchOptionClicked()
-    {
-        importDestination = "branch";
-        if (pickerRoots.Count == 0)
-            await LoadPickerRootsAsync();
-    }
-
-    private async Task LoadPickerRootsAsync()
-    {
-        isLoadingPickerRoots = true;
-        try
-        {
-            pickerRoots = await TaxonomyApi.GetRootNodesAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Failed to load taxonomy nodes: {ex.Message}";
-        }
-        finally
-        {
-            isLoadingPickerRoots = false;
-        }
-    }
-
-    private async Task TogglePickerNode(TaxonomyNodeResponse node)
-    {
-        if (pickerExpandedNodes.Contains(node.Id))
-        {
-            pickerExpandedNodes.Remove(node.Id);
-            return;
-        }
-
-        pickerExpandedNodes.Add(node.Id);
-        if (!pickerChildrenCache.ContainsKey(node.Id) && node.ChildCount > 0)
-        {
-            pickerLoadingNodes.Add(node.Id);
-            try
-            {
-                var children = await TaxonomyApi.GetNodeChildrenAsync(node.Id);
-                pickerChildrenCache[node.Id] = children;
-            }
-            catch (Exception ex)
-            {
-                errorMessage = $"Failed to load children: {ex.Message}";
-                pickerExpandedNodes.Remove(node.Id);
-            }
-            finally
-            {
-                pickerLoadingNodes.Remove(node.Id);
-            }
-        }
-    }
-
-    private void SelectPickerNode(TaxonomyNodeResponse node)
-    {
-        targetParentNodeId = node.Id;
-        targetParentNodeName = node.Name;
-    }
-
-    private IEnumerable<(TaxonomyNodeResponse Node, int Level)> GetPickerVisibleNodes()
-    {
-        var result = new List<(TaxonomyNodeResponse, int)>();
-        foreach (var root in pickerRoots.OrderBy(n => n.Name))
-        {
-            result.Add((root, 0));
-            if (pickerExpandedNodes.Contains(root.Id))
-                AppendPickerChildren(root.Id, 1, result);
-        }
-        return result;
-    }
-
-    private void AppendPickerChildren(Guid parentId, int level, List<(TaxonomyNodeResponse, int)> result)
-    {
-        if (!pickerChildrenCache.TryGetValue(parentId, out var children)) return;
-        foreach (var child in children.OrderBy(n => n.Name))
-        {
-            result.Add((child, level));
-            if (pickerExpandedNodes.Contains(child.Id))
-                AppendPickerChildren(child.Id, level + 1, result);
-        }
-    }
-
-    private static string PickerPaddingLeft(int level) =>
-        (0.5 + level * 1.5).ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + "rem";
 }
