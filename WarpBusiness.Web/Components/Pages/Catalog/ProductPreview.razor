@@ -131,7 +131,6 @@ else
                 formattedPrice = formattedBase,
                 currency = product.Currency,
                 category = product.CategoryName,
-                productType = product.ProductTypeName,
                 isActive = product.IsActive,
                 thumbnailUrl = product.ThumbnailMediaId.HasValue
                     ? CatalogApi.GetMediaUrl(product.ThumbnailMediaId.Value)
@@ -159,13 +158,11 @@ else
                     thumbnailUrl = v.ThumbnailMediaId.HasValue
                         ? CatalogApi.GetMediaUrl(v.ThumbnailMediaId.Value)
                         : (string?)null,
-                    hasAttributes = v.Attributes is { Count: > 0 },
-                    attributes = v.Attributes?.Select(a => new
+                    hasAttributes = v.OptionValues is { Count: > 0 },
+                    attributes = v.OptionValues?.Select(a => new
                     {
-                        name = a.AttributeTypeName,
-                        value = a.OptionValue ?? a.TextValue
-                              ?? (a.NumberValue.HasValue ? $"{a.NumberValue:G}{(!string.IsNullOrEmpty(a.Unit) ? " " + a.Unit : "")}" : ""),
-                        hexCode = a.OptionHexCode
+                        name = a.OptionName,
+                        value = a.Value
                     }).ToList() ?? []
                 };
             }).ToList()

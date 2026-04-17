@@ -78,16 +78,6 @@
                                             </InputSelect>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label">Product Type</label>
-                                            <InputSelect @bind-Value="productForm.ProductTypeId" class="form-select">
-                                                <option value="">— None —</option>
-                                                @foreach (var pt in productTypes?.Where(p => p.IsActive) ?? [])
-                                                {
-                                                    <option value="@pt.Id">@pt.Name</option>
-                                                }
-                                            </InputSelect>
-                                        </div>
-                                        <div class="col-md-4">
                                             <label class="form-label">Base Price <span class="text-danger">*</span></label>
                                             <InputNumber @bind-Value="productForm.BasePrice" class="form-control" />
                                             <ValidationMessage For="() => productForm.BasePrice" class="text-danger" />
@@ -239,58 +229,126 @@
                                     </div>
                                 }
 
+                                @* Product Options Section *@
+                                <div class="card mb-3">
+                                    <div class="card-header d-flex justify-content-between align-items-center">
+                                        <span>Product Options</span>
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ShowAddOptionForm" disabled="@isSubmitting">
+                                                <span class="bi bi-plus-lg me-1"></span> Add Option
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" @onclick="HandleGenerateVariants" disabled="@isSubmitting">
+                                                <span class="bi bi-lightning me-1"></span> Generate Variants
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        @if (!string.IsNullOrEmpty(optionError))
+                                        {
+                                            <div class="alert alert-danger alert-dismissible fade show py-2">
+                                                @optionError
+                                                <button type="button" class="btn-close" @onclick="() => optionError = null"></button>
+                                            </div>
+                                        }
+
+                                        @if (showAddOptionForm || editingOptionId.HasValue)
+                                        {
+                                            <div class="border rounded p-2 mb-3">
+                                                <div class="row g-2 align-items-end">
+                                                    <div class="col-md-5">
+                                                        <label class="form-label form-label-sm mb-1">Option Name</label>
+                                                        <input type="text" class="form-control form-control-sm" @bind="optionFormName" placeholder="e.g. Color, Size" />
+                                                    </div>
+                                                    <div class="col-md-3">
+                                                        <div class="form-check mt-3">
+                                                            <input type="checkbox" class="form-check-input" id="optionVariantAxisCheck" @bind="optionFormIsVariantAxis" />
+                                                            <label class="form-check-label small" for="optionVariantAxisCheck">Variant Axis</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4 d-flex gap-1">
+                                                        <button type="button" class="btn btn-sm btn-primary" @onclick="HandleOptionSubmit" disabled="@(isSubmitting || string.IsNullOrWhiteSpace(optionFormName))">
+                                                            @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1" role="status"></span> }
+                                                            @(editingOptionId.HasValue ? "Update" : "Add")
+                                                        </button>
+                                                        <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="CancelOptionEdit">Cancel</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (isLoadingOptions)
+                                        {
+                                            <div class="text-muted small"><span class="spinner-border spinner-border-sm me-1" role="status"></span> Loading options...</div>
+                                        }
+                                        else if (selectedProductOptions is { Count: 0 })
+                                        {
+                                            <div class="text-muted small">No options defined yet. Add an option (e.g. Color, Size) to create product variants.</div>
+                                        }
+                                        else if (selectedProductOptions != null)
+                                        {
+                                            @foreach (var opt in selectedProductOptions)
+                                            {
+                                                <div class="border rounded p-2 mb-2">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <div>
+                                                            <strong class="me-1">@opt.Name</strong>
+                                                            @if (opt.IsVariantAxis)
+                                                            {
+                                                                <span class="badge bg-primary" style="font-size:0.65rem;">Variant Axis</span>
+                                                            }
+                                                        </div>
+                                                        <div class="d-flex gap-1">
+                                                            <button type="button" class="btn btn-xs btn-outline-secondary" @onclick="() => StartEditOption(opt)">Edit</button>
+                                                            <button type="button" class="btn btn-xs btn-outline-danger" @onclick="() => DeleteOptionAsync(opt)" disabled="@isSubmitting">Delete</button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex flex-wrap gap-1 mb-2">
+                                                        @foreach (var val in opt.Values)
+                                                        {
+                                                            @if (editingValueId == val.Id && editingValueOptionId == opt.Id)
+                                                            {
+                                                                <div class="d-inline-flex align-items-center gap-1">
+                                                                    <input type="text" class="form-control form-control-sm" style="width:130px;" @bind="valueFormValue" />
+                                                                    <button type="button" class="btn btn-xs btn-success" @onclick="() => HandleUpdateOptionValue(opt.Id, val.Id)" disabled="@isSubmitting">✓</button>
+                                                                    <button type="button" class="btn btn-xs btn-secondary" @onclick="CancelValueEdit">✕</button>
+                                                                </div>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-secondary d-inline-flex align-items-center gap-1" style="font-size:0.8rem;">
+                                                                    @val.Value
+                                                                    <button type="button" class="btn btn-xs btn-link text-white p-0 ms-1" style="line-height:1;" @onclick="() => StartEditValue(opt.Id, val)" title="Edit">✎</button>
+                                                                    <button type="button" class="btn btn-xs btn-link text-danger p-0" style="line-height:1;" @onclick="() => DeleteOptionValueAsync(opt.Id, val.Id)" title="Delete" disabled="@isSubmitting">✕</button>
+                                                                </span>
+                                                            }
+                                                        }
+                                                    </div>
+                                                    @if (addingValueForOptionId == opt.Id)
+                                                    {
+                                                        <div class="d-flex gap-1 align-items-center">
+                                                            <input type="text" class="form-control form-control-sm" style="width:160px;" @bind="valueFormValue" placeholder="Value..." />
+                                                            <button type="button" class="btn btn-xs btn-success" @onclick="() => HandleAddOptionValue(opt.Id)" disabled="@(isSubmitting || string.IsNullOrWhiteSpace(valueFormValue))">Add</button>
+                                                            <button type="button" class="btn btn-xs btn-secondary" @onclick="CancelValueEdit">Cancel</button>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <button type="button" class="btn btn-xs btn-outline-secondary" @onclick="() => { addingValueForOptionId = opt.Id; valueFormValue = string.Empty; }">
+                                                            <span class="bi bi-plus-lg"></span> Add Value
+                                                        </button>
+                                                    }
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+
                                 @* Add/Edit Variant Form *@
                                 <div class="card mb-3">
                                     <div class="card-header">@(editingVariantId.HasValue ? "Edit Variant" : "Add Variant")</div>
                                     <div class="card-body">
                                         <EditForm Model="variantForm" OnValidSubmit="HandleVariantSubmit" FormName="variantForm">
                                             <div class="row g-2">
-                                                @{
-                                                    var ptAttributes = GetProductTypeAttributes();
-                                                }
-                                                @if (ptAttributes.Count > 0)
-                                                {
-                                                    @foreach (var attr in ptAttributes.OrderBy(a => a.SortOrder))
-                                                    {
-                                                        var entry = variantForm.AttributeValues.FirstOrDefault(av => av.AttributeTypeId == attr.AttributeTypeId);
-                                                        if (entry == null) continue;
-                                                        <div class="col-md-3">
-                                                            <label class="form-label">
-                                                                @attr.AttributeTypeName
-                                                                @if (attr.IsRequired) { <span class="text-danger">*</span> }
-                                                                @if (!string.IsNullOrEmpty(attr.Unit)) { <small class="text-muted ms-1">(@attr.Unit)</small> }
-                                                            </label>
-                                                            @if (attr.ValueType == "Select")
-                                                            {
-                                                                var attrType = allAttributeTypes?.FirstOrDefault(at => at.Id == attr.AttributeTypeId);
-                                                                <select class="form-select" @bind="entry.AttributeOptionId">
-                                                                    <option value="">— None —</option>
-                                                                    @foreach (var opt in (attrType?.Options ?? []).Where(o => o.IsActive).OrderBy(o => o.SortOrder))
-                                                                    {
-                                                                        <option value="@opt.Id">
-                                                                            @if (attr.HasColorPicker && !string.IsNullOrEmpty(opt.HexCode)) { @($"● {opt.Value}") }
-                                                                            else { @opt.Value }
-                                                                        </option>
-                                                                    }
-                                                                </select>
-                                                            }
-                                                            else if (attr.ValueType == "FreeText")
-                                                            {
-                                                                <input type="text" class="form-control" @bind="entry.TextValue" />
-                                                            }
-                                                            else if (attr.ValueType == "Number")
-                                                            {
-                                                                <input type="number" step="any" class="form-control" @bind="entry.NumberValue" />
-                                                            }
-                                                        </div>
-                                                    }
-                                                }
-                                                else
-                                                {
-                                                    <div class="col-12">
-                                                        <small class="text-muted">No product type selected — variants will have no attributes. Select a product type on the product to enable attributes.</small>
-                                                    </div>
-                                                }
                                                 <div class="col-md-2">
                                                     <label class="form-label">SKU</label>
                                                     <InputText @bind-Value="variantForm.SKU" class="form-control" />
@@ -351,9 +409,9 @@
                                                             </div>
                                                         </td>
                                                         <td>
-                                                            @if (v.Attributes != null && v.Attributes.Count > 0)
+                                                            @if (v.OptionValues != null && v.OptionValues.Count > 0)
                                                             {
-                                                                @FormatVariantAttributes(v)
+                                                                <span>@string.Join(", ", v.OptionValues.Select(a => $"{a.OptionName}: {a.Value}"))</span>
                                                             }
                                                             else { <span class="text-muted">—</span> }
                                                         </td>
@@ -658,10 +716,9 @@
 @code {
     private List<CatalogProductResponse>? products;
     private List<CatalogCategoryResponse>? categories;
-    private List<CatalogProductTypeResponse>? productTypes;
     private List<CatalogNotationResponse>? allNotations;
-    private List<CatalogAttributeTypeResponse>? allAttributeTypes;
     private List<CatalogProductVariantResponse>? selectedVariants;
+    private List<ProductOptionDto>? selectedProductOptions;
     private CatalogProductResponse? selectedProduct;
 
     private bool isLoading = true;
@@ -674,6 +731,7 @@
     private bool isUploadingVariantMedia;
     private bool showPreviewModal;
     private bool isLoadingPreview;
+    private bool isLoadingOptions;
     private string previewProductName = "";
     private string previewRenderedHtml = "";
     private string? previewError;
@@ -685,6 +743,19 @@
     private Guid? editingVariantId;
     private CatalogProductResponse? deleteProductCandidate;
     private CatalogProductVariantResponse? selectedVariantForImage;
+
+    // Option state
+    private bool showAddOptionForm;
+    private Guid? editingOptionId;
+    private string optionFormName = "";
+    private bool optionFormIsVariantAxis = true;
+    private string? optionError;
+
+    // Option value state
+    private Guid? addingValueForOptionId;
+    private Guid? editingValueId;
+    private Guid? editingValueOptionId;
+    private string valueFormValue = "";
 
     private string? errorMessage;
     private string? successMessage;
@@ -717,7 +788,7 @@
             Navigation.NavigateTo("/select-tenant");
             return;
         }
-        await Task.WhenAll(LoadProducts(), LoadCategories(), LoadProductTypes(), LoadNotations(), LoadAttributeTypes());
+        await Task.WhenAll(LoadProducts(), LoadCategories(), LoadNotations());
         isLoading = false;
     }
 
@@ -733,48 +804,10 @@
         catch { /* non-critical */ }
     }
 
-    private async Task LoadProductTypes()
-    {
-        try { productTypes = await CatalogApi.GetProductTypesAsync(); }
-        catch { /* non-critical */ }
-    }
-
     private async Task LoadNotations()
     {
         try { allNotations = await CatalogApi.GetNotationsAsync(); }
         catch { /* non-critical */ }
-    }
-
-    private async Task LoadAttributeTypes()
-    {
-        try { allAttributeTypes = await CatalogApi.GetAttributeTypesAsync(); }
-        catch { /* non-critical */ }
-    }
-
-    private string FormatVariantAttributes(CatalogProductVariantResponse v)
-    {
-        if (v.Attributes == null || v.Attributes.Count == 0) return "—";
-        return string.Join(" | ", v.Attributes.Select(a =>
-        {
-            var val = a.ValueType == "Select" ? a.OptionValue
-                    : a.ValueType == "FreeText" ? a.TextValue
-                    : a.NumberValue?.ToString("G") + (a.Unit != null ? " " + a.Unit : "");
-            return $"{a.AttributeTypeName}: {val ?? "—"}";
-        }));
-    }
-
-    private List<CatalogProductTypeAttributeResponse> GetProductTypeAttributes()
-    {
-        if (selectedProduct?.ProductTypeId == null) return [];
-        return productTypes?.FirstOrDefault(pt => pt.Id == selectedProduct.ProductTypeId)?.Attributes ?? [];
-    }
-
-    private void InitVariantAttributeValues()
-    {
-        variantForm.AttributeValues = GetProductTypeAttributes()
-            .OrderBy(a => a.SortOrder)
-            .Select(a => new VariantAttributeEntry { AttributeTypeId = a.AttributeTypeId })
-            .ToList();
     }
 
     private void ToggleNotation(Guid notationId, bool add)
@@ -804,7 +837,6 @@
             Currency = product.Currency,
             CategoryId = product.CategoryId?.ToString(),
             IsActive = product.IsActive,
-            ProductTypeId = product.ProductTypeId,
             SelectedNotationIds = product.Notations?.Select(n => n.NotationId).ToList() ?? []
         };
         editingProductId = product.Id;
@@ -843,7 +875,7 @@
                     productForm.Name!, productForm.BasePrice, productForm.Currency!,
                     productForm.Description, productForm.Brand, productForm.SKU,
                     categoryId, productForm.IsActive,
-                    productForm.ProductTypeId, productForm.SelectedNotationIds));
+                    NotationIds: productForm.SelectedNotationIds));
                 successMessage = "Product updated.";
             }
             else
@@ -851,7 +883,7 @@
                 await CatalogApi.CreateProductAsync(new CreateCatalogProductRequest(
                     productForm.Name!, productForm.BasePrice, productForm.Currency!,
                     productForm.Description, productForm.Brand, productForm.SKU, categoryId,
-                    productForm.ProductTypeId, productForm.SelectedNotationIds));
+                    NotationIds: productForm.SelectedNotationIds));
                 successMessage = "Product created.";
             }
             CloseProductModal();
@@ -899,10 +931,14 @@
         selectedProduct = product;
         editingVariantId = null;
         variantForm = new VariantFormModel();
-        InitVariantAttributeValues();
         variantError = null;
+        optionError = null;
+        showAddOptionForm = false;
+        editingOptionId = null;
+        addingValueForOptionId = null;
+        editingValueId = null;
         showVariantsModal = true;
-        await RefreshVariants();
+        await Task.WhenAll(RefreshVariants(), RefreshOptions());
     }
 
     private void CloseVariantsModal()
@@ -910,7 +946,13 @@
         showVariantsModal = false;
         selectedProduct = null;
         selectedVariants = null;
+        selectedProductOptions = null;
         editingVariantId = null;
+        showAddOptionForm = false;
+        editingOptionId = null;
+        addingValueForOptionId = null;
+        editingValueId = null;
+        optionError = null;
     }
 
     private async Task RefreshVariants()
@@ -929,27 +971,12 @@
             Price = v.Price,
             StockQuantity = v.StockQuantity
         };
-        if (v.Attributes != null && v.Attributes.Count > 0)
-        {
-            variantForm.AttributeValues = v.Attributes.Select(a => new VariantAttributeEntry
-            {
-                AttributeTypeId = a.AttributeTypeId,
-                AttributeOptionId = a.AttributeOptionId,
-                TextValue = a.TextValue,
-                NumberValue = a.NumberValue
-            }).ToList();
-        }
-        else
-        {
-            InitVariantAttributeValues();
-        }
     }
 
     private void CancelVariantEdit()
     {
         editingVariantId = null;
         variantForm = new VariantFormModel();
-        InitVariantAttributeValues();
     }
 
     private async Task HandleVariantSubmit()
@@ -959,23 +986,19 @@
         variantError = null;
         try
         {
-            var attrValues = variantForm.AttributeValues
-                .Select(a => new CatalogVariantAttributeValueRequest(a.AttributeTypeId, a.AttributeOptionId, a.TextValue, a.NumberValue))
-                .ToList();
-
             if (editingVariantId.HasValue)
             {
                 await CatalogApi.UpdateVariantAsync(selectedProduct.Id, editingVariantId.Value,
-                    new UpdateCatalogVariantRequest(variantForm.SKU, variantForm.Price, variantForm.StockQuantity, Attributes: attrValues));
+                    new UpdateCatalogVariantRequest(variantForm.SKU, variantForm.Price, StockQuantity: variantForm.StockQuantity));
             }
             else
             {
                 await CatalogApi.CreateVariantAsync(selectedProduct.Id,
-                    new CreateCatalogVariantRequest(variantForm.SKU, variantForm.Price, variantForm.StockQuantity, attrValues));
+                    new CreateCatalogVariantRequest(variantForm.SKU, variantForm.Price, StockQuantity: variantForm.StockQuantity));
             }
             CancelVariantEdit();
             await RefreshVariants();
-            await LoadProducts(); // refresh variant count
+            await LoadProducts();
         }
         catch (ApiException ex) { variantError = ex.Message; }
         catch (Exception ex) { variantError = $"Unexpected error: {ex.Message}"; }
@@ -1060,7 +1083,6 @@
                 formattedPrice = formattedBase,
                 currency = product.Currency,
                 category = product.CategoryName,
-                productType = product.ProductTypeName,
                 isActive = product.IsActive,
                 thumbnailUrl = product.ThumbnailMediaId.HasValue
                     ? CatalogApi.GetMediaUrl(product.ThumbnailMediaId.Value)
@@ -1086,13 +1108,11 @@
                     thumbnailUrl = v.ThumbnailMediaId.HasValue
                         ? CatalogApi.GetMediaUrl(v.ThumbnailMediaId.Value)
                         : (string?)null,
-                    hasAttributes = v.Attributes is { Count: > 0 },
-                    attributes = v.Attributes?.Select(a => new
+                    hasAttributes = v.OptionValues is { Count: > 0 },
+                    attributes = v.OptionValues?.Select(a => new
                     {
-                        name = a.AttributeTypeName,
-                        value = a.OptionValue ?? a.TextValue
-                              ?? (a.NumberValue.HasValue ? $"{a.NumberValue:G}{(!string.IsNullOrEmpty(a.Unit) ? " " + a.Unit : "")}" : ""),
-                        hexCode = a.OptionHexCode
+                        name = a.OptionName,
+                        value = a.Value
                     }).ToList() ?? (object)new List<object>()
                 };
             }).ToList()
@@ -1267,7 +1287,6 @@
         public string? Currency { get; set; } = "USD";
 
         public string? CategoryId { get; set; }
-        public Guid? ProductTypeId { get; set; }
         public bool IsActive { get; set; } = true;
         public List<Guid> SelectedNotationIds { get; set; } = [];
     }
@@ -1277,15 +1296,164 @@
         public string? SKU { get; set; }
         public decimal? Price { get; set; }
         public int StockQuantity { get; set; }
-        public List<VariantAttributeEntry> AttributeValues { get; set; } = [];
     }
 
-    private class VariantAttributeEntry
+    // ── Product Options handlers ──────────────────────────────────────────────
+
+    private async Task RefreshOptions()
     {
-        public Guid AttributeTypeId { get; set; }
-        public Guid? AttributeOptionId { get; set; }
-        public string? TextValue { get; set; }
-        public decimal? NumberValue { get; set; }
+        if (selectedProduct is null) return;
+        isLoadingOptions = true;
+        try { selectedProductOptions = await CatalogApi.GetProductOptionsAsync(selectedProduct.Id); }
+        catch (Exception ex) { optionError = $"Failed to load options: {ex.Message}"; }
+        finally { isLoadingOptions = false; }
+    }
+
+    private void ShowAddOptionForm()
+    {
+        editingOptionId = null;
+        optionFormName = "";
+        optionFormIsVariantAxis = true;
+        showAddOptionForm = true;
+    }
+
+    private void StartEditOption(ProductOptionDto opt)
+    {
+        showAddOptionForm = false;
+        editingOptionId = opt.Id;
+        optionFormName = opt.Name;
+        optionFormIsVariantAxis = opt.IsVariantAxis;
+    }
+
+    private void CancelOptionEdit()
+    {
+        showAddOptionForm = false;
+        editingOptionId = null;
+        optionFormName = "";
+        optionFormIsVariantAxis = true;
+    }
+
+    private async Task HandleOptionSubmit()
+    {
+        if (selectedProduct is null || string.IsNullOrWhiteSpace(optionFormName)) return;
+        isSubmitting = true;
+        optionError = null;
+        try
+        {
+            if (editingOptionId.HasValue)
+            {
+                await CatalogApi.UpdateProductOptionAsync(selectedProduct.Id, editingOptionId.Value,
+                    new UpdateProductOptionRequest(optionFormName.Trim(), IsVariantAxis: optionFormIsVariantAxis));
+            }
+            else
+            {
+                await CatalogApi.CreateProductOptionAsync(selectedProduct.Id,
+                    new CreateProductOptionRequest(optionFormName.Trim(), IsVariantAxis: optionFormIsVariantAxis));
+            }
+            CancelOptionEdit();
+            await RefreshOptions();
+        }
+        catch (ApiException ex) { optionError = ex.Message; }
+        catch (Exception ex) { optionError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task DeleteOptionAsync(ProductOptionDto opt)
+    {
+        if (selectedProduct is null) return;
+        isSubmitting = true;
+        optionError = null;
+        try
+        {
+            await CatalogApi.DeleteProductOptionAsync(selectedProduct.Id, opt.Id);
+            await RefreshOptions();
+        }
+        catch (ApiException ex) { optionError = ex.Message; }
+        catch (Exception ex) { optionError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private void StartEditValue(Guid optionId, ProductOptionValueDto val)
+    {
+        addingValueForOptionId = null;
+        editingValueOptionId = optionId;
+        editingValueId = val.Id;
+        valueFormValue = val.Value;
+    }
+
+    private void CancelValueEdit()
+    {
+        addingValueForOptionId = null;
+        editingValueId = null;
+        editingValueOptionId = null;
+        valueFormValue = "";
+    }
+
+    private async Task HandleAddOptionValue(Guid optionId)
+    {
+        if (selectedProduct is null || string.IsNullOrWhiteSpace(valueFormValue)) return;
+        isSubmitting = true;
+        optionError = null;
+        try
+        {
+            await CatalogApi.CreateProductOptionValueAsync(selectedProduct.Id, optionId,
+                new CreateProductOptionValueRequest(valueFormValue.Trim()));
+            CancelValueEdit();
+            await RefreshOptions();
+        }
+        catch (ApiException ex) { optionError = ex.Message; }
+        catch (Exception ex) { optionError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task HandleUpdateOptionValue(Guid optionId, Guid valueId)
+    {
+        if (selectedProduct is null || string.IsNullOrWhiteSpace(valueFormValue)) return;
+        isSubmitting = true;
+        optionError = null;
+        try
+        {
+            await CatalogApi.UpdateProductOptionValueAsync(selectedProduct.Id, optionId, valueId,
+                new UpdateProductOptionValueRequest(valueFormValue.Trim()));
+            CancelValueEdit();
+            await RefreshOptions();
+        }
+        catch (ApiException ex) { optionError = ex.Message; }
+        catch (Exception ex) { optionError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task DeleteOptionValueAsync(Guid optionId, Guid valueId)
+    {
+        if (selectedProduct is null) return;
+        isSubmitting = true;
+        optionError = null;
+        try
+        {
+            await CatalogApi.DeleteProductOptionValueAsync(selectedProduct.Id, optionId, valueId);
+            await RefreshOptions();
+        }
+        catch (ApiException ex) { optionError = ex.Message; }
+        catch (Exception ex) { optionError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
+    }
+
+    private async Task HandleGenerateVariants()
+    {
+        if (selectedProduct is null) return;
+        isSubmitting = true;
+        optionError = null;
+        variantError = null;
+        try
+        {
+            var created = await CatalogApi.GenerateVariantsAsync(selectedProduct.Id);
+            await Task.WhenAll(RefreshVariants(), LoadProducts());
+            if (created > 0)
+                variantError = null; // clear any previous error; success is implicit from new rows
+        }
+        catch (ApiException ex) { variantError = ex.Message; }
+        catch (Exception ex) { variantError = $"Unexpected error: {ex.Message}"; }
+        finally { isSubmitting = false; }
     }
 
     private static string GetIconClass(string? icon) => icon switch
