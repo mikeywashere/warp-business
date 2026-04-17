@@ -114,7 +114,9 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Failed to load organizations: {ex.Message}";
+            errorMessage = ex is TaskCanceledException or OperationCanceledException
+                ? "Could not reach the server. Please try again in a moment."
+                : $"Failed to load organizations: {ex.Message}";
             tenants = [];
         }
         finally

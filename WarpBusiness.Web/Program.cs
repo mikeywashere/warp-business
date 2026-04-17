@@ -128,6 +128,7 @@ Action<HttpClient> configureApiClient = client =>
         ?? "http://localhost:5000";
     Console.WriteLine($"[Web Startup] API base URL resolved to: {apiUrl}");
     client.BaseAddress = new Uri(apiUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
 };
 
 builder.Services.AddHttpClient<UserApiClient>(configureApiClient)
