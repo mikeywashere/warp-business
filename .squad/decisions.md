@@ -1306,3 +1306,179 @@ When implementing Business endpoints at `/api/crm/businesses`:
 **By:** Data (Backend Dev)
 **What:** Added `warp e2e` CLI command that seeds tenants, employees, businesses, and customers via the API. All word/name/location data is embedded in source files (no runtime HTTP fetches). WarpApiClient returns null on 409 Conflict so callers can retry with different names/emails. Command accepts `--tenantCount`, `--employeeCount`, and `--customerCount` options with sensible defaults (1, 100, 50).
 **Why:** Supports rapid test data population for development and QA environments. Enables realistic multi-tenant scenarios with hundreds of employees and customers per tenant.
+
+
+### 2026-04-16T21-34-31: Architecture decisions — Taxonomy v2 open questions resolved
+**By:** Michael (via Copilot)
+**What:** Michael answered the 6 open questions from the Taxonomy v2 architecture:
+1. **Taxonomy node picker**: Multi-select — multiple nodes per provider per product are allowed
+2. **Variant limit**: None — unlimited variants per product
+3. **Amazon/Newegg**: Implement file-import in v2 (not deferred)
+4. **Attribute inheritance**: Denormalize onto leaf nodes (simpler queries)
+5. **Auto-suggest options from taxonomy**: Yes — when product maps to taxonomy node, auto-suggest ProductOption entries from node attributes
+6. **Price model**: Relative adjustments — support delta/percentage on top of BasePrice (not just absolute override)
+**Why:** User decisions captured for team memory and architecture finalization
+
+
+# Taxonomy Backend Module Decision
+
+**Date:** 2026-04-16  
+**Agent:** Data (Backend Dev)  
+**Status:** ✅ Implemented
+
+## Context
+
+Michael requested the full WarpBusiness.Taxonomy backend module based on the taxonomy architecture reference, with Amazon restored as a provider and all API endpoints wired into the API project.
+
+## Decision
+
+### 1. New Taxonomy Module
+
+Created `WarpBusiness.Taxonomy` as a standalone class library following the Catalog/CRM module pattern:
+
+- **Schema:** `taxonomy`
+- **DbContext:** `TaxonomyDbContext` with `HasDefaultSchema("taxonomy")`
+- **Initializer:** `TaxonomyDbInitializer` runs `MigrateAsync` on startup
+
+### 2. Data Model
+
+Implemented the three core entities:
+
+- **TaxonomyNode** (per-tenant Warp taxonomy; adjacency list + materialized path)
+- **ExternalTaxonomyCache** (download metadata per provider)
+- **ExternalTaxonomyNode** (cached external nodes)
+
+Enums are persisted as strings and `SourceProvider + SourceExternalId` is enforced as a filtered unique index.
+
+### 3. Providers
+
+Supported providers match the updated requirements:
+
+- **Google** (public download, no auth)
+- **Amazon** (PA-API 5.0, credential-gated via AccessKeyId/SecretAccessKey/AssociateTag)
+- **eBay** (OAuth app token)
+- **Etsy** (API key)
+
+### 4. Services
+
+- **TaxonomyDownloadService** orchestrates downloads and cache updates.
+- **TaxonomyImportService** handles idempotent imports, ancestor creation, and slug-based materialized path generation.
+
+### 5. API Endpoints
+
+`TaxonomyEndpoints` implements full CRUD, external browsing/search, and import/preview endpoints. Tenant context is enforced via `HttpContext.Items["TenantId"]`.
+
+### 6. API Registration
+
+`WarpBusiness.Api` registers:
+
+- Taxonomy DbContext + initializer
+- HttpClient registrations for each provider
+- Downloader + orchestration services
+- `app.MapTaxonomyEndpoints()`
+
+## Files Created
+
+- `WarpBusiness.Taxonomy/` (project, models, data, services, endpoints)
+- `WarpBusiness.Taxonomy/Data/Migrations/*` (InitialTaxonomySchema)
+
+## Files Modified
+
+- `WarpBusiness.Api/WarpBusiness.Api.csproj`
+- `WarpBusiness.Api/Program.cs`
+- `WarpBusiness.slnx`
+
+## Testing
+
+- ✅ `dotnet build WarpBusiness.Taxonomy`
+- ✅ `dotnet build WarpBusiness.Api`
+
+## Notes
+
+- Materialized paths use slugged name segments (`/segment1/segment2/...`) for readability.
+- Amazon downloader is credential-gated and returns a friendly error if missing config.
+- Provider identifiers are string keys (static constants) to allow future sources without model or migration changes.
+
+
+### Decision: Taxonomy v2 + Catalog Variant Architecture (Clean Slate)
+
+**Date:** 2026-07-14 (updated: clean-slate EAV replacement)
+**Author:** Riker (Lead Architect)
+**Status:** Proposed — awaiting Michael's review
+
+#### Context
+
+Michael's new vision: marketplace taxonomy data as shared reference (not per-tenant), products mapped to multiple marketplace taxonomy nodes (one per channel), taxonomy-driven attributes, and Cartesian product variant generation with base price + per-variant overrides. The existing `WarpBusiness.Taxonomy` module AND the old EAV-based catalog attribute system are **both fully replaced** (clean slate per directive — no migration, no coexistence).
+
+#### Decision
+
+**1. New `common_taxonomy` schema (shared, NOT tenant-scoped):**
+- `TaxonomyProvider`: Row per marketplace (google, amazon, etsy, ebay, newegg) with download tracking
+- `TaxonomyNode`: Hierarchical tree per provider (adjacency list + materialized FullPath)
+- `TaxonomyNodeAttribute`: Per-node attribute definitions with value types, valid values (jsonb), and variant-axis hints
+
+**2. New `WarpBusiness.CommonTaxonomy` project** replaces `WarpBusiness.Taxonomy`:
+- Own `CommonTaxonomyDbContext` on schema `common_taxonomy`
+- `ITaxonomyDownloader` interface (returns nodes + attributes)
+- `IFileTaxonomyDownloader` for Amazon/Newegg (file upload since no public API)
+- `TaxonomyDownloadBackgroundService` (weekly, configurable)
+- `TaxonomyDownloadOrchestrator` (upsert with checksum-based change detection)
+
+**3. Catalog schema — clean-slate redesign of attributes/options:**
+- **DELETED:** `CatalogAttributeType`, `CatalogAttributeOption`, `ProductType`, `ProductTypeAttribute`, `ProductVariantAttributeValue`, `AttributeValueType` (all old EAV entities)
+- **NEW:** `ProductOption` (per-product attribute axes, Shopify-style), `ProductOptionValue` (per-option values), `VariantOptionValue` (links variant to specific option values)
+- **NEW:** `OptionValueType` enum (String, Number, Boolean, Color)
+- **NEW:** `ProductTaxonomyMapping` (links product to marketplace taxonomy node, one per provider per product)
+- **NEW:** `ProductTaxonomyAttributeValue` (stores product-level marketplace attribute values)
+- **MODIFIED:** `Product` — remove `ProductTypeId` FK; add `Options`, `TaxonomyMappings`, `TaxonomyAttributeValues` nav props
+- **MODIFIED:** `ProductVariant` — replace `AttributeValues` nav with `OptionValues` nav
+
+**4. Variant computation model:**
+- Follow Shopify pattern: explicit variant rows (not computed-on-the-fly)
+- `VariantGenerationService` computes Cartesian product of variant-axis option value selections
+- Additive generation: new combinations added, removed combinations deactivated
+- Price model: `Product.BasePrice` + `ProductVariant.Price` (nullable override) — already exists
+
+**5. No cross-schema EF navigation properties.** CommonTaxonomyDbContext and CatalogDbContext are separate. Cross-schema data resolved at service layer.
+
+#### Architecture Document
+
+Full specification: `taxonomy-v2-architecture.md` in session files.
+Covers: industry standard analysis (Shopify/Google/Amazon/eBay/Etsy/GS1), complete C# entity classes with EF config, API endpoint specs with request/response shapes, variant computation algorithm, pricing model, download scheduling, migration strategy, module structure, UI component descriptions, and open questions.
+
+#### Key Differences from v1
+
+| Aspect | v1 (taxonomy-architecture.md) | v2 (this decision) |
+|--------|-------------------------------|---------------------|
+| Schema | `taxonomy` (tenant-scoped) | `common_taxonomy` (shared) |
+| Nodes | Per-tenant TaxonomyNode + external cache | Shared TaxonomyNode per provider |
+| Attributes | Not included | TaxonomyNodeAttribute with types + valid values |
+| Product mapping | Import nodes into tenant tree | Direct mapping (ProductTaxonomyMapping) |
+| Multi-marketplace | No | Yes — one mapping per provider per product |
+| Catalog attributes | Old EAV: CatalogAttributeType + CatalogAttributeOption | New per-product: ProductOption + ProductOptionValue |
+| Variant generation | Not covered | VariantGenerationService + per-product IsVariantAxis flag |
+| Product types | ProductType templates | Deleted — taxonomy nodes serve as suggestion templates |
+| Providers | Google, eBay, Etsy | Google, eBay, Etsy, Amazon, Newegg |
+
+#### Consequences
+
+- ✅ Products can be listed on multiple marketplaces simultaneously
+- ✅ Marketplace attribute requirements guide the user in product setup
+- ✅ Variant generation follows industry standard (Shopify pattern)
+- ✅ Clean separation: shared reference data vs. tenant product data
+- ✅ Simpler per-product option model replaces complex shared EAV system
+- ✅ No more ProductType templates — less rigid, more flexible
+- ⚠️ Amazon/Newegg require file-based import (no public taxonomy APIs)
+- ⚠️ Cross-schema data requires service-level joins (no EF navigation)
+- ⚠️ Google attribute rules are hardcoded (Google publishes docs, not a machine-readable API)
+- ⚠️ All old EAV data is destroyed — no migration path
+
+#### Open Questions for Michael
+
+1. One taxonomy node per provider per product, or allow multiple?
+2. Variant count limit (recommend 200 max)?
+3. Amazon/Newegg in v2 or defer?
+4. Attribute inheritance: denormalized on leaf nodes (recommended) or normalized?
+5. Auto-suggest product options from taxonomy node attributes, or keep independent?
+6. Absolute price overrides only, or also relative adjustments (+$20 for premium colors)?
+

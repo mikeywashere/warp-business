@@ -112,6 +112,50 @@
 - CORS must be configured before first presigned PUT from browser
 - Always pass explicit contentType on upload
 
+### 2026-07-14: Taxonomy v2 + Catalog Variant Architecture (Clean Slate)
+
+**Architecture Document Written:** `~/.copilot/session-state/.../files/taxonomy-v2-architecture.md`
+**Decision Written:** `.squad/decisions/inbox/riker-taxonomy-v2-architecture.md`
+**Supersedes:** taxonomy-architecture.md (2026-04-15), copilot-directive-taxonomy-clean-slate.md
+
+**Context:**
+Michael's new vision: shared marketplace taxonomy reference data + multi-marketplace product mapping + variant generation from attribute combinations. **Both** the old WarpBusiness.Taxonomy module AND the old EAV-based catalog attribute system are fully replaced (clean slate — no migration, no coexistence).
+
+**Key Decisions:**
+
+1. **New `common_taxonomy` schema (shared, NOT tenant-scoped):**
+   - `TaxonomyProvider` table: google, amazon, etsy, ebay, newegg with download tracking
+   - `TaxonomyNode` table: hierarchical tree per provider (adjacency list + materialized path)
+   - `TaxonomyNodeAttribute` table: per-node attributes with types, valid values (jsonb), variant-axis hints
+
+2. **New `WarpBusiness.CommonTaxonomy` project** replaces existing `WarpBusiness.Taxonomy`
+   - Own `CommonTaxonomyDbContext` on `common_taxonomy` schema
+   - `ITaxonomyDownloader` returns both nodes AND attributes
+   - `IFileTaxonomyDownloader` for Amazon/Newegg (no public APIs)
+   - `TaxonomyDownloadBackgroundService` (weekly, configurable)
+   - `TaxonomyDownloadOrchestrator` with checksum-based change detection
+
+3. **Catalog schema — clean-slate EAV replacement:**
+   - **DELETED:** `CatalogAttributeType`, `CatalogAttributeOption`, `ProductType`, `ProductTypeAttribute`, `ProductVariantAttributeValue`, `AttributeValueType`
+   - **NEW:** `ProductOption` (per-product, Shopify-style), `ProductOptionValue`, `VariantOptionValue`, `OptionValueType`
+   - **NEW:** `ProductTaxonomyMapping`: product → marketplace node (one per provider per product)
+   - **NEW:** `ProductTaxonomyAttributeValue`: marketplace-specific product attributes (material, gender, etc.)
+   - **MODIFIED:** `Product` — remove `ProductTypeId`, add `Options` nav; `ProductVariant` — `OptionValues` replaces `AttributeValues`
+
+4. **Variant computation (Shopify pattern):**
+   - Explicit variant rows (materialized Cartesian product)
+   - `VariantGenerationService` computes Color×Size combinations → variant rows
+   - Price: `Product.BasePrice` + `ProductVariant.Price` override (already exists)
+
+5. **Cross-schema design:** Raw GUID references from catalog → common_taxonomy (no EF navigation cross-schema)
+
+6. **Industry alignment:** Analyzed Shopify, Google Shopping, Amazon, eBay, Etsy, GS1/GPC models. Recommended Shopify variant model + Google attribute model as the simplest satisfying combination.
+
+**Open Questions for Michael:**
+- Variant count limit? (recommend 200 max)
+- Amazon/Newegg in v2 or defer?
+- Relative price adjustments vs. absolute overrides only?
+
 ### 2026-04-15: Warp Taxonomy System Architecture
 
 **Architecture Document Written:** `~/.copilot/session-state/.../files/taxonomy-architecture.md`
