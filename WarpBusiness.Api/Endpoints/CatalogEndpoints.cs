@@ -255,7 +255,6 @@ public static class CatalogEndpoints
         var rawProducts = await db.Products
             .Where(p => p.TenantId == tenantId.Value)
             .Include(p => p.Category)
-            .Include(p => p.ProductType)
             .Include(p => p.Notations).ThenInclude(pn => pn.Notation)
             .Include(p => p.Media)
             .Include(p => p.Variants)
@@ -279,7 +278,6 @@ public static class CatalogEndpoints
         var product = await db.Products
             .Where(p => p.Id == id && p.TenantId == tenantId.Value)
             .Include(p => p.Category)
-            .Include(p => p.ProductType)
             .Include(p => p.Notations).ThenInclude(pn => pn.Notation)
             .Include(p => p.Media)
             .Include(p => p.Variants)
@@ -314,15 +312,6 @@ public static class CatalogEndpoints
                 return Results.BadRequest(new { message = "Category not found in this tenant." });
         }
 
-        if (request.ProductTypeId.HasValue)
-        {
-            var typeExists = await db.ProductTypes.AnyAsync(
-                pt => pt.Id == request.ProductTypeId.Value && pt.TenantId == tenantId.Value,
-                cancellationToken);
-            if (!typeExists)
-                return Results.BadRequest(new { message = "Product type not found in this tenant." });
-        }
-
         if (!string.IsNullOrWhiteSpace(request.SKU) &&
             await db.Products.AnyAsync(p => p.SKU == request.SKU && p.TenantId == tenantId.Value, cancellationToken))
             return Results.Conflict(new { message = "A product with this SKU already exists." });
@@ -343,7 +332,6 @@ public static class CatalogEndpoints
             Id = Guid.NewGuid(),
             TenantId = tenantId.Value,
             CategoryId = request.CategoryId,
-            ProductTypeId = request.ProductTypeId,
             Name = request.Name,
             Description = request.Description,
             Brand = request.Brand,
@@ -370,8 +358,7 @@ public static class CatalogEndpoints
             new ProductResponse(product.Id, product.TenantId, product.CategoryId, null,
                 product.Name, product.Description, product.Brand, product.SKU,
                 product.BasePrice, product.Currency, product.IsActive,
-                product.CreatedAt, product.UpdatedAt, 0, null,
-                product.ProductTypeId, null, []));
+                product.CreatedAt, product.UpdatedAt, 0, null, []));
     }
 
     private static async Task<IResult> UpdateProduct(
@@ -405,15 +392,6 @@ public static class CatalogEndpoints
                 return Results.BadRequest(new { message = "Category not found in this tenant." });
         }
 
-        if (request.ProductTypeId.HasValue)
-        {
-            var typeExists = await db.ProductTypes.AnyAsync(
-                pt => pt.Id == request.ProductTypeId.Value && pt.TenantId == tenantId.Value,
-                cancellationToken);
-            if (!typeExists)
-                return Results.BadRequest(new { message = "Product type not found in this tenant." });
-        }
-
         var newSku = string.IsNullOrWhiteSpace(request.SKU) ? null : request.SKU;
         if (newSku is not null && newSku != product.SKU &&
             await db.Products.AnyAsync(p => p.SKU == newSku && p.TenantId == tenantId.Value && p.Id != id, cancellationToken))
@@ -431,7 +409,6 @@ public static class CatalogEndpoints
         }
 
         product.CategoryId = request.CategoryId;
-        product.ProductTypeId = request.ProductTypeId;
         product.Name = request.Name;
         product.Description = request.Description;
         product.Brand = request.Brand;
@@ -459,9 +436,6 @@ public static class CatalogEndpoints
         var categoryName = product.CategoryId.HasValue
             ? await db.Categories.Where(c => c.Id == product.CategoryId.Value).Select(c => c.Name).FirstOrDefaultAsync(cancellationToken)
             : null;
-        var productTypeName = product.ProductTypeId.HasValue
-            ? await db.ProductTypes.Where(pt => pt.Id == product.ProductTypeId.Value).Select(pt => pt.Name).FirstOrDefaultAsync(cancellationToken)
-            : null;
         var thumbnailKey = await db.ProductMedia
             .Where(m => m.ProductId == id && m.TenantId == tenantId.Value && m.MediaType == MediaType.Image)
             .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
@@ -477,7 +451,7 @@ public static class CatalogEndpoints
             product.Name, product.Description, product.Brand, product.SKU,
             product.BasePrice, product.Currency, product.IsActive,
             product.CreatedAt, product.UpdatedAt, variantCount, thumbnailKey,
-            product.ProductTypeId, productTypeName, notations));
+            notations));
     }
 
     private static async Task<IResult> DeleteProduct(
@@ -520,8 +494,8 @@ public static class CatalogEndpoints
 
         var variants = await db.ProductVariants
             .Where(v => v.ProductId == productId && v.TenantId == tenantId.Value)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.Option)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.OptionValue)
             .Include(v => v.Media)
             .OrderBy(v => v.CreatedAt)
             .AsSplitQuery()
@@ -543,8 +517,8 @@ public static class CatalogEndpoints
 
         var variant = await db.ProductVariants
             .Where(v => v.Id == variantId && v.ProductId == productId && v.TenantId == tenantId.Value)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.Option)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.OptionValue)
             .Include(v => v.Media)
             .AsSplitQuery()
             .FirstOrDefaultAsync(cancellationToken);
@@ -573,16 +547,6 @@ public static class CatalogEndpoints
             await db.ProductVariants.AnyAsync(v => v.SKU == newSku && v.TenantId == tenantId.Value, cancellationToken))
             return Results.Conflict(new { message = "A variant with this SKU already exists in this tenant." });
 
-        // Check attribute combination uniqueness
-        var requestFingerprint = ComputeRequestFingerprint(request.Attributes ?? []);
-        var existingVariants = await db.ProductVariants
-            .Where(v => v.ProductId == productId && v.TenantId == tenantId.Value)
-            .Include(v => v.AttributeValues)
-            .ToListAsync(cancellationToken);
-
-        if (existingVariants.Any(ev => ComputeAttributeFingerprint(ev.AttributeValues) == requestFingerprint))
-            return Results.Conflict(new { message = "A variant with this attribute combination already exists for this product." });
-
         var variant = new ProductVariant
         {
             Id = Guid.NewGuid(),
@@ -590,6 +554,7 @@ public static class CatalogEndpoints
             TenantId = tenantId.Value,
             SKU = newSku,
             Price = request.Price,
+            PriceAdjustmentType = request.PriceAdjustmentType,
             StockQuantity = request.StockQuantity,
             IsActive = true,
             CreatedAt = DateTimeOffset.UtcNow,
@@ -599,26 +564,11 @@ public static class CatalogEndpoints
         db.ProductVariants.Add(variant);
         await db.SaveChangesAsync(cancellationToken);
 
-        foreach (var attr in request.Attributes ?? [])
-        {
-            db.VariantAttributeValues.Add(new ProductVariantAttributeValue
-            {
-                VariantId = variant.Id,
-                AttributeTypeId = attr.AttributeTypeId,
-                AttributeOptionId = attr.AttributeOptionId,
-                TextValue = attr.TextValue,
-                NumberValue = attr.NumberValue
-            });
-        }
-
-        if (request.Attributes is { Count: > 0 })
-            await db.SaveChangesAsync(cancellationToken);
-
         // Reload with navigation for response
         var created = await db.ProductVariants
             .Where(v => v.Id == variant.Id)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.Option)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.OptionValue)
             .Include(v => v.Media)
             .AsSplitQuery()
             .FirstAsync(cancellationToken);
@@ -650,47 +600,20 @@ public static class CatalogEndpoints
             await db.ProductVariants.AnyAsync(v => v.SKU == newSku && v.TenantId == tenantId.Value && v.Id != variantId, cancellationToken))
             return Results.Conflict(new { message = "A variant with this SKU already exists in this tenant." });
 
-        // Check attribute combination uniqueness (excluding self)
-        var requestFingerprint = ComputeRequestFingerprint(request.Attributes ?? []);
-        var sibling = await db.ProductVariants
-            .Where(v => v.ProductId == productId && v.TenantId == tenantId.Value && v.Id != variantId)
-            .Include(v => v.AttributeValues)
-            .ToListAsync(cancellationToken);
-
-        if (sibling.Any(ev => ComputeAttributeFingerprint(ev.AttributeValues) == requestFingerprint))
-            return Results.Conflict(new { message = "A variant with this attribute combination already exists for this product." });
-
         variant.SKU = newSku;
         variant.Price = request.Price;
+        variant.PriceAdjustmentType = request.PriceAdjustmentType ?? variant.PriceAdjustmentType;
         variant.StockQuantity = request.StockQuantity ?? variant.StockQuantity;
         variant.IsActive = request.IsActive ?? variant.IsActive;
         variant.UpdatedAt = DateTimeOffset.UtcNow;
-
-        // Replace attribute values
-        var existingAttrs = await db.VariantAttributeValues
-            .Where(av => av.VariantId == variantId)
-            .ToListAsync(cancellationToken);
-        db.VariantAttributeValues.RemoveRange(existingAttrs);
-
-        foreach (var attr in request.Attributes ?? [])
-        {
-            db.VariantAttributeValues.Add(new ProductVariantAttributeValue
-            {
-                VariantId = variantId,
-                AttributeTypeId = attr.AttributeTypeId,
-                AttributeOptionId = attr.AttributeOptionId,
-                TextValue = attr.TextValue,
-                NumberValue = attr.NumberValue
-            });
-        }
 
         await db.SaveChangesAsync(cancellationToken);
 
         // Reload with navigation for response
         var updated = await db.ProductVariants
             .Where(v => v.Id == variantId)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeType)
-            .Include(v => v.AttributeValues).ThenInclude(av => av.AttributeOption)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.Option)
+            .Include(v => v.OptionValues).ThenInclude(ov => ov.OptionValue)
             .Include(v => v.Media)
             .AsSplitQuery()
             .FirstAsync(cancellationToken);
@@ -731,42 +654,25 @@ public static class CatalogEndpoints
         p.Media.Where(m => m.MediaType == MediaType.Image)
             .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
             .Select(m => (Guid?)m.Id).FirstOrDefault(),
-        p.ProductTypeId,
-        p.ProductType?.Name,
         p.Notations.Select(pn => new ProductNotationResponse(pn.NotationId, pn.Notation.Name, pn.Notation.Description, pn.Notation.Icon)).ToList());
 
     private static ProductVariantResponse MapVariantResponse(ProductVariant v) => new(
         v.Id, v.ProductId, v.TenantId,
-        v.AttributeValues
-            .OrderBy(av => av.AttributeType.SortOrder)
-            .ThenBy(av => av.AttributeType.Name)
-            .Select(av => new VariantAttributeValueResponse(
-                av.AttributeTypeId,
-                av.AttributeType.Name,
-                av.AttributeType.ValueType.ToString(),
-                av.AttributeType.Unit,
-                av.AttributeType.HasColorPicker,
-                av.AttributeOptionId,
-                av.AttributeOption?.Value,
-                av.AttributeOption?.HexCode,
-                av.TextValue,
-                av.NumberValue))
+        v.OptionValues
+            .OrderBy(ov => ov.Option.SortOrder)
+            .ThenBy(ov => ov.Option.Name)
+            .Select(ov => new VariantOptionValueResponse(
+                ov.VariantId,
+                ov.Option.Name,
+                ov.OptionValueId,
+                ov.OptionValue.Value,
+                ov.OptionValue.HexCode))
             .ToList(),
-        v.SKU, v.Price, v.StockQuantity, v.IsActive,
+        v.SKU, v.Price, v.PriceAdjustmentType, v.StockQuantity, v.IsActive,
         v.CreatedAt, v.UpdatedAt,
         v.Media.Where(m => m.MediaType == MediaType.Image)
             .OrderBy(m => m.SortOrder).ThenBy(m => m.CreatedAt)
             .Select(m => (Guid?)m.Id).FirstOrDefault());
-
-    private static string ComputeAttributeFingerprint(IEnumerable<ProductVariantAttributeValue> values) =>
-        string.Join("|", values
-            .OrderBy(av => av.AttributeTypeId)
-            .Select(av => $"{av.AttributeTypeId}:{av.AttributeOptionId?.ToString() ?? ""}:{av.TextValue ?? ""}:{av.NumberValue?.ToString("G") ?? ""}"));
-
-    private static string ComputeRequestFingerprint(IEnumerable<VariantAttributeValueRequest> values) =>
-        string.Join("|", values
-            .OrderBy(av => av.AttributeTypeId)
-            .Select(av => $"{av.AttributeTypeId}:{av.AttributeOptionId?.ToString() ?? ""}:{av.TextValue ?? ""}:{av.NumberValue?.ToString("G") ?? ""}"));
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
@@ -795,8 +701,6 @@ public record ProductResponse(
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     int VariantCount,
     Guid? ThumbnailMediaId,
-    Guid? ProductTypeId,
-    string? ProductTypeName,
     List<ProductNotationResponse> Notations);
 
 public record CreateProductRequest(
@@ -807,7 +711,6 @@ public record CreateProductRequest(
     string? Brand = null,
     string? SKU = null,
     Guid? CategoryId = null,
-    Guid? ProductTypeId = null,
     List<Guid>? NotationIds = null);
 
 public record UpdateProductRequest(
@@ -819,46 +722,35 @@ public record UpdateProductRequest(
     string? SKU = null,
     Guid? CategoryId = null,
     bool? IsActive = null,
-    Guid? ProductTypeId = null,
     List<Guid>? NotationIds = null);
 
 public record ProductVariantResponse(
     Guid Id, Guid ProductId, Guid TenantId,
-    List<VariantAttributeValueResponse> Attributes,
-    string? SKU, decimal? Price, int StockQuantity, bool IsActive,
+    List<VariantOptionValueResponse> OptionValues,
+    string? SKU, decimal? Price, PriceAdjustmentType PriceAdjustmentType,
+    int StockQuantity, bool IsActive,
     DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt,
     Guid? ThumbnailMediaId);
 
 public record CreateProductVariantRequest(
     string? SKU = null,
     decimal? Price = null,
-    int StockQuantity = 0,
-    List<VariantAttributeValueRequest>? Attributes = null);
+    PriceAdjustmentType PriceAdjustmentType = PriceAdjustmentType.None,
+    int StockQuantity = 0);
 
 public record UpdateProductVariantRequest(
     string? SKU = null,
     decimal? Price = null,
+    PriceAdjustmentType? PriceAdjustmentType = null,
     int? StockQuantity = null,
-    bool? IsActive = null,
-    List<VariantAttributeValueRequest>? Attributes = null);
+    bool? IsActive = null);
 
-public record VariantAttributeValueResponse(
-    Guid AttributeTypeId,
-    string AttributeTypeName,
-    string ValueType,
-    string? Unit,
-    bool HasColorPicker,
-    Guid? AttributeOptionId,
-    string? OptionValue,
-    string? OptionHexCode,
-    string? TextValue,
-    decimal? NumberValue);
-
-public record VariantAttributeValueRequest(
-    Guid AttributeTypeId,
-    Guid? AttributeOptionId = null,
-    string? TextValue = null,
-    decimal? NumberValue = null);
+public record VariantOptionValueResponse(
+    Guid VariantId,
+    string OptionName,
+    Guid OptionValueId,
+    string Value,
+    string? HexCode = null);
 
 public record ProductNotationResponse(
     Guid NotationId,

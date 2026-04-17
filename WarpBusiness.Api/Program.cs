@@ -8,9 +8,10 @@ using WarpBusiness.Crm.Data;
 using WarpBusiness.Employees.Data;
 using WarpBusiness.Employees.Endpoints;
 using WarpBusiness.Employees.Services;
-using WarpBusiness.Taxonomy.Data;
-using WarpBusiness.Taxonomy.Endpoints;
-using WarpBusiness.Taxonomy.Services;
+using WarpBusiness.CommonTaxonomy.Data;
+using WarpBusiness.CommonTaxonomy.Endpoints;
+using WarpBusiness.CommonTaxonomy.Services;
+using WarpBusiness.CommonTaxonomy.Services.Providers;
 using WarpBusiness.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,7 +23,7 @@ builder.AddNpgsqlDbContext<WarpBusinessDbContext>("warpdb");
 builder.AddNpgsqlDbContext<EmployeeDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CrmDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CatalogDbContext>("warpdb");
-builder.AddNpgsqlDbContext<TaxonomyDbContext>("warpdb");
+builder.AddNpgsqlDbContext<CommonTaxonomyDbContext>("warpdb");
 
 builder.Services.AddScoped<IUserValidator, UserValidator>();
 
@@ -189,18 +190,19 @@ builder.Services.AddHostedService<DbInitializer>();
 builder.Services.AddHostedService<EmployeeDbInitializer>();
 builder.Services.AddHostedService<CrmDbInitializer>();
 builder.Services.AddHostedService<CatalogDbInitializer>();
-builder.Services.AddHostedService<TaxonomyDbInitializer>();
+builder.Services.AddHostedService<CommonTaxonomyDbInitializer>();
 
 builder.Services.AddHttpClient<GoogleTaxonomyDownloader>();
 builder.Services.AddHttpClient<AmazonTaxonomyDownloader>();
 builder.Services.AddHttpClient<EbayTaxonomyDownloader>();
 builder.Services.AddHttpClient<EtsyTaxonomyDownloader>();
+builder.Services.AddHttpClient<NeweggTaxonomyDownloader>();
 builder.Services.AddScoped<ITaxonomyDownloader, GoogleTaxonomyDownloader>();
 builder.Services.AddScoped<ITaxonomyDownloader, AmazonTaxonomyDownloader>();
 builder.Services.AddScoped<ITaxonomyDownloader, EbayTaxonomyDownloader>();
 builder.Services.AddScoped<ITaxonomyDownloader, EtsyTaxonomyDownloader>();
-builder.Services.AddScoped<TaxonomyDownloadService>();
-builder.Services.AddScoped<TaxonomyImportService>();
+builder.Services.AddScoped<ITaxonomyDownloader, NeweggTaxonomyDownloader>();
+builder.Services.AddScoped<TaxonomyDownloadOrchestrator>();
 
 // MinIO Storage
 builder.Services.AddMinioStorage(builder.Configuration);
@@ -369,13 +371,12 @@ app.MapBusinessEndpoints();
 // Catalog management API endpoints
 app.MapCatalogEndpoints();
 app.MapCatalogImageEndpoints();
-app.MapCatalogProductTypeEndpoints();
-app.MapCatalogAttributeEndpoints();
 app.MapCatalogNotationEndpoints();
+app.MapCatalogProductOptionEndpoints();
+app.MapCatalogTaxonomyEndpoints();
 
-// Taxonomy management API endpoints
-app.MapTaxonomyEndpoints();
-app.MapTaxonomyNodeEndpoints();
+// Common taxonomy management API endpoints
+app.MapTaxonomyApiEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();
