@@ -276,6 +276,7 @@ app.Use(async (context, next) =>
         "/api/users/me",
         "/api/tenants",
         "/api/currencies",
+        "/api/taxonomy",   // Taxonomy is global data shared across tenants
         "/health",
         "/alive"
     };
