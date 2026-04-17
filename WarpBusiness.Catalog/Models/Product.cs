@@ -16,11 +16,10 @@ public class Product
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
-    public Guid? ProductTypeId { get; set; }
-
     public Category? Category { get; set; }
-    public ProductType? ProductType { get; set; }
     public ICollection<ProductVariant> Variants { get; set; } = [];
     public ICollection<ProductMedia> Media { get; set; } = [];
     public ICollection<ProductNotation> Notations { get; set; } = [];
+    public ICollection<ProductOption> Options { get; set; } = [];
+    public ICollection<ProductTaxonomyMapping> TaxonomyMappings { get; set; } = [];
 }

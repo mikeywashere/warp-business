@@ -14,11 +14,11 @@ public class CatalogDbContext : DbContext
     public DbSet<Product> Products => Set<Product>();
     public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
     public DbSet<ProductMedia> ProductMedia => Set<ProductMedia>();
-    public DbSet<ProductType> ProductTypes => Set<ProductType>();
-    public DbSet<ProductTypeAttribute> ProductTypeAttributes => Set<ProductTypeAttribute>();
-    public DbSet<CatalogAttributeType> AttributeTypes => Set<CatalogAttributeType>();
-    public DbSet<CatalogAttributeOption> AttributeOptions => Set<CatalogAttributeOption>();
-    public DbSet<ProductVariantAttributeValue> VariantAttributeValues => Set<ProductVariantAttributeValue>();
+    public DbSet<ProductOption> ProductOptions => Set<ProductOption>();
+    public DbSet<ProductOptionValue> ProductOptionValues => Set<ProductOptionValue>();
+    public DbSet<VariantOptionValue> VariantOptionValues => Set<VariantOptionValue>();
+    public DbSet<ProductTaxonomyMapping> ProductTaxonomyMappings => Set<ProductTaxonomyMapping>();
+    public DbSet<ProductTaxonomyAttributeValue> ProductTaxonomyAttributeValues => Set<ProductTaxonomyAttributeValue>();
     public DbSet<CatalogNotation> Notations => Set<CatalogNotation>();
     public DbSet<ProductNotation> ProductNotations => Set<ProductNotation>();
 
@@ -53,84 +53,6 @@ public class CatalogDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        modelBuilder.Entity<ProductType>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.TenantId);
-            entity.HasIndex(e => new { e.TenantId, e.Name }).IsUnique();
-
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-        });
-
-        modelBuilder.Entity<ProductTypeAttribute>(entity =>
-        {
-            entity.HasKey(e => new { e.ProductTypeId, e.AttributeTypeId });
-
-            entity.HasOne(e => e.ProductType)
-                .WithMany(pt => pt.Attributes)
-                .HasForeignKey(e => e.ProductTypeId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.AttributeType)
-                .WithMany(at => at.ProductTypeAttributes)
-                .HasForeignKey(e => e.AttributeTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        modelBuilder.Entity<CatalogAttributeType>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.TenantId);
-            entity.HasIndex(e => new { e.TenantId, e.Name }).IsUnique();
-
-            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.Unit).HasMaxLength(50);
-            entity.Property(e => e.ValueType).HasConversion<string>();
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-        });
-
-        modelBuilder.Entity<CatalogAttributeOption>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.AttributeTypeId);
-            entity.HasIndex(e => e.TenantId);
-            entity.HasIndex(e => new { e.AttributeTypeId, e.TenantId, e.Value }).IsUnique();
-
-            entity.Property(e => e.Value).HasMaxLength(200).IsRequired();
-            entity.Property(e => e.HexCode).HasMaxLength(7);
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-
-            entity.HasOne(e => e.AttributeType)
-                .WithMany(at => at.Options)
-                .HasForeignKey(e => e.AttributeTypeId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
-        modelBuilder.Entity<ProductVariantAttributeValue>(entity =>
-        {
-            entity.HasKey(e => new { e.VariantId, e.AttributeTypeId });
-
-            entity.Property(e => e.TextValue).HasMaxLength(1000);
-            entity.Property(e => e.NumberValue).HasPrecision(18, 4);
-
-            entity.HasOne(e => e.Variant)
-                .WithMany(v => v.AttributeValues)
-                .HasForeignKey(e => e.VariantId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            entity.HasOne(e => e.AttributeType)
-                .WithMany(at => at.VariantValues)
-                .HasForeignKey(e => e.AttributeTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            entity.HasOne(e => e.AttributeOption)
-                .WithMany(ao => ao.VariantValues)
-                .HasForeignKey(e => e.AttributeOptionId)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
-
         modelBuilder.Entity<Product>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -151,11 +73,109 @@ public class CatalogDbContext : DbContext
                 .WithMany(c => c.Products)
                 .HasForeignKey(e => e.CategoryId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
 
-            entity.HasOne(e => e.ProductType)
-                .WithMany(pt => pt.Products)
-                .HasForeignKey(e => e.ProductTypeId)
-                .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<ProductVariant>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.ProductId);
+
+            entity.Property(e => e.SKU).HasMaxLength(100);
+            entity.Property(e => e.Price).HasPrecision(18, 2);
+            entity.Property(e => e.PriceAdjustmentType).HasConversion<string>().HasDefaultValue(PriceAdjustmentType.None);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            entity.HasIndex(e => new { e.SKU, e.TenantId })
+                .IsUnique()
+                .HasFilter("\"SKU\" IS NOT NULL");
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Variants)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductOption>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.ProductId, e.Name }).IsUnique();
+
+            entity.Property(e => e.Name).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.IsVariantAxis).HasDefaultValue(true);
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.Options)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductOptionValue>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.OptionId);
+            entity.HasIndex(e => new { e.OptionId, e.Value }).IsUnique();
+
+            entity.Property(e => e.Value).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.HexCode).HasMaxLength(7);
+
+            entity.HasOne(e => e.Option)
+                .WithMany(o => o.Values)
+                .HasForeignKey(e => e.OptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VariantOptionValue>(entity =>
+        {
+            entity.HasKey(e => new { e.VariantId, e.OptionId });
+
+            entity.HasOne(e => e.Variant)
+                .WithMany(v => v.OptionValues)
+                .HasForeignKey(e => e.VariantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Option)
+                .WithMany()
+                .HasForeignKey(e => e.OptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.OptionValue)
+                .WithMany(ov => ov.VariantValues)
+                .HasForeignKey(e => e.OptionValueId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ProductTaxonomyMapping>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.ProductId, e.ProviderKey, e.TaxonomyNodeId }).IsUnique();
+
+            entity.Property(e => e.ProviderKey).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.NodeName).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.NodeFullPath).HasMaxLength(2000).IsRequired();
+
+            entity.HasOne(e => e.Product)
+                .WithMany(p => p.TaxonomyMappings)
+                .HasForeignKey(e => e.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProductTaxonomyAttributeValue>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.MappingId);
+            entity.HasIndex(e => new { e.MappingId, e.AttributeId }).IsUnique();
+
+            entity.Property(e => e.AttributeName).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.TextValue).HasMaxLength(1000);
+            entity.Property(e => e.NumberValue).HasPrecision(18, 4);
+
+            entity.HasOne(e => e.Mapping)
+                .WithMany(m => m.AttributeValues)
+                .HasForeignKey(e => e.MappingId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CatalogNotation>(entity =>
@@ -193,26 +213,6 @@ public class CatalogDbContext : DbContext
             entity.ToTable("ProductNotations");
         });
 
-        modelBuilder.Entity<ProductVariant>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.HasIndex(e => e.TenantId);
-            entity.HasIndex(e => e.ProductId);
-
-            entity.Property(e => e.SKU).HasMaxLength(100);
-            entity.Property(e => e.Price).HasPrecision(18, 2);
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-
-            entity.HasIndex(e => new { e.SKU, e.TenantId })
-                .IsUnique()
-                .HasFilter("\"SKU\" IS NOT NULL");
-
-            entity.HasOne(e => e.Product)
-                .WithMany(p => p.Variants)
-                .HasForeignKey(e => e.ProductId)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-
         modelBuilder.Entity<ProductMedia>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -236,4 +236,4 @@ public class CatalogDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
-}
+}

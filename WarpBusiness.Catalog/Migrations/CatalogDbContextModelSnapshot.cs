@@ -23,102 +23,6 @@ namespace WarpBusiness.Catalog.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.CatalogAttributeOption", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AttributeTypeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("HexCode")
-                        .HasMaxLength(7)
-                        .HasColumnType("character varying(7)");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Value")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttributeTypeId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("AttributeTypeId", "TenantId", "Value")
-                        .IsUnique();
-
-                    b.ToTable("AttributeOptions", "catalog");
-                });
-
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.CatalogAttributeType", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("HasColorPicker")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Unit")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ValueType")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "Name")
-                        .IsUnique();
-
-                    b.ToTable("AttributeTypes", "catalog");
-                });
-
             modelBuilder.Entity("WarpBusiness.Catalog.Models.CatalogNotation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -252,9 +156,6 @@ namespace WarpBusiness.Catalog.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
-                    b.Property<Guid?>("ProductTypeId")
-                        .HasColumnType("uuid");
-
                     b.Property<string>("SKU")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
@@ -268,8 +169,6 @@ namespace WarpBusiness.Catalog.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
-
-                    b.HasIndex("ProductTypeId");
 
                     b.HasIndex("TenantId");
 
@@ -352,20 +251,13 @@ namespace WarpBusiness.Catalog.Migrations
                     b.ToTable("ProductNotations", "catalog");
                 });
 
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductType", b =>
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductOption", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<bool>("IsActive")
+                    b.Property<bool>("IsVariantAxis")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
@@ -375,41 +267,144 @@ namespace WarpBusiness.Catalog.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<Guid>("ProductId")
                         .HasColumnType("uuid");
 
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("TenantId", "Name")
+                    b.HasIndex("ProductId", "Name")
                         .IsUnique();
 
-                    b.ToTable("ProductTypes", "catalog");
+                    b.ToTable("ProductOptions", "catalog");
                 });
 
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductTypeAttribute", b =>
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductOptionValue", b =>
                 {
-                    b.Property<Guid>("ProductTypeId")
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AttributeTypeId")
+                    b.Property<string>("HexCode")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<Guid>("OptionId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsRequired")
-                        .HasColumnType("boolean");
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("SortOrder")
                         .HasColumnType("integer");
 
-                    b.HasKey("ProductTypeId", "AttributeTypeId");
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
 
-                    b.HasIndex("AttributeTypeId");
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
-                    b.ToTable("ProductTypeAttributes", "catalog");
+                    b.HasKey("Id");
+
+                    b.HasIndex("OptionId");
+
+                    b.HasIndex("OptionId", "Value")
+                        .IsUnique();
+
+                    b.ToTable("ProductOptionValues", "catalog");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductTaxonomyAttributeValue", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AttributeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AttributeName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool?>("BoolValue")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("MappingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("NumberValue")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TextValue")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MappingId");
+
+                    b.HasIndex("MappingId", "AttributeId")
+                        .IsUnique();
+
+                    b.ToTable("ProductTaxonomyAttributeValues", "catalog");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductTaxonomyMapping", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NodeFullPath")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("NodeName")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ProviderKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("TaxonomyNodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("ProductId", "ProviderKey", "TaxonomyNodeId")
+                        .IsUnique();
+
+                    b.ToTable("ProductTaxonomyMappings", "catalog");
                 });
 
             modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductVariant", b =>
@@ -429,6 +424,12 @@ namespace WarpBusiness.Catalog.Migrations
                     b.Property<decimal?>("Price")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("PriceAdjustmentType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("None");
 
                     b.Property<Guid>("ProductId")
                         .HasColumnType("uuid");
@@ -459,43 +460,24 @@ namespace WarpBusiness.Catalog.Migrations
                     b.ToTable("ProductVariants", "catalog");
                 });
 
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductVariantAttributeValue", b =>
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.VariantOptionValue", b =>
                 {
                     b.Property<Guid>("VariantId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("AttributeTypeId")
+                    b.Property<Guid>("OptionId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("AttributeOptionId")
+                    b.Property<Guid>("OptionValueId")
                         .HasColumnType("uuid");
 
-                    b.Property<decimal?>("NumberValue")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
+                    b.HasKey("VariantId", "OptionId");
 
-                    b.Property<string>("TextValue")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                    b.HasIndex("OptionId");
 
-                    b.HasKey("VariantId", "AttributeTypeId");
+                    b.HasIndex("OptionValueId");
 
-                    b.HasIndex("AttributeOptionId");
-
-                    b.HasIndex("AttributeTypeId");
-
-                    b.ToTable("VariantAttributeValues", "catalog");
-                });
-
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.CatalogAttributeOption", b =>
-                {
-                    b.HasOne("WarpBusiness.Catalog.Models.CatalogAttributeType", "AttributeType")
-                        .WithMany("Options")
-                        .HasForeignKey("AttributeTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("AttributeType");
+                    b.ToTable("VariantOptionValues", "catalog");
                 });
 
             modelBuilder.Entity("WarpBusiness.Catalog.Models.Category", b =>
@@ -515,14 +497,7 @@ namespace WarpBusiness.Catalog.Migrations
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("WarpBusiness.Catalog.Models.ProductType", "ProductType")
-                        .WithMany("Products")
-                        .HasForeignKey("ProductTypeId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("Category");
-
-                    b.Navigation("ProductType");
                 });
 
             modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductMedia", b =>
@@ -561,23 +536,48 @@ namespace WarpBusiness.Catalog.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductTypeAttribute", b =>
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductOption", b =>
                 {
-                    b.HasOne("WarpBusiness.Catalog.Models.CatalogAttributeType", "AttributeType")
-                        .WithMany("ProductTypeAttributes")
-                        .HasForeignKey("AttributeTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WarpBusiness.Catalog.Models.ProductType", "ProductType")
-                        .WithMany("Attributes")
-                        .HasForeignKey("ProductTypeId")
+                    b.HasOne("WarpBusiness.Catalog.Models.Product", "Product")
+                        .WithMany("Options")
+                        .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("AttributeType");
+                    b.Navigation("Product");
+                });
 
-                    b.Navigation("ProductType");
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductOptionValue", b =>
+                {
+                    b.HasOne("WarpBusiness.Catalog.Models.ProductOption", "Option")
+                        .WithMany("Values")
+                        .HasForeignKey("OptionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Option");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductTaxonomyAttributeValue", b =>
+                {
+                    b.HasOne("WarpBusiness.Catalog.Models.ProductTaxonomyMapping", "Mapping")
+                        .WithMany("AttributeValues")
+                        .HasForeignKey("MappingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Mapping");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductTaxonomyMapping", b =>
+                {
+                    b.HasOne("WarpBusiness.Catalog.Models.Product", "Product")
+                        .WithMany("TaxonomyMappings")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductVariant", b =>
@@ -591,44 +591,31 @@ namespace WarpBusiness.Catalog.Migrations
                     b.Navigation("Product");
                 });
 
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductVariantAttributeValue", b =>
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.VariantOptionValue", b =>
                 {
-                    b.HasOne("WarpBusiness.Catalog.Models.CatalogAttributeOption", "AttributeOption")
-                        .WithMany("VariantValues")
-                        .HasForeignKey("AttributeOptionId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                    b.HasOne("WarpBusiness.Catalog.Models.ProductOption", "Option")
+                        .WithMany()
+                        .HasForeignKey("OptionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.HasOne("WarpBusiness.Catalog.Models.CatalogAttributeType", "AttributeType")
+                    b.HasOne("WarpBusiness.Catalog.Models.ProductOptionValue", "OptionValue")
                         .WithMany("VariantValues")
-                        .HasForeignKey("AttributeTypeId")
+                        .HasForeignKey("OptionValueId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("WarpBusiness.Catalog.Models.ProductVariant", "Variant")
-                        .WithMany("AttributeValues")
+                        .WithMany("OptionValues")
                         .HasForeignKey("VariantId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("AttributeOption");
+                    b.Navigation("Option");
 
-                    b.Navigation("AttributeType");
+                    b.Navigation("OptionValue");
 
                     b.Navigation("Variant");
-                });
-
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.CatalogAttributeOption", b =>
-                {
-                    b.Navigation("VariantValues");
-                });
-
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.CatalogAttributeType", b =>
-                {
-                    b.Navigation("Options");
-
-                    b.Navigation("ProductTypeAttributes");
-
-                    b.Navigation("VariantValues");
                 });
 
             modelBuilder.Entity("WarpBusiness.Catalog.Models.CatalogNotation", b =>
@@ -649,21 +636,33 @@ namespace WarpBusiness.Catalog.Migrations
 
                     b.Navigation("Notations");
 
+                    b.Navigation("Options");
+
+                    b.Navigation("TaxonomyMappings");
+
                     b.Navigation("Variants");
                 });
 
-            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductType", b =>
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductOption", b =>
                 {
-                    b.Navigation("Attributes");
+                    b.Navigation("Values");
+                });
 
-                    b.Navigation("Products");
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductOptionValue", b =>
+                {
+                    b.Navigation("VariantValues");
+                });
+
+            modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductTaxonomyMapping", b =>
+                {
+                    b.Navigation("AttributeValues");
                 });
 
             modelBuilder.Entity("WarpBusiness.Catalog.Models.ProductVariant", b =>
                 {
-                    b.Navigation("AttributeValues");
-
                     b.Navigation("Media");
+
+                    b.Navigation("OptionValues");
                 });
 #pragma warning restore 612, 618
         }

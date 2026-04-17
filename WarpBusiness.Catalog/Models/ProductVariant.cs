@@ -10,14 +10,16 @@ public class ProductVariant
     /// Must be unique within the tenant when set.
     /// </summary>
     public string? SKU { get; set; }
-    /// <summary>Per-variant price override; when null the product BasePrice applies.</summary>
+    /// <summary>Per-variant price adjustment amount; interpretation depends on PriceAdjustmentType.</summary>
     public decimal? Price { get; set; }
+    /// <summary>How Price interacts with the parent BasePrice.</summary>
+    public PriceAdjustmentType PriceAdjustmentType { get; set; } = PriceAdjustmentType.None;
     public int StockQuantity { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
     public Product Product { get; set; } = null!;
-    public ICollection<ProductVariantAttributeValue> AttributeValues { get; set; } = [];
+    public ICollection<VariantOptionValue> OptionValues { get; set; } = [];
     public ICollection<ProductMedia> Media { get; set; } = [];
 }
