@@ -33,7 +33,12 @@ public class GoogleTaxonomyDownloader : ITaxonomyDownloader
         string content;
         try
         {
-            content = await _http.GetStringAsync(TaxonomyUrl, cancellationToken);
+            using var request = new HttpRequestMessage(HttpMethod.Get, TaxonomyUrl);
+            // Google blocks requests without a recognisable User-Agent
+            request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (compatible; WarpBusiness/1.0)");
+            using var response = await _http.SendAsync(request, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            content = await response.Content.ReadAsStringAsync(cancellationToken);
         }
         catch (Exception ex)
         {
