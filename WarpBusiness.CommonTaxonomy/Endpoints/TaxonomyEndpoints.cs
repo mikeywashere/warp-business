@@ -19,13 +19,13 @@ public static class TaxonomyEndpoints
 
         var providers = root.MapGroup("providers/{key}");
         providers.MapPost("download", DownloadProvider)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "admin" })
+            .RequireAuthorization("SystemAdministrator")
             .WithName("DownloadTaxonomyProvider");
         providers.MapGet("nodes", GetProviderNodes).WithName("GetTaxonomyProviderNodes");
         providers.MapGet("nodes/stream", StreamProviderNodes).WithName("StreamTaxonomyProviderNodes");
         providers.MapGet("nodes/search", SearchProviderNodes).WithName("SearchTaxonomyProviderNodes");
         providers.MapPost("import", ImportProviderFile)
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "admin" })
+            .RequireAuthorization("SystemAdministrator")
             .WithName("ImportTaxonomyProviderFile");
 
         root.MapGet("nodes/{id:guid}", GetNode).WithName("GetTaxonomyNode");
