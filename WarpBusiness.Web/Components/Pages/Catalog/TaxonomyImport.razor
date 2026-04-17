@@ -192,21 +192,25 @@
         }
     }
 
-    protected override async Task OnAuthenticatedInitializedAsync()
+    protected override Task OnAuthenticatedInitializedAsync()
     {
+        // Tenant check only — no API calls during SSR prerender
         if (string.IsNullOrEmpty(TokenProvider.SelectedTenantId))
-        {
             Navigation.NavigateTo("/select-tenant");
-            return;
-        }
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (string.IsNullOrEmpty(TokenProvider.SelectedTenantId)) return;
 
         await LoadProviderStatusAsync();
         EnsureSelectedProvider();
         if (!string.IsNullOrWhiteSpace(selectedProvider))
-        {
             await LoadExternalNodesAsync(selectedProvider, forceReload: true);
-        }
         isLoading = false;
+        StateHasChanged();
     }
 
     private async Task LoadProviderStatusAsync()

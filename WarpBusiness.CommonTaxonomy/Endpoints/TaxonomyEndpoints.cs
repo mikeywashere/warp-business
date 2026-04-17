@@ -47,7 +47,7 @@ public static class TaxonomyEndpoints
                 p.LastDownloadedAt,
                 p.LastDownloadChecksum,
                 p.IsActive,
-                NodeCount = p.Nodes.Count
+                NodeCount = db.Nodes.Count(n => n.ProviderId == p.Id)
             })
             .ToListAsync(cancellationToken);
 
