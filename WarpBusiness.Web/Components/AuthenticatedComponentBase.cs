@@ -26,10 +26,12 @@ public abstract class AuthenticatedComponentBase : ComponentBase
     {
         _logger = LoggerFactory.CreateLogger<AuthenticatedComponentBase>();
         await RestoreOrCaptureTokenAsync();
-        // Skip during SSR prerender (HttpContext != null) to avoid 30-second API timeouts
-        // before the API service is fully ready. Runs again during the interactive circuit
-        // render (HttpContext is null), which is when API calls should be made.
-        if (HttpContextAccessor.HttpContext is null)
+        // RendererInfo.IsInteractive is false during SSR prerender and true only once
+        // the Blazor Server circuit is established. This is the correct .NET 8+ API
+        // for detecting interactive vs SSR — more reliable than checking HttpContext,
+        // which can remain non-null during circuit initialization via the WebSocket
+        // upgrade request scope.
+        if (RendererInfo.IsInteractive)
         {
             await OnAuthenticatedInitializedAsync();
         }
