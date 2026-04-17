@@ -1,5 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace WarpBusiness.Web.Services;
 
@@ -288,6 +290,20 @@ public class CatalogApiClient
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<CatalogProductResponse>>() ?? [];
+    }
+
+    public async IAsyncEnumerable<CatalogProductResponse> GetProductsStreamAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/catalog/products/stream");
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        await foreach (var product in JsonSerializer.DeserializeAsyncEnumerable<CatalogProductResponse>(stream, options, cancellationToken))
+        {
+            if (product is not null) yield return product;
+        }
     }
 
     public async Task<CatalogProductResponse?> GetProductAsync(Guid id)

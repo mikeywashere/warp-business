@@ -8,6 +8,16 @@
 ## Learnings
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
+
+### Progressive Streaming + Batch Rendering Pattern (2026-04-17)
+
+- **Integrated workflow:** API streams via `IAsyncEnumerable<T>` endpoints; Blazor UI consumes stream and renders in fixed-size batches (25 items) with live progress counter.
+- **Batch rendering benefits:** Initial screen population faster (first 25 items arrive while remaining stream downloads). UI remains responsive during large list loads. No artificial pagination UI needed.
+- **Post-mutation reloads:** For add/edit/delete operations, still use bulk endpoint (non-streaming), not incremental append. Reasoning: mutations are rare; load performance only matters on initial/refresh load.
+- **Stream consumption:** `CatalogApiClient.GetProductsStreamAsync()` and `TaxonomyApiClient.GetProviderNodesStreamAsync()` handle header check and lazy deserialization.
+- **Products.razor implementation:** Loop over stream with `foreach await` (wrapped in streaming context), append batch to list, UI re-renders each batch automatically via Blazor binding.
+- **Backward compatibility:** Non-streaming bulk endpoints (`/api/catalog/products`, `/api/taxonomy/providers/{key}/nodes`) remain unchanged; streaming is opt-in via separate routes.
+
 - OIDC auth configured in `WarpBusiness.Web/Program.cs` — cookie + OpenIdConnect scheme against Keycloak realm `warpbusiness`, client `warpbusiness-web`
 - Keycloak URL resolved from Aspire service discovery config: `services:keycloak:https:0` or `services:keycloak:http:0`
 - Login/logout are minimal API endpoints (`/login`, `/logout`), not Razor pages
@@ -289,4 +299,18 @@ Completed full frontend Warning→Notation rename:
 - **Subtree removal:** `RemoveNodeAndDescendants` + `CollectDescendants` use ParentNodeId-based DFS traversal (avoids reliance on MaterializedPath format); also prunes `collapsedNodes` to prevent stale state
 - **Toast system:** `ToastEntry(Guid Id, string Text, string Type)` records in `toastMessages` list; fixed bottom-right div; `ShowToastAsync` uses `_ = ShowToastAsync(...)` fire-and-forget + `InvokeAsync(StateHasChanged)` for thread-safe Blazor Server updates; 4s auto-dismiss
 - **Commit:** 96e00cb
+- **Build:** ✅ 0 errors
+
+### Progressive Streaming — Products Page (2026-04-16)
+
+- **Pattern:** `OnAfterRenderAsync(firstRender: true)` is the correct hook for streaming initial data loads in Blazor Server — `OnInitializedAsync` (via `OnAuthenticatedInitializedAsync`) runs before the circuit is interactive, so it can't trigger incremental re-renders; `OnAfterRenderAsync` fires on the live SignalR connection and allows `StateHasChanged()` to update the DOM progressively
+- **Streaming client method:** `CatalogApiClient.GetProductsStreamAsync()` (added by Data agent) — hits `api/catalog/products/stream`, uses `HttpCompletionOption.ResponseHeadersRead` + `JsonSerializer.DeserializeAsyncEnumerable` to yield items as they arrive from the API
+- **Batch size = 25:** Balances progressive feel against re-render cost; smaller batches increase renders, larger feel less progressive
+- **`await Task.Delay(1)` pattern:** Yields control back to the Blazor Server render loop between batches — essential, otherwise the SignalR message queue fills before the browser renders anything
+- **Two-phase loading state:** `isLoading = true` (spinner + count) until first batch of 25 arrives; then `isLoading = false` reveals the table, `isStreaming = true` shows inline "Loading… (N products so far)" banner above table until all items arrive
+- **`loadedCount` counter:** Incremented per-item (not per-batch) so the counter in the spinner/banner reflects actual product count, not batch count
+- **Post-mutation refreshes unchanged:** `LoadProducts()` still calls `GetProductsAsync()` (bulk endpoint) for fast refresh after create/update/delete — streaming overhead not worth it there
+- **Categories + Notations:** Remain in `OnAuthenticatedInitializedAsync` (small lists, synchronous feel preferred)
+- **InvokeAsync(StateHasChanged):** Used in finally block and error handler because `OnAfterRenderAsync` may resume on a threadpool thread; `InvokeAsync` marshals back to the Blazor dispatcher
+- **File:** `WarpBusiness.Web/Components/Pages/Catalog/Products.razor`, `WarpBusiness.Web/Services/CatalogApiClient.cs`
 - **Build:** ✅ 0 errors

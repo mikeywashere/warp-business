@@ -31,10 +31,9 @@
 
         @if (isLoading)
         {
-            <div class="d-flex justify-content-center my-5">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
+            <div class="d-flex justify-content-center align-items-center gap-3 my-5">
+                <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                <span>@(loadedCount > 0 ? $"Loading\u2026 ({loadedCount} products so far)" : "Loading\u2026")</span>
             </div>
         }
         else
@@ -452,6 +451,13 @@
             }
 
             @* Product List *@
+            @if (isStreaming)
+            {
+                <div class="alert alert-info d-flex align-items-center gap-2 py-2 mb-3" role="status">
+                    <div class="spinner-border spinner-border-sm text-info flex-shrink-0" aria-hidden="true"></div>
+                    <span>Loading&hellip; (@loadedCount products so far)</span>
+                </div>
+            }
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h5 class="mb-0">Products (@(FilteredProducts.Count)@(!string.IsNullOrWhiteSpace(searchTerm) ? $" of {products?.Count ?? 0}" : ""))</h5>
                 <button class="btn btn-primary" @onclick="ShowAddProductModal">
@@ -722,6 +728,8 @@
     private CatalogProductResponse? selectedProduct;
 
     private bool isLoading = true;
+    private bool isStreaming;
+    private int loadedCount;
     private bool isSubmitting;
     private bool showProductModal;
     private bool showVariantsModal;
@@ -788,8 +796,51 @@
             Navigation.NavigateTo("/select-tenant");
             return;
         }
-        await Task.WhenAll(LoadProducts(), LoadCategories(), LoadNotations());
-        isLoading = false;
+        await Task.WhenAll(LoadCategories(), LoadNotations());
+        // Products are streamed progressively in OnAfterRenderAsync
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        await StreamProductsAsync();
+    }
+
+    private async Task StreamProductsAsync()
+    {
+        const int batchSize = 25;
+        var batch = new List<CatalogProductResponse>();
+        isStreaming = true;
+        try
+        {
+            await foreach (var product in CatalogApi.GetProductsStreamAsync())
+            {
+                batch.Add(product);
+                loadedCount++;
+                if (batch.Count >= batchSize)
+                {
+                    products = [..products ?? [], ..batch];
+                    batch.Clear();
+                    isLoading = false;
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(1);
+                }
+            }
+            if (batch.Count > 0)
+            {
+                products = [..products ?? [], ..batch];
+            }
+        }
+        catch (Exception ex)
+        {
+            await InvokeAsync(() => errorMessage = $"Failed to load products: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            isStreaming = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task LoadProducts()

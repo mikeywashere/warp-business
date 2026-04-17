@@ -1,5 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
 
 namespace WarpBusiness.Web.Services;
 
@@ -125,5 +127,20 @@ public class TaxonomyApiClient
         var response = await _httpClient.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<List<ExternalNodeResponse>>(cancellationToken: ct) ?? [];
+    }
+
+    public async IAsyncEnumerable<ExternalNodeResponse> GetProviderNodesStreamAsync(
+        string provider,
+        [EnumeratorCancellation] CancellationToken ct = default)
+    {
+        using var request = CreateRequest(HttpMethod.Get, $"api/taxonomy/providers/{provider}/nodes/stream");
+        using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        await foreach (var node in JsonSerializer.DeserializeAsyncEnumerable<ExternalNodeResponse>(stream, options, ct))
+        {
+            if (node is not null) yield return node;
+        }
     }
 }

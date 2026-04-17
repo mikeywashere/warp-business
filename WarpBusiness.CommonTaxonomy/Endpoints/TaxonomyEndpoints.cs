@@ -22,6 +22,7 @@ public static class TaxonomyEndpoints
             .RequireAuthorization(new AuthorizeAttribute { Roles = "admin" })
             .WithName("DownloadTaxonomyProvider");
         providers.MapGet("nodes", GetProviderNodes).WithName("GetTaxonomyProviderNodes");
+        providers.MapGet("nodes/stream", StreamProviderNodes).WithName("StreamTaxonomyProviderNodes");
         providers.MapGet("nodes/search", SearchProviderNodes).WithName("SearchTaxonomyProviderNodes");
         providers.MapPost("import", ImportProviderFile)
             .RequireAuthorization(new AuthorizeAttribute { Roles = "admin" })
@@ -77,6 +78,26 @@ public static class TaxonomyEndpoints
         }
 
         return Results.Ok(result);
+    }
+
+    private static async Task<IResult> StreamProviderNodes(
+        string key,
+        CommonTaxonomyDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var provider = await db.Providers.FirstOrDefaultAsync(p => p.Key == key, cancellationToken);
+        if (provider is null)
+            return Results.NotFound(new { message = "Provider not found." });
+
+        var providerId = provider.Id;
+        var stream = db.Nodes
+            .Where(n => n.ProviderId == providerId)
+            .OrderBy(n => n.Depth).ThenBy(n => n.Name)
+            .Include(n => n.Attributes)
+            .AsAsyncEnumerable()
+            .Select(MapNodeResponse);
+
+        return Results.Ok(stream);
     }
 
     private static async Task<IResult> GetProviderNodes(

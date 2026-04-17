@@ -9,6 +9,32 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Progressive Streaming + Batch Rendering Pattern (2026-04-17)
+
+- **Integrated workflow:** API streams via `IAsyncEnumerable<T>` endpoints; Blazor UI consumes stream and renders in fixed-size batches (25 items) with live progress counter.
+- **Batch rendering benefits:** Initial screen population faster (first 25 items arrive while remaining stream downloads). UI remains responsive during large list loads. No artificial pagination UI needed.
+- **Post-mutation reloads:** For add/edit/delete operations, still use bulk endpoint (non-streaming), not incremental append. Reasoning: mutations are rare; load performance only matters on initial/refresh load.
+- **Stream consumption:** `CatalogApiClient.GetProductsStreamAsync()` and `TaxonomyApiClient.GetProviderNodesStreamAsync()` handle header check and lazy deserialization.
+- **Products.razor implementation:** Loop over stream with `foreach await` (wrapped in streaming context), append batch to list, UI re-renders each batch automatically via Blazor binding.
+- **Backward compatibility:** Non-streaming bulk endpoints (`/api/catalog/products`, `/api/taxonomy/providers/{key}/nodes`) remain unchanged; streaming is opt-in via separate routes.
+
+### IAsyncEnumerable Streaming for Products and Taxonomy APIs (2026-04-28)
+
+- **Feature:** Prototype streaming variants for Products and Taxonomy node list endpoints. Allows the Blazor frontend to progressively render data as rows arrive from the database.
+- **API endpoints added:**
+  - `GET /api/catalog/products/stream` — streams all tenant products as a JSON array using `IAsyncEnumerable<ProductResponse>`
+  - `GET /api/taxonomy/providers/{key}/nodes/stream` — streams all flat nodes for a provider ordered by depth then name
+- **Pattern (API side):** Endpoint handler returns `IResult`. For synchronous validation (tenant check / provider lookup) use early `Results.BadRequest`/`Results.NotFound`, then build an `IAsyncEnumerable<T>` via EF Core `.AsAsyncEnumerable().Select(mapper)` and return `Results.Ok(stream)`. ASP.NET Core minimal APIs + System.Text.Json stream the JSON array progressively via `WriteAsJsonAsync`.
+- **EF Core gotcha:** `AsSplitQuery()` is **incompatible** with `AsAsyncEnumerable()`. The streaming endpoint drops split-query and uses a single JOIN query instead. This is acceptable for a prototype; heavy include graphs may produce cartesian-product row bloat, so consider projections for large result sets in production.
+- **Pattern (client side):** Use `HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead)` to get headers without buffering the body, then `JsonSerializer.DeserializeAsyncEnumerable<T>(stream, options, ct)` to deserialize lazily. Method is `async IAsyncEnumerable<T>` with `[EnumeratorCancellation]` on the `CancellationToken` parameter.
+- **Taxonomy streaming:** Streams flat nodes; tree reconstruction (parent/child hierarchy) is left to the caller. `ExternalNodeResponse` DTO is reused — server sends `Attributes` in JSON but the client DTO ignores it, which is intentional for the prototype.
+- **Key files modified:**
+  - `WarpBusiness.Api/Endpoints/CatalogEndpoints.cs` — `StreamProducts` handler + route registration
+  - `WarpBusiness.CommonTaxonomy/Endpoints/TaxonomyEndpoints.cs` — `StreamProviderNodes` handler + route registration
+  - `WarpBusiness.Web/Services/CatalogApiClient.cs` — `GetProductsStreamAsync()` method
+  - `WarpBusiness.Web/Services/TaxonomyApiClient.cs` — `GetProviderNodesStreamAsync()` method
+- **Build result:** 0 errors, 2 pre-existing warnings.
+
 ### Employee-User Data Synchronization (2026-04-11)
 
 - **Feature:** When linking an existing user account to an employee record, automatically populate empty employee fields from matching user record data.
@@ -574,4 +600,20 @@ builder.AddContainer("nginx", "nginx", "alpine")
 - **Key files:**
   - `WarpBusiness.Api/Endpoints/TaxonomyNodeEndpoints.cs` (new)
   - `WarpBusiness.Api/Program.cs` (updated)
+- **Build status:** ✅ 0 errors, 2 pre-existing warnings.
+
+### Blazor SSR Timeout Fix: OnAfterRenderAsync for Data Loading (2026-04-17)
+
+- **Problem:** `TaxonomyImport.razor` timed out on page load with "The operation didn't complete within the allowed timeout of '00:00:30'" because `OnAuthenticatedInitializedAsync` ran API calls during SSR prerender — before the Blazor circuit connected, when the API might not be reachable.
+- **Fix:** Moved all API calls (`LoadProviderStatusAsync`, `LoadExternalNodesAsync`) out of `OnAuthenticatedInitializedAsync` and into `OnAfterRenderAsync(bool firstRender)`. `OnAfterRenderAsync` is **never called during SSR prerender** — it only fires after the interactive Blazor circuit connects.
+- **Pattern:**
+  - `OnAuthenticatedInitializedAsync` → tenant redirect check only (no API calls). Returns `Task.CompletedTask`.
+  - `OnAfterRenderAsync(firstRender: true)` → all API calls, then `isLoading = false`, then `StateHasChanged()`.
+  - SSR phase renders immediately with spinner (`isLoading = true` default).
+  - Interactive phase loads data and re-renders via `StateHasChanged()`.
+- **Key rule:** In Blazor Server with `@rendermode InteractiveServer`, `OnInitializedAsync` / `OnAuthenticatedInitializedAsync` run **twice** (SSR + interactive). Any code that must only run in the interactive phase (API calls, timers, JS interop) belongs in `OnAfterRenderAsync(firstRender: true)`.
+- **Backend fix:** Changed `NodeCount = p.Nodes.Count` to `NodeCount = db.Nodes.Count(n => n.ProviderId == p.Id)` in `GetProviders` — makes the correlated COUNT subquery explicit rather than relying on EF navigation property translation.
+- **Key files:**
+  - `WarpBusiness.Web/Components/Pages/Catalog/TaxonomyImport.razor`
+  - `WarpBusiness.CommonTaxonomy/Endpoints/TaxonomyEndpoints.cs`
 - **Build status:** ✅ 0 errors, 2 pre-existing warnings.

@@ -20,6 +20,7 @@ public static class CatalogEndpoints
         // Products
         var products = app.MapGroup("/api/catalog/products").RequireAuthorization();
         products.MapGet("", GetProducts).WithName("GetCatalogProducts");
+        products.MapGet("stream", StreamProducts).WithName("StreamCatalogProducts");
         products.MapGet("{id:guid}", GetProduct).WithName("GetCatalogProduct");
         products.MapPost("", CreateProduct).WithName("CreateCatalogProduct");
         products.MapPut("{id:guid}", UpdateProduct).WithName("UpdateCatalogProduct");
@@ -263,6 +264,28 @@ public static class CatalogEndpoints
             .ToListAsync(cancellationToken);
 
         return Results.Ok(rawProducts.Select(p => MapProductResponse(p, tenantId.Value)).ToList());
+    }
+
+    private static IResult StreamProducts(
+        HttpContext httpContext,
+        CatalogDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var stream = db.Products
+            .Where(p => p.TenantId == tenantId.Value)
+            .Include(p => p.Category)
+            .Include(p => p.Notations).ThenInclude(pn => pn.Notation)
+            .Include(p => p.Media)
+            .Include(p => p.Variants)
+            .OrderBy(p => p.Name)
+            .AsAsyncEnumerable()
+            .Select(p => MapProductResponse(p, tenantId.Value));
+
+        return Results.Ok(stream);
     }
 
     private static async Task<IResult> GetProduct(
