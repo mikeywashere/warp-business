@@ -26,7 +26,13 @@ public abstract class AuthenticatedComponentBase : ComponentBase
     {
         _logger = LoggerFactory.CreateLogger<AuthenticatedComponentBase>();
         await RestoreOrCaptureTokenAsync();
-        await OnAuthenticatedInitializedAsync();
+        // Skip during SSR prerender (HttpContext != null) to avoid 30-second API timeouts
+        // before the API service is fully ready. Runs again during the interactive circuit
+        // render (HttpContext is null), which is when API calls should be made.
+        if (HttpContextAccessor.HttpContext is null)
+        {
+            await OnAuthenticatedInitializedAsync();
+        }
     }
 
     /// <summary>
