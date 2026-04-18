@@ -178,6 +178,11 @@ builder.Services.AddAuthorizationBuilder()
             // Fallback: check DB-backed role (added by role enrichment middleware)
             return context.User.HasClaim("app_role", "SystemAdministrator");
         });
+    })
+    .AddPolicy("EmployeePortalAccess", policy =>
+    {
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("employee_portal");
     });
 
 // Keycloak Admin API service
@@ -396,6 +401,10 @@ app.MapScheduleTemplateEndpoints();
 app.MapScheduleEndpoints();
 app.MapBreakEndpoints();
 app.MapBreakRuleEndpoints();
+app.MapEmployeePositionEndpoints();
+app.MapEmployeeAvailabilityEndpoints();
+app.MapTimeOffEndpoints();
+app.MapEmployeePortalEndpoints();
 
 var summaries = new[]
 {
