@@ -1,0 +1,230 @@
+@page "/scheduling/calendar"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject SchedulingApiClient SchedulingApi
+@inject NavigationManager Navigation
+
+<PageTitle>Schedule Calendar</PageTitle>
+
+<AuthorizeView Context="authContext">
+    <Authorized>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="mb-0">Schedule Calendar</h2>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+
+        <div class="d-flex align-items-center gap-3 mb-3">
+            <button class="btn btn-outline-secondary btn-sm" @onclick="PrevMonth">← Prev</button>
+            <span class="cal-heading">@currentMonth.ToString("MMMM yyyy")</span>
+            <button class="btn btn-outline-secondary btn-sm" @onclick="NextMonth">Next →</button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="cal-grid">
+                @foreach (var dow in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+                {
+                    <div class="cal-dow-header">@dow</div>
+                }
+                @foreach (var cell in calendarCells)
+                {
+                    @if (cell.IsCurrentMonth)
+                    {
+                        var isToday = cell.Date == DateOnly.FromDateTime(DateTime.Today);
+                        var dayShifts = GetShiftsForDay(cell.Date);
+                        var visibleShifts = dayShifts.Take(3).ToList();
+                        var extraCount = dayShifts.Count - visibleShifts.Count;
+                        <div class="cal-cell @(isToday ? "cal-today" : "")">
+                            <div class="cal-date-num">@cell.Date.Day</div>
+                            @foreach (var shift in visibleShifts)
+                            {
+                                <div class="shift-chip" style="border-left: 3px solid @shift.PositionColor;"
+                                     title="@shift.ScheduleName — @shift.PositionName">
+                                    @shift.StartTime.ToString("h:mm tt") – @shift.EndTime.ToString("h:mm tt") · @shift.EmployeeFirstName @shift.EmployeeLastName
+                                </div>
+                            }
+                            @if (extraCount > 0)
+                            {
+                                <span class="badge bg-secondary mt-1">+@extraCount more</span>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="cal-cell cal-outside">
+                            <div class="cal-date-num cal-outside-num">@cell.Date.Day</div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+<style>
+    .cal-heading {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--clr-accent);
+        min-width: 180px;
+        text-align: center;
+    }
+
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        border-top: 1px solid var(--clr-border);
+        border-left: 1px solid var(--clr-border);
+    }
+
+    .cal-dow-header {
+        background: var(--clr-bg);
+        color: var(--clr-accent);
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 6px 0;
+        border-right: 1px solid var(--clr-border);
+        border-bottom: 1px solid var(--clr-border);
+        letter-spacing: 0.05em;
+    }
+
+    .cal-cell {
+        min-height: 110px;
+        padding: 4px 5px;
+        border-right: 1px solid var(--clr-border);
+        border-bottom: 1px solid var(--clr-border);
+        vertical-align: top;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .cal-today {
+        outline: 2px solid var(--clr-accent);
+        outline-offset: -2px;
+        background: rgba(0, 200, 255, 0.05) !important;
+    }
+
+    .cal-outside {
+        background: rgba(0, 0, 0, 0.18) !important;
+    }
+
+    .cal-date-num {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--clr-text);
+        margin-bottom: 3px;
+    }
+
+    .cal-outside-num {
+        color: rgba(255, 255, 255, 0.2);
+    }
+
+    .shift-chip {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
+        padding: 2px 5px;
+        margin-bottom: 2px;
+        font-size: 0.72rem;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        color: var(--clr-text);
+    }
+</style>
+
+@code {
+    private DateOnly currentMonth;
+    private List<CalendarShiftResponse> calendarShifts = [];
+    private List<CalendarCell> calendarCells = [];
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+        {
+            currentMonth = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+            await LoadCalendar();
+        }
+    }
+
+    private async Task LoadCalendar()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            var firstDay = currentMonth;
+            var lastDay = currentMonth.AddMonths(1).AddDays(-1);
+            calendarShifts = await SchedulingApi.GetCalendarAsync(firstDay, lastDay) ?? [];
+            BuildCalendarCells();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load calendar: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void BuildCalendarCells()
+    {
+        calendarCells = [];
+        var firstDay = currentMonth;
+        var lastDay = currentMonth.AddMonths(1).AddDays(-1);
+
+        int leadingDays = (int)firstDay.DayOfWeek;
+        for (int i = leadingDays - 1; i >= 0; i--)
+            calendarCells.Add(new CalendarCell(firstDay.AddDays(-i - 1), false));
+
+        for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
+            calendarCells.Add(new CalendarCell(d, true));
+
+        int remainder = calendarCells.Count % 7;
+        if (remainder != 0)
+        {
+            int trailing = 7 - remainder;
+            for (int i = 1; i <= trailing; i++)
+                calendarCells.Add(new CalendarCell(lastDay.AddDays(i), false));
+        }
+    }
+
+    private List<CalendarShiftResponse> GetShiftsForDay(DateOnly date) =>
+        calendarShifts.Where(s => s.Date == date).OrderBy(s => s.StartTime).ToList();
+
+    private async Task PrevMonth()
+    {
+        currentMonth = currentMonth.AddMonths(-1);
+        await LoadCalendar();
+    }
+
+    private async Task NextMonth()
+    {
+        currentMonth = currentMonth.AddMonths(1);
+        await LoadCalendar();
+    }
+
+    private record CalendarCell(DateOnly Date, bool IsCurrentMonth);
+}

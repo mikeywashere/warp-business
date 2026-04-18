@@ -629,3 +629,19 @@ builder.AddContainer("nginx", "nginx", "alpine")
   - `WarpBusiness.Web/Components/Pages/Catalog/TaxonomyImport.razor`
   - `WarpBusiness.CommonTaxonomy/Endpoints/TaxonomyEndpoints.cs`
 - **Build status:** ✅ 0 errors, 2 pre-existing warnings.
+
+## Learnings
+
+### Calendar API + Portal Date Range (2026-04-19)
+- **Task:** Added admin calendar endpoint and made portal schedule accept date range query params.
+- **New endpoint:** GET /api/scheduling/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD — requires SystemAdministrator policy, 90-day range cap, cross-context join (SchedulingDbContext + EmployeeDbContext merged in memory).
+- **Pattern confirmation:** Cross-context joins follow the established pattern: query each DbContext separately, merge via in-memory dictionary keyed on entity ID.
+- **Portal change:** GetSchedule in EmployeePortalEndpoints.cs now accepts optional rom/	o query params (defaults: today / today+28). Range capped at 93 days.
+- **Client updates:** SchedulingApiClient got CalendarShiftResponse record + GetCalendarAsync(DateOnly, DateOnly). EmployeePortalApiClient.GetScheduleAsync signature updated to accept optional DateOnly? params.
+- **Key files:**
+  - WarpBusiness.Api/Endpoints/ScheduleCalendarEndpoints.cs (new)
+  - WarpBusiness.Api/Endpoints/EmployeePortalEndpoints.cs (updated GetSchedule)
+  - WarpBusiness.Api/Program.cs (registered MapScheduleCalendarEndpoints)
+  - WarpBusiness.Web/Services/SchedulingApiClient.cs (CalendarShiftResponse + GetCalendarAsync)
+  - WarpBusiness.EmployeePortal/Services/EmployeePortalApiClient.cs (GetScheduleAsync updated)
+- **Build status:** ✅ 0 errors, 2 pre-existing warnings.

@@ -4,7 +4,17 @@
 @inject WarpBusiness.EmployeePortal.Services.EmployeePortalApiClient Api
 
 <PageTitle>My Schedule</PageTitle>
-<h1 class="mb-4">My Schedule</h1>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">My Schedule</h1>
+    @if (!isLoading && string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="btn-group btn-group-sm">
+            <button class="btn @(viewMode == "list" ? "btn-primary" : "btn-outline-secondary")" @onclick='() => SetView("list")'>☰ List</button>
+            <button class="btn @(viewMode == "calendar" ? "btn-primary" : "btn-outline-secondary")" @onclick='() => SetView("calendar")'>📅 Calendar</button>
+        </div>
+    }
+</div>
 
 @if (isLoading)
 {
@@ -16,44 +26,168 @@ else if (!string.IsNullOrEmpty(errorMessage))
 {
     <div class="alert alert-warning">@errorMessage</div>
 }
-else if (shifts.Count == 0)
+else if (viewMode == "list")
 {
-    <div class="alert alert-info">No upcoming shifts scheduled.</div>
-}
-else
-{
-    @foreach (var (week, weekShifts) in groupedByWeek)
+    @if (shifts.Count == 0)
     {
-        <h5 class="mt-4 mb-2" style="color: var(--clr-accent);">Week of @week</h5>
-        @foreach (var shift in weekShifts)
+        <div class="alert alert-info">No upcoming shifts scheduled.</div>
+    }
+    else
+    {
+        @foreach (var (week, weekShifts) in groupedByWeek)
         {
-            <div class="card mb-2">
-                <div class="card-body py-2">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>@shift.Date.ToString("dddd, MMMM d")</strong>
-                            <span class="ms-3 text-muted">@shift.ScheduledStart.ToString("h:mm tt") – @shift.ScheduledEnd.ToString("h:mm tt")</span>
+            <h5 class="mt-4 mb-2" style="color: var(--clr-accent);">Week of @week</h5>
+            @foreach (var shift in weekShifts)
+            {
+                <div class="card mb-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>@shift.Date.ToString("dddd, MMMM d")</strong>
+                                <span class="ms-3 text-muted">@shift.ScheduledStart.ToString("h:mm tt") – @shift.ScheduledEnd.ToString("h:mm tt")</span>
+                            </div>
+                            <span class="badge @GetStatusBadge(shift.Status)">@shift.Status</span>
                         </div>
-                        <span class="badge @GetStatusBadge(shift.Status)">@shift.Status</span>
+                        @if (!string.IsNullOrEmpty(shift.Notes))
+                        {
+                            <small class="text-muted">@shift.Notes</small>
+                        }
                     </div>
-                    @if (!string.IsNullOrEmpty(shift.Notes))
-                    {
-                        <small class="text-muted">@shift.Notes</small>
-                    }
                 </div>
-            </div>
+            }
         }
     }
 }
+else
+{
+    <div class="d-flex align-items-center gap-3 mb-3">
+        <button class="btn btn-outline-secondary btn-sm" @onclick="PrevCalendarMonth">← Prev</button>
+        <span class="portal-cal-heading">@calendarMonth.ToString("MMMM yyyy")</span>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="NextCalendarMonth">Next →</button>
+    </div>
+
+    @if (calendarLoading)
+    {
+        <div class="d-flex justify-content-center my-4">
+            <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+        </div>
+    }
+    else
+    {
+        <div class="portal-cal-grid">
+            @foreach (var dow in new[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" })
+            {
+                <div class="portal-cal-dow">@dow</div>
+            }
+            @foreach (var cell in portalCalendarCells)
+            {
+                @if (cell.IsCurrentMonth)
+                {
+                    var isToday = cell.Date == DateOnly.FromDateTime(DateTime.Today);
+                    var dayShifts = GetPortalShiftsForDay(cell.Date);
+                    <div class="portal-cal-cell @(isToday ? "portal-cal-today" : "")">
+                        <div class="portal-cal-date">@cell.Date.Day</div>
+                        @foreach (var shift in dayShifts)
+                        {
+                            <div class="portal-shift-chip" style="background: @GetStatusColor(shift.Status);">
+                                @shift.ScheduledStart.ToString("h:mm tt")–@shift.ScheduledEnd.ToString("h:mm tt")
+                                <span class="badge @GetStatusBadge(shift.Status) ms-1" style="font-size:0.6rem;">@shift.Status</span>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="portal-cal-cell portal-cal-outside">
+                        <div class="portal-cal-date portal-cal-outside-date">@cell.Date.Day</div>
+                    </div>
+                }
+            }
+        </div>
+    }
+}
+
+<style>
+    .portal-cal-heading {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--clr-accent);
+        min-width: 160px;
+        text-align: center;
+    }
+
+    .portal-cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        border-top: 1px solid var(--clr-border);
+        border-left: 1px solid var(--clr-border);
+    }
+
+    .portal-cal-dow {
+        background: var(--clr-bg);
+        color: var(--clr-accent);
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.82rem;
+        padding: 5px 0;
+        border-right: 1px solid var(--clr-border);
+        border-bottom: 1px solid var(--clr-border);
+    }
+
+    .portal-cal-cell {
+        min-height: 90px;
+        padding: 4px 5px;
+        border-right: 1px solid var(--clr-border);
+        border-bottom: 1px solid var(--clr-border);
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    .portal-cal-today {
+        outline: 2px solid var(--clr-accent);
+        outline-offset: -2px;
+        background: rgba(0, 200, 255, 0.05) !important;
+    }
+
+    .portal-cal-outside {
+        background: rgba(0, 0, 0, 0.18) !important;
+    }
+
+    .portal-cal-date {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--clr-text);
+        margin-bottom: 2px;
+    }
+
+    .portal-cal-outside-date {
+        color: rgba(255, 255, 255, 0.2);
+    }
+
+    .portal-shift-chip {
+        border-radius: 4px;
+        padding: 2px 5px;
+        margin-bottom: 2px;
+        font-size: 0.7rem;
+        line-height: 1.4;
+        color: var(--clr-text);
+    }
+</style>
 
 @code {
     private List<WarpBusiness.Api.Endpoints.PortalShiftResponse> shifts = [];
     private List<(string Week, List<WarpBusiness.Api.Endpoints.PortalShiftResponse> Shifts)> groupedByWeek = [];
+    private List<WarpBusiness.Api.Endpoints.PortalShiftResponse> calendarShifts = [];
+    private List<PortalCalendarCell> portalCalendarCells = [];
+
+    private string viewMode = "calendar";
+    private DateOnly calendarMonth;
     private bool isLoading = true;
+    private bool calendarLoading = false;
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
+        calendarMonth = DateOnly.FromDateTime(DateTime.Today).AddDays(-(DateTime.Today.Day - 1));
         try
         {
             var profile = await Api.GetMeAsync();
@@ -63,12 +197,7 @@ else
                 return;
             }
 
-            shifts = await Api.GetScheduleAsync();
-
-            groupedByWeek = shifts
-                .GroupBy(s => GetWeekStart(s.Date).ToString("MMM d, yyyy"))
-                .Select(g => (g.Key, g.OrderBy(s => s.Date).ThenBy(s => s.ScheduledStart).ToList()))
-                .ToList();
+            await LoadCalendarMonth();
         }
         catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
         {
@@ -82,6 +211,80 @@ else
         {
             isLoading = false;
         }
+    }
+
+    private async Task LoadCalendarMonth()
+    {
+        try
+        {
+            calendarLoading = true;
+            StateHasChanged();
+            var from = calendarMonth;
+            var to = calendarMonth.AddMonths(1).AddDays(-1);
+            calendarShifts = await Api.GetScheduleAsync(from, to);
+            BuildPortalCalendarCells();
+        }
+        finally
+        {
+            calendarLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadListView()
+    {
+        if (shifts.Count > 0) return;
+        shifts = await Api.GetScheduleAsync();
+        groupedByWeek = shifts
+            .GroupBy(s => GetWeekStart(s.Date).ToString("MMM d, yyyy"))
+            .Select(g => (g.Key, g.OrderBy(s => s.Date).ThenBy(s => s.ScheduledStart).ToList()))
+            .ToList();
+    }
+
+    private void BuildPortalCalendarCells()
+    {
+        portalCalendarCells = [];
+        var firstDay = calendarMonth;
+        var lastDay = calendarMonth.AddMonths(1).AddDays(-1);
+
+        int leadingDays = (int)firstDay.DayOfWeek;
+        for (int i = leadingDays - 1; i >= 0; i--)
+            portalCalendarCells.Add(new PortalCalendarCell(firstDay.AddDays(-i - 1), false));
+
+        for (var d = firstDay; d <= lastDay; d = d.AddDays(1))
+            portalCalendarCells.Add(new PortalCalendarCell(d, true));
+
+        int remainder = portalCalendarCells.Count % 7;
+        if (remainder != 0)
+        {
+            int trailing = 7 - remainder;
+            for (int i = 1; i <= trailing; i++)
+                portalCalendarCells.Add(new PortalCalendarCell(lastDay.AddDays(i), false));
+        }
+    }
+
+    private List<WarpBusiness.Api.Endpoints.PortalShiftResponse> GetPortalShiftsForDay(DateOnly date) =>
+        calendarShifts.Where(s => s.Date == date).OrderBy(s => s.ScheduledStart).ToList();
+
+    private async Task SetView(string mode)
+    {
+        viewMode = mode;
+        if (mode == "list" && shifts.Count == 0)
+            await LoadListView();
+        else if (mode == "calendar" && portalCalendarCells.Count == 0)
+            await LoadCalendarMonth();
+    }
+
+    private async Task PrevCalendarMonth()
+    {
+        calendarMonth = calendarMonth.AddMonths(-1);
+        await LoadCalendarMonth();
+    }
+
+    private async Task NextCalendarMonth()
+    {
+        calendarMonth = calendarMonth.AddMonths(1);
+        await LoadCalendarMonth();
     }
 
     private static DateOnly GetWeekStart(DateOnly date)
@@ -99,4 +302,17 @@ else
         WarpBusiness.Scheduling.Models.ShiftStatus.NoShow => "bg-warning text-dark",
         _ => "bg-info"
     };
+
+    private static string GetStatusColor(WarpBusiness.Scheduling.Models.ShiftStatus status) => status switch
+    {
+        WarpBusiness.Scheduling.Models.ShiftStatus.Confirmed => "rgba(25, 135, 84, 0.25)",
+        WarpBusiness.Scheduling.Models.ShiftStatus.InProgress => "rgba(13, 110, 253, 0.25)",
+        WarpBusiness.Scheduling.Models.ShiftStatus.Completed => "rgba(108, 117, 125, 0.25)",
+        WarpBusiness.Scheduling.Models.ShiftStatus.Cancelled => "rgba(220, 53, 69, 0.25)",
+        WarpBusiness.Scheduling.Models.ShiftStatus.NoShow => "rgba(255, 193, 7, 0.25)",
+        _ => "rgba(13, 202, 240, 0.25)"
+    };
+
+    private record PortalCalendarCell(DateOnly Date, bool IsCurrentMonth);
 }
+

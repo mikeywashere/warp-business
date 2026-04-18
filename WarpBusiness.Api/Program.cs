@@ -405,6 +405,7 @@ app.MapEmployeePositionEndpoints();
 app.MapEmployeeAvailabilityEndpoints();
 app.MapTimeOffEndpoints();
 app.MapShiftReplacementEndpoints();
+app.MapScheduleCalendarEndpoints();
 app.MapEmployeePortalEndpoints();
 
 var summaries = new[]

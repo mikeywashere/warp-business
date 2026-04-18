@@ -57,6 +57,22 @@ public record ShiftResponse(Guid Id, Guid ScheduleId, Guid EmployeeId, Guid Posi
 public record CreateShiftRequest(Guid EmployeeId, Guid PositionId, DateOnly Date, TimeOnly ScheduledStartTime, TimeOnly ScheduledEndTime, string? Notes);
 public record UpdateShiftRequest(Guid EmployeeId, Guid PositionId, TimeOnly ScheduledStartTime, TimeOnly ScheduledEndTime, TimeOnly? ActualStartTime, TimeOnly? ActualEndTime, ShiftStatus Status, string? Notes);
 
+public record CalendarShiftResponse(
+    Guid ShiftId,
+    Guid ScheduleId,
+    string ScheduleName,
+    DateOnly Date,
+    TimeOnly StartTime,
+    TimeOnly EndTime,
+    Guid EmployeeId,
+    string EmployeeFirstName,
+    string EmployeeLastName,
+    Guid PositionId,
+    string PositionName,
+    string PositionColor,
+    ShiftStatus Status,
+    string? Notes);
+
 // ── Break DTOs ────────────────────────────────────────────────────────────────
 
 public record BreakResponseDto(Guid Id, Guid ShiftId, BreakType BreakType, bool IsPaid,
@@ -295,4 +311,9 @@ public class SchedulingApiClient(HttpClient http)
     // Employee Availability (Admin)
     public Task<List<AdminAvailabilityResponse>?> GetEmployeeAvailabilityAsync(Guid employeeId) =>
         http.GetFromJsonAsync<List<AdminAvailabilityResponse>>($"/api/scheduling/employees/{employeeId}/availability", JsonOptions);
+
+    // Calendar
+    public Task<List<CalendarShiftResponse>?> GetCalendarAsync(DateOnly from, DateOnly to) =>
+        http.GetFromJsonAsync<List<CalendarShiftResponse>>(
+            $"/api/scheduling/calendar?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", JsonOptions);
 }

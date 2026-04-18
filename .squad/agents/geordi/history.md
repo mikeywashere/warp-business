@@ -9,6 +9,16 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Calendar Views — Admin & Employee Portal (2026-04-25)
+
+- **Month-view calendar pattern:** Use CSS Grid with `grid-template-columns: repeat(7, 1fr)` for the 7-day layout. Leading/trailing cells for days outside the current month are pre-computed in `BuildCalendarCells()` using `DayOfWeek` offset.
+- **`CalendarShiftResponse` already defined** in `WarpBusiness.Web/Services/SchedulingApiClient.cs` (along with `GetCalendarAsync(DateOnly from, DateOnly to)`). Data completed that work.
+- **`GetScheduleAsync` already updated** in `EmployeePortalApiClient.cs` with optional `DateOnly? from, DateOnly? to` params before Geordi's work began.
+- **Portal calendar uses status color tints** (`GetStatusColor`) for chip backgrounds instead of position colors (not available in portal response). Status badge is also shown inline on each chip.
+- **Lazy list loading in portal:** Default view is "calendar"; list data is loaded on first switch to list view (`shifts.Count == 0` guard). Calendar data is loaded on init and on month navigation.
+- **`calendarLoading` vs `isLoading`:** Two separate flags — `isLoading` for initial full-page load, `calendarLoading` for month navigation spinner within the calendar view.
+- **`BuildCalendarCells` leading-cell formula:** `for (int i = leadingDays - 1; i >= 0; i--) → firstDay.AddDays(-i - 1)` correctly generates Sun–Sat leading blanks. Trailing cells: `7 - (count % 7)` to complete the last row.
+
 ### Progressive Streaming + Batch Rendering Pattern (2026-04-17)
 
 - **Integrated workflow:** API streams via `IAsyncEnumerable<T>` endpoints; Blazor UI consumes stream and renders in fixed-size batches (25 items) with live progress counter.

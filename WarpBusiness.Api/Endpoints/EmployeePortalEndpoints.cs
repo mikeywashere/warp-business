@@ -57,7 +57,12 @@ public static class EmployeePortalEndpoints
             emp.PortalCanManageAvailability, emp.PortalCanRequestTimeOff));
     }
 
-    private static async Task<IResult> GetSchedule(HttpContext context, EmployeeDbContext empDb, SchedulingDbContext schedDb)
+    private static async Task<IResult> GetSchedule(
+        HttpContext context,
+        EmployeeDbContext empDb,
+        SchedulingDbContext schedDb,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? from = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? to = null)
     {
         var (err, emp) = await ResolveEmployee(context, empDb);
         if (err is not null) return err;
@@ -65,11 +70,17 @@ public static class EmployeePortalEndpoints
             return Results.Json(new { message = "Schedule access not enabled." }, statusCode: 403);
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var until = today.AddDays(28);
+        var fromDate = DateOnly.TryParseExact(from, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var parsedFrom)
+            ? parsedFrom : today;
+        var toDate = DateOnly.TryParseExact(to, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out var parsedTo)
+            ? parsedTo : fromDate.AddDays(28);
+
+        if (toDate.DayNumber - fromDate.DayNumber > 93)
+            toDate = fromDate.AddDays(93);
 
         var shifts = await schedDb.ScheduleShifts
             .Include(s => s.Schedule)
-            .Where(s => s.EmployeeId == emp.Id && s.Date >= today && s.Date <= until)
+            .Where(s => s.EmployeeId == emp.Id && s.Date >= fromDate && s.Date <= toDate)
             .OrderBy(s => s.Date).ThenBy(s => s.ScheduledStartTime)
             .Select(s => new PortalShiftResponse(
                 s.Id, s.Date, s.ScheduledStartTime, s.ScheduledEndTime,

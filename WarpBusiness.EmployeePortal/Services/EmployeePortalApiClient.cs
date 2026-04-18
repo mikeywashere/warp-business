@@ -60,9 +60,12 @@ public class EmployeePortalApiClient
         return await res.Content.ReadFromJsonAsync<EmployeePortalProfileResponse>(JsonOptions);
     }
 
-    public async Task<List<PortalShiftResponse>> GetScheduleAsync()
+    public async Task<List<PortalShiftResponse>> GetScheduleAsync(DateOnly? from = null, DateOnly? to = null)
     {
-        using var req = CreateRequest(HttpMethod.Get, "api/employee-portal/me/schedule");
+        var url = "api/employee-portal/me/schedule";
+        if (from.HasValue && to.HasValue)
+            url += $"?from={from.Value:yyyy-MM-dd}&to={to.Value:yyyy-MM-dd}";
+        using var req = CreateRequest(HttpMethod.Get, url);
         var res = await _http.SendAsync(req);
         if (!res.IsSuccessStatusCode) throw new ApiException((int)res.StatusCode, await res.Content.ReadAsStringAsync());
         return await res.Content.ReadFromJsonAsync<List<PortalShiftResponse>>(JsonOptions) ?? [];

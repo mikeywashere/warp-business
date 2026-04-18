@@ -190,3 +190,78 @@ Override Bootstrap utility classes globally in `app.css` to use Warp design toke
 - ✅ 253-line override applied to `app.css` covering all major Bootstrap components
 - ⚠️ `!important` on utility overrides needed to beat Bootstrap's specificity — acceptable for a global theme override
 - ⚠️ Any new Bootstrap utility classes used in future components should be audited against the dark theme
+
+---
+
+### 7. Calendar API Endpoint Design
+
+**Date:** 2026-04-19  
+**Author:** Data (Backend Dev)  
+**Status:** Active
+
+#### Context
+Added `GET /api/scheduling/calendar` to support calendar views in the scheduling UI. Also updated the employee portal schedule endpoint to accept flexible date ranges instead of a hardcoded 28-day window.
+
+#### Decisions
+
+**Calendar endpoint uses SystemAdministrator policy (not a raw `[Authorize(Roles="admin")]`)**  
+Consistent with all other admin scheduling endpoints (ShiftReplacementEndpoints, etc.) which use `.RequireAuthorization("SystemAdministrator")`. The `SystemAdministrator` policy has multi-claim logic (handles both `roles` and `app_role` claims from Keycloak) and should always be used instead of raw role strings.
+
+**90-day cap on calendar range**  
+Prevents unbounded queries against shifts. Portal schedule endpoint uses a separate 93-day cap (3 calendar months) since portal users have a slightly different usage pattern.
+
+**Cross-context merge is done in memory**  
+ScheduleShifts are loaded with `.Include(s => s.Schedule)` for the Schedule.Name and Schedule.TenantId. Positions and employees are queried separately, then merged via `Dictionary<Guid, T>` lookups. This is the established pattern across ShiftReplacementEndpoints and EmployeePortalEndpoints — no cross-context EF navigation.
+
+**CalendarShiftResponse record lives in the endpoint file**  
+Not in a separate models file. Consistent with how all other endpoint response records are co-located in their endpoint files in this codebase.
+
+**EmployeePortalApiClient.GetScheduleAsync stays backward-compatible**  
+Existing callers that call `GetScheduleAsync()` with no args still work — defaults to (null, null) which omits the query string, and the API defaults to today+28 days.
+
+#### Consequences
+- ✅ Calendar endpoint follows established authorization, date-range, and cross-context patterns.
+- ✅ Portal schedule is now flexible — supports weekly, monthly, and custom views.
+- ✅ No breaking changes to existing callers.
+- ⚠️ Shifts referencing employees or positions not found in their respective contexts are silently excluded from results (consistent with replacement candidates endpoint behavior).
+
+---
+
+### 8. Calendar UI — Admin & Employee Portal
+
+**Date:** 2026-04-25  
+**Author:** Geordi (Frontend Dev)  
+**Status:** Active
+
+#### Context
+The scheduling module had a schedule builder and schedule list pages but no cross-schedule calendar view. Admins needed a way to see all published shifts across all schedules in a month layout. Employees needed a calendar alternative to the existing list view on the My Schedule portal page.
+
+#### Decisions
+
+**Admin Calendar (`/scheduling/calendar`)**
+- **New page:** `WarpBusiness.Web/Components/Pages/Scheduling/ScheduleCalendar.razor`
+- **Route:** `@page "/scheduling/calendar"`
+- **Auth pattern:** Same as `ScheduleBuilder.razor` — `@inherits AuthenticatedComponentBase`, `@rendermode InteractiveServer`, `@attribute [Authorize]`, `<AuthorizeView>` wrapper, load in `OnAfterRenderAsync(firstRender)`.
+- **Data source:** `SchedulingApiClient.GetCalendarAsync(firstDay, lastDay)` returns `List<CalendarShiftResponse>`.
+- **Calendar grid:** CSS Grid `repeat(7, 1fr)` with Sun–Sat headers.
+- **Shift chips:** `border-left: 3px solid {PositionColor}`, `rgba(255,255,255,0.05)` background, show `{StartTime}–{EndTime} · {FirstName} {LastName}`, `title` attribute with schedule+position name.
+- **Overflow:** First 3 shifts shown; `+N more` badge for remainder (no click action yet).
+- **Today highlight:** `outline: 2px solid var(--clr-accent); background: rgba(0,200,255,0.05)`.
+- **Nav link:** Added "📅 Calendar" as first item in the Scheduling dropdown in `NavMenu.razor`.
+
+**Employee Portal Calendar (`/schedule` — `MySchedule.razor`)**
+- **Toggle:** `btn-group btn-group-sm` at top-right with ☰ List and 📅 Calendar buttons.
+- **Default view:** `viewMode = "calendar"` — calendar opens by default.
+- **Lazy list loading:** List data only fetched when user first switches to list view.
+- **Calendar data:** Separate `calendarShifts` list from `Api.GetScheduleAsync(from, to)` with optional date params.
+- **Shift chips:** Status-color-tinted background (no `PositionColor` in portal response).
+- **Month navigation:** `PrevCalendarMonth` / `NextCalendarMonth` reload `calendarShifts` for the new month.
+- **Two loading states:** `isLoading` (initial full-page) and `calendarLoading` (month nav spinner inside calendar view).
+
+#### Consequences
+- ✅ Admins can view all shifts across all published schedules in a unified month calendar
+- ✅ Employees get a visual calendar as the default view with easy month navigation
+- ✅ Portal list view is preserved unchanged; lazy-loaded on first switch
+- ✅ Build: 0 errors, 0 warnings
+- ⚠️ Admin calendar chips are truncated for dense days — "+N more" badge provides count but no drill-down yet
+- ⚠️ Portal calendar shows no position name/color (not in `PortalShiftResponse`) — status color used as substitute
