@@ -17,6 +17,9 @@ public class SchedulingDbContext : DbContext
     public DbSet<ScheduleShift> ScheduleShifts => Set<ScheduleShift>();
     public DbSet<ScheduleBreak> ScheduleBreaks => Set<ScheduleBreak>();
     public DbSet<BreakRule> BreakRules => Set<BreakRule>();
+    public DbSet<EmployeePosition> EmployeePositions => Set<EmployeePosition>();
+    public DbSet<EmployeeAvailability> EmployeeAvailabilities => Set<EmployeeAvailability>();
+    public DbSet<TimeOffRequest> TimeOffRequests => Set<TimeOffRequest>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -126,6 +129,38 @@ public class SchedulingDbContext : DbContext
                 .HasConversion<string>()
                 .HasMaxLength(20);
             entity.Property(e => e.Notes).HasMaxLength(2000);
+        });
+
+        modelBuilder.Entity<EmployeePosition>(entity =>
+        {
+            entity.HasKey(e => new { e.EmployeeId, e.PositionId });
+            entity.HasIndex(e => e.PositionId);
+            entity.HasIndex(e => e.TenantId);
+
+            entity.HasOne(e => e.Position)
+                .WithMany()
+                .HasForeignKey(e => e.PositionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<EmployeeAvailability>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.EmployeeId, e.DayOfWeek }).IsUnique();
+            entity.HasIndex(e => new { e.EmployeeId, e.TenantId });
+            entity.Property(e => e.Notes).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<TimeOffRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.EmployeeId);
+            entity.HasIndex(e => new { e.EmployeeId, e.Status });
+            entity.Property(e => e.Type).HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.Notes).HasMaxLength(2000);
+            entity.Property(e => e.ReviewerNotes).HasMaxLength(2000);
         });
     }
 }
