@@ -1,0 +1,34 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom" style="border-bottom-color: var(--clr-border) !important;">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <span style="color: var(--clr-accent); font-weight: bold; font-family: var(--font-heading);">&#9889; EMPLOYEE PORTAL</span>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto">
+                <AuthorizeView>
+                    <Authorized>
+                        <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/hours">Hours Worked</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/schedule">My Schedule</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/availability">My Availability</a></li>
+                        <li class="nav-item"><a class="nav-link" href="/time-off">Time Off</a></li>
+                    </Authorized>
+                </AuthorizeView>
+            </ul>
+            <div class="d-flex align-items-center">
+                <AuthorizeView>
+                    <Authorized>
+                        <span class="text-light me-3">@context.User.Identity?.Name</span>
+                        <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a href="/login" class="btn btn-outline-light btn-sm">Login</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
+        </div>
+    </div>
+</nav>

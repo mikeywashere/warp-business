@@ -1,0 +1,90 @@
+@page "/hours"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@inject WarpBusiness.EmployeePortal.Services.EmployeePortalApiClient Api
+
+<PageTitle>Hours Worked</PageTitle>
+<h1 class="mb-4">Hours Worked</h1>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+else if (shifts.Count == 0)
+{
+    <div class="alert alert-info">No completed shifts found.</div>
+}
+else
+{
+    <div class="mb-3">
+        <strong>Total Hours:</strong> @totalHours.ToString("F2") hrs
+    </div>
+
+    @foreach (var (month, monthShifts) in groupedByMonth)
+    {
+        <h5 class="mt-4 mb-2" style="color: var(--clr-accent);">@month</h5>
+        <div class="table-responsive mb-3">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Hours</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var shift in monthShifts)
+                    {
+                        var hours = (shift.ActualEnd.ToTimeSpan() - shift.ActualStart.ToTimeSpan()).TotalHours;
+                        <tr>
+                            <td>@shift.Date.ToString("ddd, MMM d, yyyy")</td>
+                            <td>@shift.ActualStart.ToString("h:mm tt")</td>
+                            <td>@shift.ActualEnd.ToString("h:mm tt")</td>
+                            <td>@hours.ToString("F2")</td>
+                            <td><span class="badge bg-success">@shift.Status</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private List<WarpBusiness.Api.Endpoints.PortalHoursResponse> shifts = [];
+    private List<(string Month, List<WarpBusiness.Api.Endpoints.PortalHoursResponse> Shifts)> groupedByMonth = [];
+    private double totalHours;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            shifts = await Api.GetHoursAsync();
+
+            totalHours = shifts.Sum(s => (s.ActualEnd.ToTimeSpan() - s.ActualStart.ToTimeSpan()).TotalHours);
+
+            groupedByMonth = shifts
+                .GroupBy(s => s.Date.ToString("MMMM yyyy"))
+                .Select(g => (g.Key, g.OrderByDescending(s => s.Date).ToList()))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load hours: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

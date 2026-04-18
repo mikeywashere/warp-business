@@ -1,0 +1,102 @@
+@page "/schedule"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@inject WarpBusiness.EmployeePortal.Services.EmployeePortalApiClient Api
+
+<PageTitle>My Schedule</PageTitle>
+<h1 class="mb-4">My Schedule</h1>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-warning">@errorMessage</div>
+}
+else if (shifts.Count == 0)
+{
+    <div class="alert alert-info">No upcoming shifts scheduled.</div>
+}
+else
+{
+    @foreach (var (week, weekShifts) in groupedByWeek)
+    {
+        <h5 class="mt-4 mb-2" style="color: var(--clr-accent);">Week of @week</h5>
+        @foreach (var shift in weekShifts)
+        {
+            <div class="card mb-2">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>@shift.Date.ToString("dddd, MMMM d")</strong>
+                            <span class="ms-3 text-muted">@shift.ScheduledStart.ToString("h:mm tt") – @shift.ScheduledEnd.ToString("h:mm tt")</span>
+                        </div>
+                        <span class="badge @GetStatusBadge(shift.Status)">@shift.Status</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(shift.Notes))
+                    {
+                        <small class="text-muted">@shift.Notes</small>
+                    }
+                </div>
+            </div>
+        }
+    }
+}
+
+@code {
+    private List<WarpBusiness.Api.Endpoints.PortalShiftResponse> shifts = [];
+    private List<(string Week, List<WarpBusiness.Api.Endpoints.PortalShiftResponse> Shifts)> groupedByWeek = [];
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await Api.GetMeAsync();
+            if (!profile?.CanViewSchedule ?? true)
+            {
+                errorMessage = "Schedule access is not enabled for your account. Please contact your manager.";
+                return;
+            }
+
+            shifts = await Api.GetScheduleAsync();
+
+            groupedByWeek = shifts
+                .GroupBy(s => GetWeekStart(s.Date).ToString("MMM d, yyyy"))
+                .Select(g => (g.Key, g.OrderBy(s => s.Date).ThenBy(s => s.ScheduledStart).ToList()))
+                .ToList();
+        }
+        catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load schedule: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static DateOnly GetWeekStart(DateOnly date)
+    {
+        int daysFromSunday = (int)date.DayOfWeek;
+        return date.AddDays(-daysFromSunday);
+    }
+
+    private static string GetStatusBadge(WarpBusiness.Scheduling.Models.ShiftStatus status) => status switch
+    {
+        WarpBusiness.Scheduling.Models.ShiftStatus.Confirmed => "bg-success",
+        WarpBusiness.Scheduling.Models.ShiftStatus.InProgress => "bg-primary",
+        WarpBusiness.Scheduling.Models.ShiftStatus.Completed => "bg-secondary",
+        WarpBusiness.Scheduling.Models.ShiftStatus.Cancelled => "bg-danger",
+        WarpBusiness.Scheduling.Models.ShiftStatus.NoShow => "bg-warning text-dark",
+        _ => "bg-info"
+    };
+}

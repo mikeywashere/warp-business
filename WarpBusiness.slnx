@@ -8,6 +8,7 @@
   <Project Path="WarpBusiness.Api.Tests/WarpBusiness.Api.Tests.csproj" />
   <Project Path="WarpBusiness.FREETONE/WarpBusiness.FREETONE.csproj" Id="3a190d51-000f-420c-8f24-7c8052b0f3e2" />
   <Project Path="WarpBusiness.MarketingSite/WarpBusiness.MarketingSite.csproj" />
+  <Project Path="WarpBusiness.EmployeePortal/WarpBusiness.EmployeePortal.csproj" />
   <Project Path="WarpBusiness.Employees/WarpBusiness.Employees.csproj" />
   <Project Path="WarpBusiness.Crm.Tests/WarpBusiness.Crm.Tests.csproj" />
   <Project Path="WarpBusiness.Crm/WarpBusiness.Crm.csproj" />

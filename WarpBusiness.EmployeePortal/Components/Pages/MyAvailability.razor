@@ -1,0 +1,182 @@
+@page "/availability"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@inject WarpBusiness.EmployeePortal.Services.EmployeePortalApiClient Api
+
+<PageTitle>My Availability</PageTitle>
+<h1 class="mb-4">My Availability</h1>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(pageError))
+{
+    <div class="alert alert-warning">@pageError</div>
+}
+else
+{
+    <p class="text-muted mb-4">Set your weekly availability. Managers use this when building schedules.</p>
+
+    @for (int d = 0; d <= 6; d++)
+    {
+        var day = d;
+        var model = dayModels[day];
+        var dayName = ((System.DayOfWeek)day).ToString();
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>@dayName</strong>
+                @if (!string.IsNullOrEmpty(model.SaveMessage))
+                {
+                    <small class="text-success">@model.SaveMessage</small>
+                }
+                @if (!string.IsNullOrEmpty(model.ErrorMessage))
+                {
+                    <small class="text-danger">@model.ErrorMessage</small>
+                }
+            </div>
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="avail-@day"
+                                   @bind="model.IsAvailable" />
+                            <label class="form-check-label" for="avail-@day">
+                                @(model.IsAvailable ? "Available" : "Not Available")
+                            </label>
+                        </div>
+                    </div>
+                    @if (model.IsAvailable)
+                    {
+                        <div class="col-md-3">
+                            <label class="form-label">Earliest Start (optional)</label>
+                            <input type="time" class="form-control" value="@FormatTime(model.EarliestStartTime)"
+                                   @onchange="e => model.EarliestStartTime = ParseTime(e.Value?.ToString())" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Latest End (optional)</label>
+                            <input type="time" class="form-control" value="@FormatTime(model.LatestEndTime)"
+                                   @onchange="e => model.LatestEndTime = ParseTime(e.Value?.ToString())" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Notes</label>
+                            <input type="text" class="form-control" placeholder="Optional notes..."
+                                   @bind="model.Notes" @bind:event="oninput" />
+                        </div>
+                    }
+                    <div class="col-auto">
+                        <button class="btn btn-primary btn-sm" @onclick="() => SaveDay(day)" disabled="@model.IsSaving">
+                            @if (model.IsSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private bool isLoading = true;
+    private string? pageError;
+    private DayAvailabilityModel[] dayModels = new DayAvailabilityModel[7];
+
+    protected override void OnInitialized()
+    {
+        for (int i = 0; i < 7; i++)
+            dayModels[i] = new DayAvailabilityModel { DayOfWeek = i };
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await Api.GetMeAsync();
+            if (!profile?.CanManageAvailability ?? true)
+            {
+                pageError = "Availability management is not enabled for your account. Please contact your manager.";
+                return;
+            }
+
+            var rules = await Api.GetAvailabilityAsync();
+            foreach (var rule in rules)
+            {
+                if (rule.DayOfWeek >= 0 && rule.DayOfWeek <= 6)
+                {
+                    dayModels[rule.DayOfWeek].IsAvailable = rule.IsAvailable;
+                    dayModels[rule.DayOfWeek].EarliestStartTime = rule.EarliestStartTime;
+                    dayModels[rule.DayOfWeek].LatestEndTime = rule.LatestEndTime;
+                    dayModels[rule.DayOfWeek].Notes = rule.Notes;
+                    dayModels[rule.DayOfWeek].HasExistingRecord = true;
+                }
+            }
+        }
+        catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
+        {
+            pageError = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            pageError = $"Failed to load availability: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SaveDay(int dayOfWeek)
+    {
+        var model = dayModels[dayOfWeek];
+        model.IsSaving = true;
+        model.SaveMessage = null;
+        model.ErrorMessage = null;
+
+        try
+        {
+            var request = new WarpBusiness.Api.Endpoints.PortalAvailabilityRequest(
+                model.IsAvailable,
+                model.IsAvailable ? model.EarliestStartTime : null,
+                model.IsAvailable ? model.LatestEndTime : null,
+                model.Notes?.Trim());
+
+            await Api.UpsertAvailabilityAsync(dayOfWeek, request);
+            model.SaveMessage = "Saved!";
+            model.HasExistingRecord = true;
+            await Task.Delay(2000);
+            model.SaveMessage = null;
+        }
+        catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
+        {
+            model.ErrorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            model.ErrorMessage = $"Save failed: {ex.Message}";
+        }
+        finally
+        {
+            model.IsSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string FormatTime(TimeOnly? t) => t?.ToString("HH:mm") ?? "";
+    private static TimeOnly? ParseTime(string? s) =>
+        !string.IsNullOrEmpty(s) && TimeOnly.TryParse(s, out var t) ? t : null;
+
+    public class DayAvailabilityModel
+    {
+        public int DayOfWeek { get; set; }
+        public bool IsAvailable { get; set; } = true;
+        public TimeOnly? EarliestStartTime { get; set; }
+        public TimeOnly? LatestEndTime { get; set; }
+        public string? Notes { get; set; }
+        public bool IsSaving { get; set; }
+        public string? SaveMessage { get; set; }
+        public string? ErrorMessage { get; set; }
+        public bool HasExistingRecord { get; set; }
+    }
+}

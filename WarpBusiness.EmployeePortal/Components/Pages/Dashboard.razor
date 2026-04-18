@@ -1,0 +1,172 @@
+@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@inject WarpBusiness.EmployeePortal.Services.EmployeePortalApiClient Api
+
+<PageTitle>Employee Dashboard</PageTitle>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-warning">
+        <h4>Access Restricted</h4>
+        <p>@errorMessage</p>
+        <a href="/logout" class="btn btn-outline-light btn-sm">Log Out</a>
+    </div>
+}
+else if (profile is not null)
+{
+    <h1 class="mb-1">Welcome, @profile.FirstName!</h1>
+    <p class="text-muted mb-4">@profile.EmployeeNumber @(profile.Department is not null ? $"· {profile.Department}" : "") @(profile.JobTitle is not null ? $"· {profile.JobTitle}" : "")</p>
+
+    <div class="row g-3 mb-4">
+        @if (profile.CanViewSchedule)
+        {
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header"><strong>📅 Upcoming Shifts</strong></div>
+                    <div class="card-body">
+                        @if (upcomingShifts is null)
+                        {
+                            <div class="spinner-border spinner-border-sm"></div>
+                        }
+                        else if (upcomingShifts.Count == 0)
+                        {
+                            <p class="text-muted mb-0">No upcoming shifts.</p>
+                        }
+                        else
+                        {
+                            @foreach (var shift in upcomingShifts)
+                            {
+                                <div class="mb-2">
+                                    <strong>@shift.Date.ToString("ddd, MMM d")</strong><br />
+                                    <small class="text-muted">@shift.ScheduledStart.ToString("h:mm tt") – @shift.ScheduledEnd.ToString("h:mm tt")</small>
+                                </div>
+                            }
+                        }
+                        <a href="/schedule" class="btn btn-sm btn-outline-primary mt-2">View All</a>
+                    </div>
+                </div>
+            </div>
+        }
+        @if (profile.CanRequestTimeOff)
+        {
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header"><strong>🏖️ Time Off</strong></div>
+                    <div class="card-body">
+                        @if (pendingTimeOffCount > 0)
+                        {
+                            <p class="mb-2">You have <strong>@pendingTimeOffCount</strong> pending request(s).</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted mb-2">No pending time-off requests.</p>
+                        }
+                        <a href="/time-off" class="btn btn-sm btn-outline-primary">Manage Time Off</a>
+                    </div>
+                </div>
+            </div>
+        }
+        @if (profile.CanManageAvailability)
+        {
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header"><strong>🗓️ My Availability</strong></div>
+                    <div class="card-body">
+                        <p class="text-muted mb-2">Set your weekly availability preferences.</p>
+                        <a href="/availability" class="btn btn-sm btn-outline-primary">Manage Availability</a>
+                    </div>
+                </div>
+            </div>
+        }
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header"><strong>⏱️ Hours Worked</strong></div>
+                <div class="card-body">
+                    <p class="text-muted mb-2">View your completed shift history.</p>
+                    <a href="/hours" class="btn btn-sm btn-outline-primary">View Hours</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><strong>Profile</strong></div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4"><span class="text-muted">Name:</span> @profile.FirstName @profile.LastName</div>
+                <div class="col-md-4"><span class="text-muted">Email:</span> @profile.Email</div>
+                <div class="col-md-4"><span class="text-muted">Hire Date:</span> @profile.HireDate.ToString("MMMM d, yyyy")</div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private WarpBusiness.Api.Endpoints.EmployeePortalProfileResponse? profile;
+    private List<WarpBusiness.Api.Endpoints.PortalShiftResponse>? upcomingShifts;
+    private int pendingTimeOffCount;
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            profile = await Api.GetMeAsync();
+
+            if (profile is not null)
+            {
+                var tasks = new List<Task>();
+
+                if (profile.CanViewSchedule)
+                    tasks.Add(LoadShiftsAsync());
+
+                if (profile.CanRequestTimeOff)
+                    tasks.Add(LoadTimeOffCountAsync());
+
+                await Task.WhenAll(tasks);
+            }
+        }
+        catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load dashboard: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadShiftsAsync()
+    {
+        try
+        {
+            var shifts = await Api.GetScheduleAsync();
+            upcomingShifts = shifts.Take(3).ToList();
+        }
+        catch { upcomingShifts = []; }
+    }
+
+    private async Task LoadTimeOffCountAsync()
+    {
+        try
+        {
+            var requests = await Api.GetTimeOffAsync();
+            pendingTimeOffCount = requests.Count(r => r.Status == WarpBusiness.Scheduling.Models.TimeOffStatus.Pending);
+        }
+        catch { pendingTimeOffCount = 0; }
+    }
+}

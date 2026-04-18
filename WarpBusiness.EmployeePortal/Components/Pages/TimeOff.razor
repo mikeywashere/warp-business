@@ -1,0 +1,242 @@
+@page "/time-off"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@inject WarpBusiness.EmployeePortal.Services.EmployeePortalApiClient Api
+
+<PageTitle>Time Off</PageTitle>
+<h1 class="mb-4">Time Off Requests</h1>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(pageError))
+{
+    <div class="alert alert-warning">@pageError</div>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible">
+            @successMessage
+            <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    @* Existing requests *@
+    <h5 class="mb-3">Your Requests</h5>
+    @if (requests.Count == 0)
+    {
+        <div class="alert alert-info mb-4">No time-off requests yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Date Range</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                        <th>Reviewer Notes</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var req in requests)
+                    {
+                        <tr>
+                            <td>@req.StartDate.ToString("MMM d") – @req.EndDate.ToString("MMM d, yyyy")</td>
+                            <td>@FormatType(req.Type)</td>
+                            <td><span class="badge @GetStatusBadge(req.Status)">@req.Status</span></td>
+                            <td>@(req.Notes ?? "—")</td>
+                            <td>@(req.ReviewerNotes ?? "—")</td>
+                            <td>@req.CreatedAt.ToString("MMM d, yyyy")</td>
+                            <td>
+                                @if (req.Status == WarpBusiness.Scheduling.Models.TimeOffStatus.Pending)
+                                {
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => CancelRequest(req.Id)">Cancel</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    @* New request form *@
+    <div class="card">
+        <div class="card-header"><strong>Request Time Off</strong></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" @bind="formStartDate" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" @bind="formEndDate" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Type <span class="text-danger">*</span></label>
+                    <select class="form-select" @bind="formType">
+                        <option value="Vacation">Vacation</option>
+                        <option value="SickLeave">Sick Leave</option>
+                        <option value="PersonalLeave">Personal Leave</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="col-md-9">
+                    <label class="form-label">Notes (optional)</label>
+                    <textarea class="form-control" rows="2" @bind="formNotes" placeholder="Add any relevant notes..."></textarea>
+                </div>
+                <div class="col-12">
+                    <button class="btn btn-primary" @onclick="SubmitRequest" disabled="@isSubmitting">
+                        @if (isSubmitting) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                        Submit Request
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<WarpBusiness.Api.Endpoints.PortalTimeOffResponse> requests = [];
+    private bool isLoading = true;
+    private bool isSubmitting;
+    private string? pageError;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private DateTime formStartDate = DateTime.Today;
+    private DateTime formEndDate = DateTime.Today;
+    private string formType = "Vacation";
+    private string formNotes = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await Api.GetMeAsync();
+            if (!profile?.CanRequestTimeOff ?? true)
+            {
+                pageError = "Time-off requests are not enabled for your account. Please contact your manager.";
+                return;
+            }
+
+            await LoadRequests();
+        }
+        catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
+        {
+            pageError = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            pageError = $"Failed to load time-off requests: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadRequests()
+    {
+        requests = await Api.GetTimeOffAsync();
+    }
+
+    private async Task SubmitRequest()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        var start = DateOnly.FromDateTime(formStartDate);
+        var end = DateOnly.FromDateTime(formEndDate);
+
+        if (end < start)
+        {
+            errorMessage = "End date must be on or after start date.";
+            return;
+        }
+
+        if (!Enum.TryParse<WarpBusiness.Scheduling.Models.TimeOffType>(formType, out var type))
+        {
+            errorMessage = "Invalid type selected.";
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            var request = new WarpBusiness.Api.Endpoints.PortalTimeOffRequest(start, end, type,
+                string.IsNullOrWhiteSpace(formNotes) ? null : formNotes.Trim());
+            await Api.RequestTimeOffAsync(request);
+            successMessage = "Time-off request submitted successfully.";
+            formStartDate = DateTime.Today;
+            formEndDate = DateTime.Today;
+            formNotes = "";
+            await LoadRequests();
+        }
+        catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to submit request: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task CancelRequest(Guid id)
+    {
+        errorMessage = null;
+        successMessage = null;
+        try
+        {
+            await Api.CancelTimeOffAsync(id);
+            successMessage = "Request cancelled.";
+            await LoadRequests();
+        }
+        catch (WarpBusiness.EmployeePortal.Services.ApiException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to cancel request: {ex.Message}";
+        }
+    }
+
+    private static string GetStatusBadge(WarpBusiness.Scheduling.Models.TimeOffStatus status) => status switch
+    {
+        WarpBusiness.Scheduling.Models.TimeOffStatus.Approved => "bg-success",
+        WarpBusiness.Scheduling.Models.TimeOffStatus.Denied => "bg-danger",
+        WarpBusiness.Scheduling.Models.TimeOffStatus.Cancelled => "bg-secondary",
+        _ => "bg-warning text-dark"
+    };
+
+    private static string FormatType(WarpBusiness.Scheduling.Models.TimeOffType type) => type switch
+    {
+        WarpBusiness.Scheduling.Models.TimeOffType.SickLeave => "Sick Leave",
+        WarpBusiness.Scheduling.Models.TimeOffType.PersonalLeave => "Personal Leave",
+        _ => type.ToString()
+    };
+}
