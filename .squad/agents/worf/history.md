@@ -106,3 +106,17 @@
 - **Test Results**: ✅ All 22 tests passing in 3.4s
 - **Status:** ✅ Complete. Unit test coverage for MinioFileStorageService validated.
 
+### 2026-04-18: Shift Replacement Endpoint Testing — Ready for Implementation
+
+- **Endpoint:** `GET /api/scheduling/schedules/{scheduleId}/shifts/{shiftId}/replacements` implemented by Data in `ShiftReplacementEndpoints.cs`
+- **Test Requirements (pending Worf):**
+  - **Unit tests**: Conflict detection logic (same-date time overlap), weekly hours calculation (Monday–Sunday boundary), overtime threshold (40 hrs), ranking by ascending hours
+  - **Authorization tests**: SystemAdministrator policy enforcement, 403 for non-admin
+  - **Integration tests**: Two-context join with real SchedulingDbContext + EmployeeDbContext, verify cross-schema data retrieval
+  - **Happy path**: Valid schedule/shift IDs, returns sorted array of candidates with correct fields
+  - **Edge cases**: No candidates (all conflicted), no candidates (no matching role), shift on week boundary (Sunday/Monday)
+  - **Error cases**: Invalid scheduleId/shiftId, non-existent tenant isolation, cancelled token propagation
+- **Response validation**: Assert array elements contain EmployeeId, EmployeeNumber, EmployeeName, HoursScheduledThisWeek, HoursRemainingBeforeOvertime, WouldCauseOvertime fields with correct types
+- **Pattern consistency**: Mirror existing endpoint test patterns from `EmployeeEndpointTests.cs` (use reflection for private endpoint methods, `CreateHttpContextWithTenant` for multi-tenancy, PostgreSqlFixture for both contexts)
+- **Status:** ✅ Endpoint implementation complete. Test structure design ready; awaiting Worf's test execution.
+

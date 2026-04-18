@@ -91,6 +91,15 @@
 - Taxonomy UI (`/catalog/taxonomy`, `/catalog/taxonomy/import`) uses flat MaterializedPath ordering with collapsible tree rows; `TaxonomyApiClient` mirrors CatalogApiClient and includes CRUD/external/import methods with tenant header forwarding
 - **CreateUserRequest**: Now includes optional `Guid? TenantId = null` parameter for tenant assignment during user creation
 
+### Shift Replacement Recommendation Engine — Endpoint Available (2026-04-18)
+
+- **Endpoint:** `GET /api/scheduling/schedules/{scheduleId}/shifts/{shiftId}/replacements` — implemented in Data's ShiftReplacementEndpoints.cs
+- **Response model:** Array of employee candidates with fields: `EmployeeId`, `EmployeeNumber`, `EmployeeName`, `HoursScheduledThisWeek`, `HoursRemainingBeforeOvertime`, `WouldCauseOvertime`
+- **Ranking:** Employees sorted by ascending `HoursScheduledThisWeek` (lowest hours first, best replacement first)
+- **Authorization:** Requires `SystemAdministrator` role
+- **Business rules:** Conflicted employees (same-date time overlap) are excluded entirely from response; overtime flag indicates if candidate would exceed 40-hour week
+- **Ready for Geordi:** UI component (`ShiftReplacementPicker.razor` or similar) can consume this endpoint to populate shift assignment picker. Consider dropdown or filterable list given typical small result set (5–15 employees).
+
 ### Multi-Tenant User Onboarding (2026-04-12)
 
 - **Frontend:** Implemented tenant dropdown with type-ahead search in Add User form (UserManagement.razor).

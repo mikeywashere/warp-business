@@ -404,6 +404,7 @@ app.MapBreakRuleEndpoints();
 app.MapEmployeePositionEndpoints();
 app.MapEmployeeAvailabilityEndpoints();
 app.MapTimeOffEndpoints();
+app.MapShiftReplacementEndpoints();
 app.MapEmployeePortalEndpoints();
 
 var summaries = new[]

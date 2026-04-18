@@ -120,7 +120,51 @@ All Warp branding CSS custom properties (defined in `app.css`) are the single so
 
 ---
 
-### 5. Override Bootstrap Utility Classes for Dark Theme
+### 5. Shift Replacement Endpoint Placement and Cross-Context Strategy
+
+**Date:** 2026-04-18  
+**Author:** Data (Backend Dev)  
+**Status:** Implemented
+
+#### Context
+The shift replacement recommendation engine (`GET /api/scheduling/schedules/{scheduleId}/shifts/{shiftId}/replacements`) requires data from two separate EF Core DbContexts:
+- `SchedulingDbContext` — for `EmployeePositions`, `ScheduleShifts`, and `Schedules`
+- `EmployeeDbContext` — for employee name/number details
+
+#### Decision
+
+**Endpoint Placement:**  
+Placed in `WarpBusiness.Api/Endpoints/ShiftReplacementEndpoints.cs`, not in `WarpBusiness.Scheduling/Endpoints/`, because:
+1. `WarpBusiness.Scheduling` has no reference to `EmployeeDbContext` and should not gain one (separation of concerns)
+2. `WarpBusiness.Api` already depends on both contexts and is the established home for cross-context endpoints (see `EmployeePortalEndpoints.cs`, `EmployeeUserEndpoints.cs`)
+
+**Cross-Context Join Strategy:**  
+Perform a **two-query in-memory join**:
+1. Query `SchedulingDbContext.EmployeePositions` for qualified employee IDs (Guid list)
+2. Query `EmployeeDbContext.Employees` filtered by that ID list
+3. Join result sets in memory using `Dictionary<Guid, Employee>`
+
+This is the established pattern in this codebase. No raw SQL, no shared DB connection tricks, no cross-context EF navigation.
+
+**Overtime / Hours Calculation Scope:**  
+"Hours scheduled this week" includes **all shifts across all schedules** for the employee in the Monday–Sunday window containing the target shift's date. This is intentional — overtime is a real-world concern regardless of which schedule generated the shift.
+
+**Conflict Detection:**  
+A conflict is defined as any existing shift for the candidate employee on the **same date** whose scheduled time range **overlaps** the target shift: `startA < endB && endA > startB`. Conflicted employees are excluded entirely from the response (not flagged-and-returned).
+
+**Authorization:**  
+Uses the `"SystemAdministrator"` authorization policy, consistent with all other scheduling management endpoints.
+
+#### Consequences
+- ✅ Endpoint placed at API layer (established pattern)
+- ✅ Two-context join implemented in-memory (no architectural coupling)
+- ✅ Business rules (overtime, conflicts, ranking) codified
+- ✅ Build: 0 errors, 0 warnings
+- ⚠️ Weekly hours calculation includes all schedules — verify this behavior matches scheduling policy (anticipated and intentional)
+
+---
+
+### 6. Override Bootstrap Utility Classes for Dark Theme
 
 **Date:** 2026-04-13  
 **Author:** Geordi (Frontend Dev)  

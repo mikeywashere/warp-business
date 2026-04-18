@@ -9,6 +9,18 @@
 
 <!-- Append new learnings below. Each entry is something lasting about the project. -->
 
+### Shift Replacement Recommendation Engine (2026-05-10)
+
+- **Endpoint:** `GET /api/scheduling/schedules/{scheduleId}/shifts/{shiftId}/replacements`
+- **Location:** `WarpBusiness.Api/Endpoints/ShiftReplacementEndpoints.cs` — lives in Api project (not Scheduling module) because it requires both SchedulingDbContext and EmployeeDbContext; same pattern as `EmployeePortalEndpoints.cs`.
+- **Cross-context join:** Qualified employee IDs are fetched from `SchedulingDbContext.EmployeePositions`, then employee details (name, number) are fetched from `EmployeeDbContext.Employees`. Join is performed in memory on `Guid EmployeeId`.
+- **Week boundary calc:** `shift.Date.DayOfWeek` — Sunday=0, so `daysFromMonday = dayOfWeek == 0 ? 6 : dayOfWeek - 1`. Week runs Monday to Sunday inclusive (`DateOnly` comparison).
+- **Conflict detection:** Overlap check on same `Date` using `startA < endB && endA > startB` — covers all partial and full overlaps.
+- **Overtime threshold:** Hard-coded 40 hrs; `HoursRemainingBeforeOvertime = Math.Max(0, 40 - hoursThisWeek)`; `WouldCauseOvertime = hoursThisWeek + shiftDurationHours > 40`.
+- **Authorization:** Uses `"SystemAdministrator"` policy (consistent with all other scheduling endpoints).
+- **Shift duration:** Computed as `(ScheduledEndTime - ScheduledStartTime).TotalHours`; assumes shifts don't cross midnight.
+- **Build:** 0 errors, 0 warnings.
+
 ### Progressive Streaming + Batch Rendering Pattern (2026-04-17)
 
 - **Integrated workflow:** API streams via `IAsyncEnumerable<T>` endpoints; Blazor UI consumes stream and renders in fixed-size batches (25 items) with live progress counter.
