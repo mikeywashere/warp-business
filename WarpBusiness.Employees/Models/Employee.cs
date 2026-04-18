@@ -28,6 +28,10 @@ public class Employee
     public string Currency { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public bool IsPortalEnabled { get; set; } = false;
+    public bool PortalCanViewSchedule { get; set; } = false;
+    public bool PortalCanManageAvailability { get; set; } = false;
+    public bool PortalCanRequestTimeOff { get; set; } = false;
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
