@@ -23,6 +23,7 @@
     <ProjectReference Include="..\WarpBusiness.Catalog\WarpBusiness.Catalog.csproj" />
     <ProjectReference Include="..\WarpBusiness.CommonTaxonomy\WarpBusiness.CommonTaxonomy.csproj" />
     <ProjectReference Include="..\WarpBusiness.Storage\WarpBusiness.Storage.csproj" />
+    <ProjectReference Include="..\WarpBusiness.Scheduling\WarpBusiness.Scheduling.csproj" />
   </ItemGroup>
 
 </Project>
