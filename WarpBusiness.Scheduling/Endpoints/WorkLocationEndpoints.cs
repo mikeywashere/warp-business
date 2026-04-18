@@ -55,6 +55,9 @@ public static class WorkLocationEndpoints
         if (string.IsNullOrWhiteSpace(request.Name))
             return Results.BadRequest(new { message = "Name is required." });
 
+        if (string.IsNullOrWhiteSpace(request.State))
+            return Results.BadRequest(new { message = "State is required." });
+
         var location = new WorkLocation
         {
             Id = Guid.NewGuid(),
@@ -83,6 +86,12 @@ public static class WorkLocationEndpoints
         var location = await db.WorkLocations.FirstOrDefaultAsync(l => l.Id == id && l.TenantId == tenantId);
         if (location is null)
             return Results.NotFound();
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return Results.BadRequest(new { message = "Name is required." });
+
+        if (string.IsNullOrWhiteSpace(request.State))
+            return Results.BadRequest(new { message = "State is required." });
 
         location.Name = request.Name.Trim();
         location.Address = request.Address?.Trim();

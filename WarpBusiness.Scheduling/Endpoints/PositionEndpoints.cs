@@ -81,6 +81,9 @@ public static class PositionEndpoints
         if (position is null)
             return Results.NotFound();
 
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return Results.BadRequest(new { message = "Name is required." });
+
         position.Name = request.Name.Trim();
         position.Description = request.Description?.Trim();
         position.Color = string.IsNullOrWhiteSpace(request.Color) ? "#6B7280" : request.Color.Trim();

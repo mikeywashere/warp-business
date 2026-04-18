@@ -93,6 +93,9 @@ public static class ScheduleTemplateEndpoints
         if (template is null)
             return Results.NotFound();
 
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return Results.BadRequest(new { message = "Name is required." });
+
         template.Name = request.Name.Trim();
         template.Description = request.Description?.Trim();
         template.IsActive = request.IsActive;
