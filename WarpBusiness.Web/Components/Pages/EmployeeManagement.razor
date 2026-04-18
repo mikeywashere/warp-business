@@ -4,6 +4,7 @@
 @using WarpBusiness.Web.Services
 @inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
 @inject EmployeeApiClient EmployeeApi
+@inject SchedulingApiClient SchedulingApi
 @inject NavigationManager Navigation
 
 <PageTitle>Employee Management</PageTitle>
@@ -137,6 +138,33 @@
                                     </InputSelect>
                                     <ValidationMessage For="() => formModel.EmploymentType" class="text-danger" />
                                 </div>
+                            </div>
+
+                            @* Portal Access Section *@
+                            <hr class="my-4" />
+                            <h6 class="text-muted mb-3">Portal Access</h6>
+                            <div class="mb-3">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input" type="checkbox" id="portalEnabled" @bind="formModel.IsPortalEnabled" />
+                                    <label class="form-check-label" for="portalEnabled">Enable Employee Portal</label>
+                                </div>
+                                @if (formModel.IsPortalEnabled)
+                                {
+                                    <div class="ms-4">
+                                        <div class="form-check form-switch mb-1">
+                                            <input class="form-check-input" type="checkbox" id="canViewSchedule" @bind="formModel.PortalCanViewSchedule" />
+                                            <label class="form-check-label" for="canViewSchedule">Can View Schedule</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-1">
+                                            <input class="form-check-input" type="checkbox" id="canManageAvailability" @bind="formModel.PortalCanManageAvailability" />
+                                            <label class="form-check-label" for="canManageAvailability">Can Manage Availability</label>
+                                        </div>
+                                        <div class="form-check form-switch mb-1">
+                                            <input class="form-check-input" type="checkbox" id="canRequestTimeOff" @bind="formModel.PortalCanRequestTimeOff" />
+                                            <label class="form-check-label" for="canRequestTimeOff">Can Request Time Off</label>
+                                        </div>
+                                    </div>
+                                }
                             </div>
 
                             @* User Account Section *@
@@ -330,11 +358,104 @@
                                         <button class="btn btn-sm mt-2 btn-outline-primary me-1" @onclick="() => ShowEditForm(emp)" title="Edit">
                                             Edit
                                         </button>
+                                        <button class="btn btn-sm mt-2 btn-outline-secondary me-1" @onclick='() => TogglePanel(emp.Id, "positions")' title="Manage Positions">
+                                            Positions
+                                        </button>
+                                        <button class="btn btn-sm mt-2 btn-outline-secondary me-1" @onclick='() => TogglePanel(emp.Id, "availability")' title="View Availability">
+                                            Availability
+                                        </button>
                                         <button class="btn btn-sm mt-2 btn-outline-danger" @onclick="() => ConfirmDelete(emp)" title="Delete">
                                             Delete
                                         </button>
                                     </td>
                                 </tr>
+                                @if (expandedEmployeeId == emp.Id && expandedPanel == "positions")
+                                {
+                                    <tr>
+                                        <td colspan="10" class="p-3" style="background: var(--clr-bg);">
+                                            <h6 class="mb-2">Positions for @emp.FirstName @emp.LastName</h6>
+                                            @if (isLoadingPanel)
+                                            {
+                                                <div class="spinner-border spinner-border-sm"></div>
+                                            }
+                                            else
+                                            {
+                                                @if (employeePositions.Count == 0)
+                                                {
+                                                    <p class="text-muted">No positions assigned.</p>
+                                                }
+                                                else
+                                                {
+                                                    <ul class="list-group list-group-flush mb-2">
+                                                    @foreach (var pos in employeePositions)
+                                                    {
+                                                        <li class="list-group-item d-flex justify-content-between align-items-center" style="background: var(--clr-bg);">
+                                                            <span>
+                                                                @pos.PositionName
+                                                                <span class="text-muted ms-2 small">since @pos.AssignedAt.ToString("MMM d, yyyy")</span>
+                                                            </span>
+                                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemovePosition(emp.Id, pos.PositionId)">Remove</button>
+                                                        </li>
+                                                    }
+                                                    </ul>
+                                                }
+                                                <div class="d-flex gap-2 align-items-center mt-2">
+                                                    <select class="form-select form-select-sm" style="max-width: 250px;" @bind="assignPositionId">
+                                                        <option value="@Guid.Empty">-- Select Position --</option>
+                                                        @foreach (var p in availablePositions.Where(pos => pos.IsActive))
+                                                        {
+                                                            <option value="@p.Id">@p.Name</option>
+                                                        }
+                                                    </select>
+                                                    <button class="btn btn-sm btn-outline-primary" @onclick="() => AssignPosition(emp.Id)" disabled="@(assignPositionId == Guid.Empty)">
+                                                        Assign
+                                                    </button>
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                                @if (expandedEmployeeId == emp.Id && expandedPanel == "availability")
+                                {
+                                    <tr>
+                                        <td colspan="10" class="p-3" style="background: var(--clr-bg);">
+                                            <h6 class="mb-2">Availability for @emp.FirstName @emp.LastName</h6>
+                                            @if (isLoadingPanel)
+                                            {
+                                                <div class="spinner-border spinner-border-sm"></div>
+                                            }
+                                            else if (employeeAvailability.Count == 0)
+                                            {
+                                                <p class="text-muted">No availability rules set.</p>
+                                            }
+                                            else
+                                            {
+                                                <div class="row g-2">
+                                                @foreach (var avail in employeeAvailability.OrderBy(a => a.DayOfWeek))
+                                                {
+                                                    <div class="col-md-3">
+                                                        <div class="card p-2">
+                                                            <strong>@((System.DayOfWeek)avail.DayOfWeek)</strong>
+                                                            @if (avail.IsAvailable)
+                                                            {
+                                                                <div class="text-success small">Available</div>
+                                                                @if (avail.EarliestStartTime.HasValue)
+                                                                { <div class="text-muted small">From @avail.EarliestStartTime.Value.ToString("h:mm tt")</div> }
+                                                                @if (avail.LatestEndTime.HasValue)
+                                                                { <div class="text-muted small">Until @avail.LatestEndTime.Value.ToString("h:mm tt")</div> }
+                                                            }
+                                                            else
+                                                            {
+                                                                <div class="text-danger small">Not Available</div>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                }
+                                                </div>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
                             }
                         }
                         else
@@ -501,7 +622,11 @@
             JobTitle = emp.JobTitle ?? "",
             EmploymentStatus = emp.EmploymentStatus,
             EmploymentType = emp.EmploymentType,
-            UserRole = "User"
+            UserRole = "User",
+            IsPortalEnabled = emp.IsPortalEnabled,
+            PortalCanViewSchedule = emp.PortalCanViewSchedule,
+            PortalCanManageAvailability = emp.PortalCanManageAvailability,
+            PortalCanRequestTimeOff = emp.PortalCanRequestTimeOff
         };
         showForm = true;
         ClearMessages();
@@ -562,7 +687,11 @@
                         null,
                         formModel.EmploymentStatus,
                         formModel.EmploymentType,
-                        null));
+                        null,
+                        formModel.IsPortalEnabled,
+                        formModel.PortalCanViewSchedule,
+                        formModel.PortalCanManageAvailability,
+                        formModel.PortalCanRequestTimeOff));
                     successMessage = "Employee updated successfully.";
                 }
             }
@@ -604,7 +733,11 @@
                         null,
                         formModel.EmploymentStatus,
                         formModel.EmploymentType,
-                        formModel.LinkedUserId));
+                        formModel.LinkedUserId,
+                        formModel.IsPortalEnabled,
+                        formModel.PortalCanViewSchedule,
+                        formModel.PortalCanManageAvailability,
+                        formModel.PortalCanRequestTimeOff));
                     successMessage = formModel.LinkedUserId.HasValue
                         ? "Employee created and linked to existing user account."
                         : "Employee created successfully.";
@@ -760,6 +893,82 @@
         _ => type
     };
 
+    // Panel state
+    private Guid? expandedEmployeeId;
+    private string? expandedPanel;
+    private bool isLoadingPanel;
+    private List<EmployeePositionResponse> employeePositions = [];
+    private List<AdminAvailabilityResponse> employeeAvailability = [];
+    private List<PositionResponse> availablePositions = [];
+    private Guid assignPositionId;
+
+    private async Task TogglePanel(Guid employeeId, string panel)
+    {
+        if (expandedEmployeeId == employeeId && expandedPanel == panel)
+        {
+            expandedEmployeeId = null;
+            expandedPanel = null;
+            return;
+        }
+
+        expandedEmployeeId = employeeId;
+        expandedPanel = panel;
+        isLoadingPanel = true;
+        assignPositionId = Guid.Empty;
+        employeePositions = [];
+        employeeAvailability = [];
+
+        try
+        {
+            if (panel == "positions")
+            {
+                employeePositions = await SchedulingApi.GetEmployeePositionsAsync(employeeId) ?? [];
+                if (availablePositions.Count == 0)
+                    availablePositions = await SchedulingApi.GetPositionsAsync() ?? [];
+            }
+            else if (panel == "availability")
+            {
+                employeeAvailability = await SchedulingApi.GetEmployeeAvailabilityAsync(employeeId) ?? [];
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load panel data: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingPanel = false;
+        }
+    }
+
+    private async Task AssignPosition(Guid employeeId)
+    {
+        if (assignPositionId == Guid.Empty) return;
+        try
+        {
+            await SchedulingApi.AssignEmployeePositionAsync(employeeId, assignPositionId);
+            employeePositions = await SchedulingApi.GetEmployeePositionsAsync(employeeId) ?? [];
+            assignPositionId = Guid.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to assign position: {ex.Message}";
+        }
+    }
+
+    private async Task RemovePosition(Guid employeeId, Guid positionId)
+    {
+        try
+        {
+            await SchedulingApi.RemoveEmployeePositionAsync(employeeId, positionId);
+            employeePositions = await SchedulingApi.GetEmployeePositionsAsync(employeeId) ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to remove position: {ex.Message}";
+        }
+    }
+
     public class EmployeeFormModel
     {
         [System.ComponentModel.DataAnnotations.Required]
@@ -798,5 +1007,11 @@
         public bool CreateNewUser { get; set; }
         public string UserRole { get; set; } = "User";
         public string NewUserUsername { get; set; } = "";
+
+        // Portal access flags
+        public bool IsPortalEnabled { get; set; }
+        public bool PortalCanViewSchedule { get; set; }
+        public bool PortalCanManageAvailability { get; set; }
+        public bool PortalCanRequestTimeOff { get; set; }
     }
 }

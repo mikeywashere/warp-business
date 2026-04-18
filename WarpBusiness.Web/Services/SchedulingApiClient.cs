@@ -67,6 +67,27 @@ public record BreakResponseDto(Guid Id, Guid ShiftId, BreakType BreakType, bool 
 public record CreateBreakRequest(BreakType BreakType, bool IsPaid, TimeOnly? ScheduledStartTime, TimeOnly? ScheduledEndTime);
 public record UpdateBreakRequest(BreakType BreakType, bool IsPaid, TimeOnly? ScheduledStartTime, TimeOnly? ScheduledEndTime, TimeOnly? ActualStartTime, TimeOnly? ActualEndTime, bool WasTaken);
 
+// ── Employee Position DTOs ────────────────────────────────────────────────────
+
+public record EmployeePositionResponse(
+    Guid EmployeeId,
+    Guid PositionId,
+    string PositionName,
+    string Color,
+    bool IsActive,
+    DateTime AssignedAt);
+
+// ── Admin Availability DTO ────────────────────────────────────────────────────
+
+public record AdminAvailabilityResponse(
+    Guid Id,
+    Guid EmployeeId,
+    int DayOfWeek,
+    bool IsAvailable,
+    TimeOnly? EarliestStartTime,
+    TimeOnly? LatestEndTime,
+    string? Notes);
+
 // ── Break Rule DTOs ───────────────────────────────────────────────────────────
 
 public record BreakRuleResponse(
@@ -257,4 +278,21 @@ public class SchedulingApiClient(HttpClient http)
     // Break Rules
     public Task<List<BreakRuleResponse>?> GetBreakRulesAsync(string state) =>
         http.GetFromJsonAsync<List<BreakRuleResponse>>($"/api/scheduling/break-rules/{state}", JsonOptions);
+
+    // Employee Positions (Admin)
+    public Task<List<EmployeePositionResponse>?> GetEmployeePositionsAsync(Guid employeeId) =>
+        http.GetFromJsonAsync<List<EmployeePositionResponse>>($"/api/scheduling/employees/{employeeId}/positions", JsonOptions);
+
+    public async Task AssignEmployeePositionAsync(Guid employeeId, Guid positionId)
+    {
+        var response = await http.PostAsync($"/api/scheduling/employees/{employeeId}/positions/{positionId}", null);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public Task RemoveEmployeePositionAsync(Guid employeeId, Guid positionId) =>
+        http.DeleteAsync($"/api/scheduling/employees/{employeeId}/positions/{positionId}");
+
+    // Employee Availability (Admin)
+    public Task<List<AdminAvailabilityResponse>?> GetEmployeeAvailabilityAsync(Guid employeeId) =>
+        http.GetFromJsonAsync<List<AdminAvailabilityResponse>>($"/api/scheduling/employees/{employeeId}/availability", JsonOptions);
 }

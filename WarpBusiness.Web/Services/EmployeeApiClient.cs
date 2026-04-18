@@ -23,7 +23,11 @@ public record EmployeeResponse(
     Guid? UserId,
     Guid TenantId,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    bool IsPortalEnabled = false,
+    bool PortalCanViewSchedule = false,
+    bool PortalCanManageAvailability = false,
+    bool PortalCanRequestTimeOff = false);
 
 public record CreateEmployeeRequest(
     string FirstName,
@@ -38,7 +42,11 @@ public record CreateEmployeeRequest(
     Guid? ManagerId,
     string EmploymentStatus,
     string EmploymentType,
-    Guid? UserId);
+    Guid? UserId,
+    bool IsPortalEnabled = false,
+    bool PortalCanViewSchedule = false,
+    bool PortalCanManageAvailability = false,
+    bool PortalCanRequestTimeOff = false);
 
 public record UpdateEmployeeRequest(
     string FirstName,
@@ -54,7 +62,11 @@ public record UpdateEmployeeRequest(
     Guid? ManagerId,
     string EmploymentStatus,
     string EmploymentType,
-    Guid? UserId);
+    Guid? UserId,
+    bool IsPortalEnabled = false,
+    bool PortalCanViewSchedule = false,
+    bool PortalCanManageAvailability = false,
+    bool PortalCanRequestTimeOff = false);
 
 public record CreateEmployeeWithUserRequest(
     string FirstName, string LastName, string? MiddleName,
