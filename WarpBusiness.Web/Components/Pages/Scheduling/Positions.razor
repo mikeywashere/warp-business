@@ -1,0 +1,247 @@
+@page "/scheduling/positions"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject SchedulingApiClient SchedulingApi
+
+<PageTitle>Positions</PageTitle>
+
+<h1 class="mb-4">Positions</h1>
+
+<AuthorizeView Context="authContext">
+    <Authorized>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            @if (showForm)
+            {
+                <div class="card mb-4">
+                    <div class="card-header">@(editingId.HasValue ? "Edit Position" : "Add Position")</div>
+                    <div class="card-body">
+                        <EditForm Model="formModel" OnValidSubmit="SavePosition" Context="editFormContext">
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <label class="form-label">Name *</label>
+                                    <InputText class="form-control" @bind-Value="formModel.Name" />
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label">Description</label>
+                                    <InputText class="form-control" @bind-Value="formModel.Description" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Color</label>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input type="color" class="form-control form-control-color" @bind="formModel.Color" title="Pick a color for this position" />
+                                        <span class="badge" style="background-color: @formModel.Color; color: #fff; padding: 0.4em 0.7em;">@formModel.Color</span>
+                                    </div>
+                                </div>
+                                @if (editingId.HasValue)
+                                {
+                                    <div class="col-md-2">
+                                        <label class="form-label">Active</label>
+                                        <div class="form-check mt-1">
+                                            <InputCheckbox class="form-check-input" @bind-Value="formModel.IsActive" />
+                                            <label class="form-check-label">Active</label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            <div class="mt-3 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                    @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                    Save
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="CancelForm">Cancel</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">@positions.Count position(s)</span>
+                @if (!showForm)
+                {
+                    <button class="btn btn-primary btn-sm" @onclick="ShowAddForm">+ Add Position</button>
+                }
+            </div>
+
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Color</th>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th style="width: 250px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var pos in positions)
+                    {
+                        <tr>
+                            <td>
+                                <span class="d-inline-block rounded" style="width: 24px; height: 24px; background-color: @pos.Color; border: 1px solid rgba(255,255,255,0.2);"></span>
+                            </td>
+                            <td>@pos.Name</td>
+                            <td class="text-muted">@pos.Description</td>
+                            <td>
+                                @if (pos.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditPosition(pos)">Edit</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeletePosition(pos.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                    @if (positions.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-center text-muted py-4">No positions yet. Add one above.</td></tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<PositionResponse> positions = [];
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? editingId;
+
+    private PositionFormModel formModel = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            positions = await SchedulingApi.GetPositionsAsync() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load positions: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        editingId = null;
+        formModel = new();
+        showForm = true;
+    }
+
+    private void EditPosition(PositionResponse pos)
+    {
+        editingId = pos.Id;
+        formModel = new() { Name = pos.Name, Description = pos.Description, Color = pos.Color, IsActive = pos.IsActive };
+        showForm = true;
+    }
+
+    private void CancelForm()
+    {
+        showForm = false;
+        editingId = null;
+        formModel = new();
+    }
+
+    private async Task SavePosition()
+    {
+        try
+        {
+            isSaving = true;
+            if (editingId.HasValue)
+            {
+                await SchedulingApi.UpdatePositionAsync(editingId.Value, new UpdatePositionRequest(formModel.Name!, formModel.Description, formModel.Color, formModel.IsActive));
+                successMessage = "Position updated.";
+            }
+            else
+            {
+                await SchedulingApi.CreatePositionAsync(new CreatePositionRequest(formModel.Name!, formModel.Description, formModel.Color));
+                successMessage = "Position created.";
+            }
+            showForm = false;
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to save: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeletePosition(Guid id)
+    {
+        try
+        {
+            errorMessage = null;
+            await SchedulingApi.DeletePositionAsync(id);
+            successMessage = "Position deleted.";
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to delete: {ex.Message}";
+        }
+    }
+
+    private class PositionFormModel
+    {
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+        public string Color { get; set; } = "#6B7280";
+        public bool IsActive { get; set; } = true;
+    }
+}

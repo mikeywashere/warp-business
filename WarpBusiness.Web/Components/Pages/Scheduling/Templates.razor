@@ -1,0 +1,395 @@
+@page "/scheduling/templates"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject SchedulingApiClient SchedulingApi
+
+<PageTitle>Schedule Templates</PageTitle>
+
+<h1 class="mb-4">Schedule Templates</h1>
+
+<AuthorizeView Context="authContext">
+    <Authorized>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            @if (showTemplateForm)
+            {
+                <div class="card mb-4">
+                    <div class="card-header">@(editingTemplateId.HasValue ? "Edit Template" : "Add Template")</div>
+                    <div class="card-body">
+                        <EditForm Model="templateFormModel" OnValidSubmit="SaveTemplate" Context="editFormContext">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Name *</label>
+                                    <InputText class="form-control" @bind-Value="templateFormModel.Name" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Description</label>
+                                    <InputText class="form-control" @bind-Value="templateFormModel.Description" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Work Location *</label>
+                                    <InputSelect class="form-select" @bind-Value="templateFormModel.WorkLocationId">
+                                        <option value="">-- Select Location --</option>
+                                        @foreach (var loc in locations)
+                                        {
+                                            <option value="@loc.Id">@loc.Name (@loc.State)</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                            </div>
+                            <div class="mt-3 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                    @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                    Save
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="CancelTemplateForm">Cancel</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">@templates.Count template(s)</span>
+                @if (!showTemplateForm && selectedTemplateId == null)
+                {
+                    <button class="btn btn-primary btn-sm" @onclick="ShowAddTemplateForm">+ Add Template</button>
+                }
+            </div>
+
+            @if (selectedTemplateId != null)
+            {
+                <!-- Staffing Blocks Editor -->
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Staffing Blocks — <strong>@selectedTemplateName</strong></span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="CloseBlocksEditor">Close</button>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">Define how many of each position are needed on each day and time range.</p>
+
+                        @if (showBlockForm)
+                        {
+                            <div class="border rounded p-3 mb-3">
+                                <EditForm Model="blockFormModel" OnValidSubmit="SaveBlock" Context="blockFormCtx">
+                                    <div class="row g-3">
+                                        <div class="col-md-3">
+                                            <label class="form-label">Position *</label>
+                                            <InputSelect class="form-select" @bind-Value="blockFormModel.PositionId">
+                                                <option value="">-- Select --</option>
+                                                @foreach (var pos in positions)
+                                                {
+                                                    <option value="@pos.Id">@pos.Name</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Day of Week</label>
+                                            <InputSelect class="form-select" @bind-Value="blockFormModel.DayOfWeek">
+                                                @for (int d = 0; d < 7; d++)
+                                                {
+                                                    var day = d;
+                                                    <option value="@day">@DayName(day)</option>
+                                                }
+                                            </InputSelect>
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Start Time</label>
+                                            <input type="time" class="form-control" value="@blockFormModel.StartTime" @onchange="e => blockFormModel.StartTime = e.Value?.ToString() ?? blockFormModel.StartTime" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">End Time</label>
+                                            <input type="time" class="form-control" value="@blockFormModel.EndTime" @onchange="e => blockFormModel.EndTime = e.Value?.ToString() ?? blockFormModel.EndTime" />
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label">Required #</label>
+                                            <InputNumber class="form-control" @bind-Value="blockFormModel.RequiredCount" min="1" />
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 d-flex gap-2">
+                                        <button type="submit" class="btn btn-primary btn-sm" disabled="@isSaving">Save Block</button>
+                                        <button type="button" class="btn btn-secondary btn-sm" @onclick="CancelBlockForm">Cancel</button>
+                                    </div>
+                                </EditForm>
+                            </div>
+                        }
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted small">@blocks.Count block(s)</span>
+                            @if (!showBlockForm)
+                            {
+                                <button class="btn btn-sm btn-outline-primary" @onclick="ShowAddBlockForm">+ Add Block</button>
+                            }
+                        </div>
+
+                        @foreach (var dayGroup in blocks.GroupBy(b => b.DayOfWeek).OrderBy(g => g.Key))
+                        {
+                            <div class="mb-3">
+                                <h6 class="text-muted small fw-semibold">@DayName(dayGroup.Key)</h6>
+                                <table class="table table-sm table-hover mb-0">
+                                    <tbody>
+                                        @foreach (var block in dayGroup.OrderBy(b => b.StartTime))
+                                        {
+                                            var posName = positions.FirstOrDefault(p => p.Id == block.PositionId)?.Name ?? "Unknown";
+                                            var posColor = positions.FirstOrDefault(p => p.Id == block.PositionId)?.Color ?? "#6B7280";
+                                            <tr>
+                                                <td style="width: 20px;"><span class="d-inline-block rounded" style="width: 14px; height: 14px; background-color: @posColor;"></span></td>
+                                                <td>@posName</td>
+                                                <td class="text-muted">@block.StartTime.ToString("h:mm tt") – @block.EndTime.ToString("h:mm tt")</td>
+                                                <td><span class="badge bg-secondary">×@block.RequiredCount</span></td>
+                                                <td><button class="btn btn-sm btn-outline-danger py-0" @onclick="() => DeleteBlock(block.Id)">✕</button></td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        @if (blocks.Count == 0)
+                        {
+                            <p class="text-muted text-center py-3">No staffing blocks yet. Add one above.</p>
+                        }
+                    </div>
+                </div>
+            }
+
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Name</th>
+                        <th>Location</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th style="width: 250px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var tmpl in templates)
+                    {
+                        <tr class="@(selectedTemplateId == tmpl.Id ? "table-active" : "")">
+                            <td>@tmpl.Name</td>
+                            <td>@tmpl.WorkLocationName</td>
+                            <td class="text-muted">@tmpl.Description</td>
+                            <td>
+                                @if (tmpl.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Inactive</span>
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info me-1" @onclick="() => OpenBlocksEditor(tmpl)">Blocks</button>
+                                <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditTemplate(tmpl)">Edit</button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteTemplate(tmpl.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                    @if (templates.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-center text-muted py-4">No templates yet. Add one above.</td></tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<ScheduleTemplateResponse> templates = [];
+    private List<WorkLocationResponse> locations = [];
+    private List<PositionResponse> positions = [];
+    private List<StaffingBlockResponse> blocks = [];
+
+    private bool isLoading = true;
+    private bool showTemplateForm = false;
+    private bool showBlockForm = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? editingTemplateId;
+    private Guid? selectedTemplateId;
+    private string? selectedTemplateName;
+
+    private TemplateFormModel templateFormModel = new();
+    private BlockFormModel blockFormModel = new();
+    private Guid? editingBlockId;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            templates = await SchedulingApi.GetTemplatesAsync() ?? [];
+            locations = await SchedulingApi.GetLocationsAsync() ?? [];
+            positions = await SchedulingApi.GetPositionsAsync() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowAddTemplateForm()
+    {
+        editingTemplateId = null;
+        templateFormModel = new();
+        showTemplateForm = true;
+    }
+
+    private void EditTemplate(ScheduleTemplateResponse tmpl)
+    {
+        editingTemplateId = tmpl.Id;
+        templateFormModel = new() { Name = tmpl.Name, Description = tmpl.Description, WorkLocationId = tmpl.WorkLocationId.ToString() };
+        showTemplateForm = true;
+    }
+
+    private void CancelTemplateForm() { showTemplateForm = false; editingTemplateId = null; }
+
+    private async Task SaveTemplate()
+    {
+        if (!Guid.TryParse(templateFormModel.WorkLocationId, out var locId))
+        {
+            errorMessage = "Please select a work location.";
+            return;
+        }
+        try
+        {
+            isSaving = true;
+            if (editingTemplateId.HasValue)
+                await SchedulingApi.UpdateTemplateAsync(editingTemplateId.Value, new UpdateScheduleTemplateRequest(templateFormModel.Name!, templateFormModel.Description, true));
+            else
+                await SchedulingApi.CreateTemplateAsync(new CreateScheduleTemplateRequest(templateFormModel.Name!, templateFormModel.Description, locId));
+            showTemplateForm = false;
+            successMessage = "Template saved.";
+            await LoadData();
+        }
+        catch (Exception ex) { errorMessage = $"Failed to save template: {ex.Message}"; }
+        finally { isSaving = false; }
+    }
+
+    private async Task DeleteTemplate(Guid id)
+    {
+        try
+        {
+            await SchedulingApi.DeleteTemplateAsync(id);
+            if (selectedTemplateId == id) CloseBlocksEditor();
+            successMessage = "Template deleted.";
+            await LoadData();
+        }
+        catch (Exception ex) { errorMessage = $"Failed to delete: {ex.Message}"; }
+    }
+
+    private async Task OpenBlocksEditor(ScheduleTemplateResponse tmpl)
+    {
+        selectedTemplateId = tmpl.Id;
+        selectedTemplateName = tmpl.Name;
+        blocks = await SchedulingApi.GetBlocksAsync(tmpl.Id) ?? [];
+    }
+
+    private void CloseBlocksEditor() { selectedTemplateId = null; selectedTemplateName = null; blocks = []; showBlockForm = false; }
+
+    private void ShowAddBlockForm() { editingBlockId = null; blockFormModel = new(); showBlockForm = true; }
+    private void CancelBlockForm() { showBlockForm = false; editingBlockId = null; }
+
+    private async Task SaveBlock()
+    {
+        if (!Guid.TryParse(blockFormModel.PositionId, out var posId) || selectedTemplateId == null)
+        {
+            errorMessage = "Select a position first.";
+            return;
+        }
+        if (!TimeOnly.TryParse(blockFormModel.StartTime, out var start) || !TimeOnly.TryParse(blockFormModel.EndTime, out var end))
+        {
+            errorMessage = "Invalid start or end time.";
+            return;
+        }
+        try
+        {
+            isSaving = true;
+            if (editingBlockId.HasValue)
+                await SchedulingApi.UpdateBlockAsync(selectedTemplateId.Value, editingBlockId.Value, new UpdateStaffingBlockRequest(posId, blockFormModel.DayOfWeek, start, end, blockFormModel.RequiredCount));
+            else
+                await SchedulingApi.AddBlockAsync(selectedTemplateId.Value, new CreateStaffingBlockRequest(posId, blockFormModel.DayOfWeek, start, end, blockFormModel.RequiredCount));
+            showBlockForm = false;
+            blocks = await SchedulingApi.GetBlocksAsync(selectedTemplateId.Value) ?? [];
+        }
+        catch (Exception ex) { errorMessage = $"Failed to save block: {ex.Message}"; }
+        finally { isSaving = false; }
+    }
+
+    private async Task DeleteBlock(Guid blockId)
+    {
+        if (selectedTemplateId == null) return;
+        try
+        {
+            await SchedulingApi.DeleteBlockAsync(selectedTemplateId.Value, blockId);
+            blocks = await SchedulingApi.GetBlocksAsync(selectedTemplateId.Value) ?? [];
+        }
+        catch (Exception ex) { errorMessage = $"Failed to delete block: {ex.Message}"; }
+    }
+
+    private static string DayName(int day) => day switch
+    {
+        0 => "Sunday", 1 => "Monday", 2 => "Tuesday", 3 => "Wednesday",
+        4 => "Thursday", 5 => "Friday", 6 => "Saturday", _ => "Unknown"
+    };
+
+    private class TemplateFormModel
+    {
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+        public string? WorkLocationId { get; set; }
+    }
+
+    private class BlockFormModel
+    {
+        public string? PositionId { get; set; }
+        public int DayOfWeek { get; set; }
+        public string StartTime { get; set; } = "06:00";
+        public string EndTime { get; set; } = "14:00";
+        public int RequiredCount { get; set; } = 1;
+    }
+}

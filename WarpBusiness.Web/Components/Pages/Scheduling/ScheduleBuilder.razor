@@ -1,0 +1,417 @@
+@page "/scheduling/schedules/{ScheduleId:guid}/builder"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject SchedulingApiClient SchedulingApi
+@inject NavigationManager Navigation
+
+<PageTitle>Schedule Builder</PageTitle>
+
+<AuthorizeView Context="authContext">
+    <Authorized>
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else if (schedule == null)
+        {
+            <div class="alert alert-warning">Schedule not found.</div>
+        }
+        else
+        {
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1">
+                            <li class="breadcrumb-item"><a href="/scheduling/schedules">Schedules</a></li>
+                            <li class="breadcrumb-item active">@schedule.Name</li>
+                        </ol>
+                    </nav>
+                    <h2 class="mb-0">@schedule.Name <small class="fs-6 text-muted">@schedule.WorkLocationName</small></h2>
+                    <span class="text-muted small">@schedule.StartDate.ToString("MMM d") – @schedule.EndDate.ToString("MMM d, yyyy")</span>
+                    &nbsp;
+                    @StatusBadge(schedule.Status)
+                </div>
+                <div class="d-flex gap-2">
+                    @if (schedule.Status == ScheduleStatus.Draft)
+                    {
+                        <button class="btn btn-success btn-sm" @onclick="PublishSchedule">Publish</button>
+                    }
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="BackToSchedules">← Back</button>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @errorMessage
+                    <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @successMessage
+                    <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                </div>
+            }
+
+            <!-- Week Navigation -->
+            <div class="d-flex align-items-center gap-3 mb-3">
+                <button class="btn btn-outline-secondary btn-sm" @onclick="PrevWeek" disabled="@(weekStart <= schedule.StartDate)">‹ Prev</button>
+                <span class="fw-semibold">Week of @weekStart.ToString("MMM d, yyyy")</span>
+                <button class="btn btn-outline-secondary btn-sm" @onclick="NextWeek" disabled="@(weekStart.AddDays(7) > schedule.EndDate)">Next ›</button>
+            </div>
+
+            <!-- Week Grid -->
+            <div class="table-responsive">
+                <table class="table table-bordered schedule-grid">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 130px;">Position</th>
+                            @for (int d = 0; d < 7; d++)
+                            {
+                                var date = weekStart.AddDays(d);
+                                var isToday = date == DateOnly.FromDateTime(DateTime.Today);
+                                <th class="text-center @(isToday ? "today-col" : "")">
+                                    <div class="fw-semibold">@date.DayOfWeek.ToString()[..3]</div>
+                                    <div class="small text-muted">@date.ToString("MMM d")</div>
+                                </th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pos in positions.Where(p => p.IsActive))
+                        {
+                            <tr>
+                                <td class="fw-semibold small">
+                                    <span class="d-inline-block rounded me-1" style="width: 12px; height: 12px; background-color: @pos.Color; vertical-align: middle;"></span>
+                                    @pos.Name
+                                </td>
+                                @for (int d = 0; d < 7; d++)
+                                {
+                                    var date = weekStart.AddDays(d);
+                                    var dayShifts = GetShiftsForCell(pos.Id, date);
+                                    <td class="shift-cell">
+                                        @foreach (var shift in dayShifts)
+                                        {
+                                            <div class="shift-chip" style="border-left: 3px solid @pos.Color;"
+                                                 @onclick="() => OpenEditShift(shift)">
+                                                <div class="small fw-semibold">@shift.ScheduledStartTime.ToString("h:mm tt") – @shift.ScheduledEndTime.ToString("h:mm tt")</div>
+                                                @if (shift.Breaks.Any(b => !b.WasTaken))
+                                                {
+                                                    <span class="badge bg-warning text-dark" title="Break not taken">⚠ Break</span>
+                                                }
+                                            </div>
+                                        }
+                                        <button class="btn btn-link btn-sm add-shift-btn p-0"
+                                                @onclick="() => OpenAddShift(pos.Id, date)"
+                                                title="Add shift">+</button>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                        @if (!positions.Any(p => p.IsActive))
+                        {
+                            <tr><td colspan="8" class="text-center text-muted py-4">No active positions. <a href="/scheduling/positions">Create positions first.</a></td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Shift Edit Modal (inline panel) -->
+            @if (showShiftPanel)
+            {
+                <div class="card mt-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>@(editingShiftId.HasValue ? "Edit Shift" : "Add Shift") — @shiftFormModel.PositionName on @shiftFormModel.Date.ToString("dddd, MMM d")</span>
+                        <button type="button" class="btn-close" @onclick="CloseShiftPanel"></button>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Scheduled Start</label>
+                                <input type="time" class="form-control" value="@shiftFormModel.StartTime" @onchange="e => shiftFormModel.StartTime = e.Value?.ToString() ?? shiftFormModel.StartTime" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Scheduled End</label>
+                                <input type="time" class="form-control" value="@shiftFormModel.EndTime" @onchange="e => shiftFormModel.EndTime = e.Value?.ToString() ?? shiftFormModel.EndTime" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Notes</label>
+                                <input type="text" class="form-control" @bind="shiftFormModel.Notes" />
+                            </div>
+                        </div>
+
+                        @if (editingShiftId.HasValue && shiftBreaks.Any())
+                        {
+                            <div class="mt-3">
+                                <h6 class="text-muted small fw-semibold">Auto-Generated Breaks</h6>
+                                <table class="table table-sm">
+                                    <thead><tr><th>Type</th><th>Paid</th><th>Scheduled</th><th>Taken</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var brk in shiftBreaks)
+                                        {
+                                            <tr>
+                                                <td><span class="badge @(brk.BreakType == BreakType.Rest ? "bg-info text-dark" : "bg-warning text-dark")">@brk.BreakType</span></td>
+                                                <td>@(brk.IsPaid ? "Yes" : "No")</td>
+                                                <td>@(brk.ScheduledStartTime.HasValue ? brk.ScheduledStartTime.Value.ToString("h:mm tt") : "—")</td>
+                                                <td>
+                                                    @if (brk.WasTaken) { <span class="badge bg-success">✓</span> }
+                                                    else { <span class="badge bg-secondary">—</span> }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        <div class="mt-3 d-flex gap-2">
+                            <button class="btn btn-primary btn-sm" @onclick="SaveShift" disabled="@isSaving">
+                                @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                Save Shift
+                            </button>
+                            @if (editingShiftId.HasValue)
+                            {
+                                <button class="btn btn-outline-danger btn-sm" @onclick="DeleteShift">Delete</button>
+                            }
+                            <button class="btn btn-secondary btn-sm" @onclick="CloseShiftPanel">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </Authorized>
+</AuthorizeView>
+
+<style>
+    .schedule-grid td, .schedule-grid th { vertical-align: top; min-width: 110px; }
+    .today-col { background-color: rgba(0, 200, 255, 0.06); }
+    .shift-cell { position: relative; padding: 4px; }
+    .shift-chip {
+        background-color: rgba(255,255,255,0.06);
+        border-radius: 4px;
+        padding: 4px 6px;
+        margin-bottom: 3px;
+        cursor: pointer;
+        font-size: 0.78rem;
+    }
+    .shift-chip:hover { background-color: rgba(255,255,255,0.12); }
+    .add-shift-btn {
+        color: rgba(255,255,255,0.3);
+        font-size: 1.2rem;
+        line-height: 1;
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
+    .add-shift-btn:hover { color: var(--clr-accent); }
+</style>
+
+@code {
+    [Parameter] public Guid ScheduleId { get; set; }
+
+    private ScheduleResponse? schedule;
+    private List<ShiftResponse> shifts = [];
+    private List<PositionResponse> positions = [];
+    private List<BreakResponseDto> shiftBreaks = [];
+
+    private bool isLoading = true;
+    private bool showShiftPanel = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? editingShiftId;
+
+    private DateOnly weekStart;
+
+    private ShiftFormModel shiftFormModel = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            schedule = await SchedulingApi.GetScheduleAsync(ScheduleId);
+            if (schedule != null)
+            {
+                weekStart = GetWeekStart(schedule.StartDate);
+                shifts = await SchedulingApi.GetShiftsAsync(ScheduleId) ?? [];
+            }
+            positions = await SchedulingApi.GetPositionsAsync() ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static DateOnly GetWeekStart(DateOnly date)
+    {
+        var offset = (int)date.DayOfWeek;
+        return date.AddDays(-offset);
+    }
+
+    private List<ShiftResponse> GetShiftsForCell(Guid positionId, DateOnly date) =>
+        shifts.Where(s => s.PositionId == positionId && s.Date == date).ToList();
+
+    private void BackToSchedules() => Navigation.NavigateTo("/scheduling/schedules");
+
+    private void PrevWeek()
+    {
+        weekStart = weekStart.AddDays(-7);
+        if (weekStart < schedule!.StartDate) weekStart = GetWeekStart(schedule.StartDate);
+    }
+
+    private void NextWeek()
+    {
+        weekStart = weekStart.AddDays(7);
+    }
+
+    private void OpenAddShift(Guid positionId, DateOnly date)
+    {
+        editingShiftId = null;
+        shiftBreaks = [];
+        var pos = positions.FirstOrDefault(p => p.Id == positionId);
+        shiftFormModel = new()
+        {
+            PositionId = positionId,
+            PositionName = pos?.Name ?? "Unknown",
+            Date = date,
+            StartTime = "09:00",
+            EndTime = "17:00"
+        };
+        showShiftPanel = true;
+    }
+
+    private void OpenEditShift(ShiftResponse shift)
+    {
+        editingShiftId = shift.Id;
+        shiftBreaks = shift.Breaks.ToList();
+        var pos = positions.FirstOrDefault(p => p.Id == shift.PositionId);
+        shiftFormModel = new()
+        {
+            PositionId = shift.PositionId,
+            PositionName = pos?.Name ?? "Unknown",
+            Date = shift.Date,
+            StartTime = shift.ScheduledStartTime.ToString("HH:mm"),
+            EndTime = shift.ScheduledEndTime.ToString("HH:mm"),
+            Notes = shift.Notes
+        };
+        showShiftPanel = true;
+    }
+
+    private void CloseShiftPanel()
+    {
+        showShiftPanel = false;
+        editingShiftId = null;
+        shiftBreaks = [];
+    }
+
+    private async Task SaveShift()
+    {
+        if (!TimeOnly.TryParse(shiftFormModel.StartTime, out var start) || !TimeOnly.TryParse(shiftFormModel.EndTime, out var end))
+        {
+            errorMessage = "Invalid start or end time.";
+            return;
+        }
+        try
+        {
+            isSaving = true;
+            if (editingShiftId.HasValue)
+            {
+                var existing = shifts.First(s => s.Id == editingShiftId.Value);
+                await SchedulingApi.UpdateShiftAsync(ScheduleId, editingShiftId.Value,
+                    new UpdateShiftRequest(existing.EmployeeId, shiftFormModel.PositionId, start, end, null, null, existing.Status, shiftFormModel.Notes));
+                successMessage = "Shift updated.";
+            }
+            else
+            {
+                await SchedulingApi.CreateShiftAsync(ScheduleId,
+                    new CreateShiftRequest(Guid.Empty, shiftFormModel.PositionId, shiftFormModel.Date, start, end, shiftFormModel.Notes));
+                successMessage = "Shift added with auto-generated breaks.";
+            }
+
+            showShiftPanel = false;
+            shifts = await SchedulingApi.GetShiftsAsync(ScheduleId) ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to save shift: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteShift()
+    {
+        if (!editingShiftId.HasValue) return;
+        try
+        {
+            await SchedulingApi.DeleteShiftAsync(ScheduleId, editingShiftId.Value);
+            showShiftPanel = false;
+            shifts = await SchedulingApi.GetShiftsAsync(ScheduleId) ?? [];
+            successMessage = "Shift deleted.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to delete: {ex.Message}";
+        }
+    }
+
+    private async Task PublishSchedule()
+    {
+        try
+        {
+            schedule = await SchedulingApi.UpdateScheduleStatusAsync(ScheduleId, ScheduleStatus.Published);
+            successMessage = "Schedule published.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to publish: {ex.Message}";
+        }
+    }
+
+    private RenderFragment StatusBadge(ScheduleStatus status) => status switch
+    {
+        ScheduleStatus.Draft => @<span class="badge bg-secondary">Draft</span>,
+        ScheduleStatus.Published => @<span class="badge bg-primary">Published</span>,
+        ScheduleStatus.InProgress => @<span class="badge bg-warning text-dark">In Progress</span>,
+        ScheduleStatus.Completed => @<span class="badge bg-success">Completed</span>,
+        ScheduleStatus.Archived => @<span class="badge bg-dark">Archived</span>,
+        _ => @<span class="badge bg-secondary">@status</span>
+    };
+
+    private class ShiftFormModel
+    {
+        public Guid PositionId { get; set; }
+        public string PositionName { get; set; } = "";
+        public DateOnly Date { get; set; }
+        public string StartTime { get; set; } = "09:00";
+        public string EndTime { get; set; } = "17:00";
+        public string? Notes { get; set; }
+    }
+}

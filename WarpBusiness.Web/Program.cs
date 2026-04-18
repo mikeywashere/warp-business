@@ -152,6 +152,9 @@ builder.Services.AddHttpClient<CatalogApiClient>(configureApiClient)
 builder.Services.AddHttpClient<TaxonomyApiClient>(configureApiClient)
     .AddHttpMessageHandler<AuthTokenHandler>();
 
+builder.Services.AddHttpClient<SchedulingApiClient>(configureApiClient)
+    .AddHttpMessageHandler<AuthTokenHandler>();
+
 builder.Services.AddSingleton<CatalogTemplateRenderer>();
 
 builder.Services.AddRazorComponents()

@@ -1,0 +1,258 @@
+@page "/scheduling/schedules"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject SchedulingApiClient SchedulingApi
+@inject NavigationManager Navigation
+
+<PageTitle>Schedules</PageTitle>
+
+<h1 class="mb-4">Schedules</h1>
+
+<AuthorizeView Context="authContext">
+    <Authorized>
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @errorMessage
+                <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @successMessage
+                <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center my-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        }
+        else
+        {
+            @if (showForm)
+            {
+                <div class="card mb-4">
+                    <div class="card-header">@(editingId.HasValue ? "Edit Schedule" : "New Schedule")</div>
+                    <div class="card-body">
+                        <EditForm Model="formModel" OnValidSubmit="SaveSchedule" Context="editFormContext">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Name *</label>
+                                    <InputText class="form-control" @bind-Value="formModel.Name" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Work Location *</label>
+                                    <InputSelect class="form-select" @bind-Value="formModel.WorkLocationId">
+                                        <option value="">-- Select Location --</option>
+                                        @foreach (var loc in locations)
+                                        {
+                                            <option value="@loc.Id">@loc.Name (@loc.State)</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Start Date *</label>
+                                    <InputDate class="form-control" @bind-Value="formModel.StartDate" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">End Date *</label>
+                                    <InputDate class="form-control" @bind-Value="formModel.EndDate" />
+                                </div>
+                            </div>
+                            <div class="mt-3 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary" disabled="@isSaving">
+                                    @if (isSaving) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                                    Save
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="CancelForm">Cancel</button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">@schedules.Count schedule(s)</span>
+                @if (!showForm)
+                {
+                    <button class="btn btn-primary btn-sm" @onclick="ShowAddForm">+ New Schedule</button>
+                }
+            </div>
+
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Name</th>
+                        <th>Location</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Status</th>
+                        <th style="width: 250px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var sched in schedules)
+                    {
+                        <tr>
+                            <td>@sched.Name</td>
+                            <td>@sched.WorkLocationName</td>
+                            <td>@sched.StartDate.ToString("MMM d, yyyy")</td>
+                            <td>@sched.EndDate.ToString("MMM d, yyyy")</td>
+                            <td>@StatusBadge(sched.Status)</td>
+                            <td>
+                                <a class="btn btn-sm btn-outline-info me-1" href="/scheduling/schedules/@sched.Id/builder">Build</a>
+                                @if (sched.Status == ScheduleStatus.Draft || sched.Status == ScheduleStatus.Archived)
+                                {
+                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => EditSchedule(sched)">Edit</button>
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteSchedule(sched.Id)">Delete</button>
+                                }
+                                @if (sched.Status == ScheduleStatus.Draft)
+                                {
+                                    <button class="btn btn-sm btn-outline-success ms-1" @onclick="() => ChangeStatus(sched.Id, ScheduleStatus.Published)">Publish</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (schedules.Count == 0)
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-4">No schedules yet. Create one above.</td></tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<ScheduleResponse> schedules = [];
+    private List<WorkLocationResponse> locations = [];
+    private bool isLoading = true;
+    private bool showForm = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private Guid? editingId;
+
+    private ScheduleFormModel formModel = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+        if (firstRender)
+        {
+            await LoadData();
+        }
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            var (sched, locs) = (await SchedulingApi.GetSchedulesAsync(), await SchedulingApi.GetLocationsAsync());
+            schedules = sched ?? [];
+            locations = locs ?? [];
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ShowAddForm()
+    {
+        editingId = null;
+        formModel = new() { StartDate = DateOnly.FromDateTime(DateTime.Today), EndDate = DateOnly.FromDateTime(DateTime.Today.AddDays(6)) };
+        showForm = true;
+    }
+
+    private void EditSchedule(ScheduleResponse sched)
+    {
+        editingId = sched.Id;
+        formModel = new() { Name = sched.Name, WorkLocationId = sched.WorkLocationId.ToString(), StartDate = sched.StartDate, EndDate = sched.EndDate };
+        showForm = true;
+    }
+
+    private void CancelForm() { showForm = false; editingId = null; formModel = new(); }
+
+    private async Task SaveSchedule()
+    {
+        if (!Guid.TryParse(formModel.WorkLocationId, out var locId))
+        {
+            errorMessage = "Please select a work location.";
+            return;
+        }
+        try
+        {
+            isSaving = true;
+            if (editingId.HasValue)
+            {
+                await SchedulingApi.UpdateScheduleAsync(editingId.Value, new UpdateScheduleRequest(formModel.Name!, formModel.StartDate, formModel.EndDate));
+                successMessage = "Schedule updated.";
+            }
+            else
+            {
+                await SchedulingApi.CreateScheduleAsync(new CreateScheduleRequest(formModel.Name!, locId, formModel.StartDate, formModel.EndDate));
+                successMessage = "Schedule created.";
+            }
+            showForm = false;
+            await LoadData();
+        }
+        catch (Exception ex) { errorMessage = $"Failed to save: {ex.Message}"; }
+        finally { isSaving = false; }
+    }
+
+    private async Task DeleteSchedule(Guid id)
+    {
+        try
+        {
+            await SchedulingApi.DeleteScheduleAsync(id);
+            successMessage = "Schedule deleted.";
+            await LoadData();
+        }
+        catch (Exception ex) { errorMessage = $"Failed to delete: {ex.Message}"; }
+    }
+
+    private async Task ChangeStatus(Guid id, ScheduleStatus status)
+    {
+        try
+        {
+            await SchedulingApi.UpdateScheduleStatusAsync(id, status);
+            successMessage = $"Schedule status updated to {status}.";
+            await LoadData();
+        }
+        catch (Exception ex) { errorMessage = $"Failed to update status: {ex.Message}"; }
+    }
+
+    private RenderFragment StatusBadge(ScheduleStatus status) => status switch
+    {
+        ScheduleStatus.Draft => @<span class="badge bg-secondary">Draft</span>,
+        ScheduleStatus.Published => @<span class="badge bg-primary">Published</span>,
+        ScheduleStatus.InProgress => @<span class="badge bg-warning text-dark">In Progress</span>,
+        ScheduleStatus.Completed => @<span class="badge bg-success">Completed</span>,
+        ScheduleStatus.Archived => @<span class="badge bg-dark">Archived</span>,
+        _ => @<span class="badge bg-secondary">@status</span>
+    };
+
+    private class ScheduleFormModel
+    {
+        public string? Name { get; set; }
+        public string? WorkLocationId { get; set; }
+        public DateOnly StartDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+        public DateOnly EndDate { get; set; } = DateOnly.FromDateTime(DateTime.Today.AddDays(6));
+    }
+}
