@@ -13,6 +13,9 @@ using WarpBusiness.CommonTaxonomy.Endpoints;
 using WarpBusiness.CommonTaxonomy.Services;
 using WarpBusiness.CommonTaxonomy.Services.Providers;
 using WarpBusiness.Storage;
+using WarpBusiness.Scheduling.Data;
+using WarpBusiness.Scheduling.Services;
+using WarpBusiness.Scheduling.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +27,7 @@ builder.AddNpgsqlDbContext<EmployeeDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CrmDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CatalogDbContext>("warpdb");
 builder.AddNpgsqlDbContext<CommonTaxonomyDbContext>("warpdb");
+builder.AddNpgsqlDbContext<SchedulingDbContext>("warpdb");
 
 builder.Services.AddScoped<IUserValidator, UserValidator>();
 
@@ -191,6 +195,9 @@ builder.Services.AddHostedService<EmployeeDbInitializer>();
 builder.Services.AddHostedService<CrmDbInitializer>();
 builder.Services.AddHostedService<CatalogDbInitializer>();
 builder.Services.AddHostedService<CommonTaxonomyDbInitializer>();
+builder.Services.AddHostedService<SchedulingDbInitializer>();
+builder.Services.AddScoped<BreakCalculationService>();
+builder.Services.AddScoped<BreakValidationService>();
 
 builder.Services.AddHttpClient<GoogleTaxonomyDownloader>();
 builder.Services.AddHttpClient<AmazonTaxonomyDownloader>();
@@ -381,6 +388,14 @@ app.MapTaxonomyApiEndpoints();
 
 // Portal customer API endpoints (customer-scoped)
 app.MapPortalCustomerEndpoints();
+
+// Scheduling management API endpoints
+app.MapWorkLocationEndpoints();
+app.MapPositionEndpoints();
+app.MapScheduleTemplateEndpoints();
+app.MapScheduleEndpoints();
+app.MapBreakEndpoints();
+app.MapBreakRuleEndpoints();
 
 var summaries = new[]
 {
