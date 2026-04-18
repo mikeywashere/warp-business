@@ -54,6 +54,12 @@ var tenantPortal = builder.AddProject<Projects.WarpBusiness_TenantPortal>("tenan
     .WithReference(keycloak)
     .WithEnvironment("GRAFANA_OTLP_ENDPOINT", grafana.GetEndpoint("otlp-grpc"));
 
+var employeePortal = builder.AddProject<Projects.WarpBusiness_EmployeePortal>("employee-portal")
+    .WithReference(api)
+    .WaitFor(api)
+    .WithReference(keycloak)
+    .WaitFor(keycloak);
+
 var marketingSite = builder.AddProject<Projects.WarpBusiness_MarketingSite>("marketing-site")
     .WithExternalHttpEndpoints()
     .WithEnvironment("GRAFANA_OTLP_ENDPOINT", grafana.GetEndpoint("otlp-grpc"));
@@ -67,15 +73,17 @@ builder.AddContainer("nginx", "nginx", "alpine")
     .WithEnvironment("WEB_UPSTREAM", web.GetEndpoint("http"))
     .WithEnvironment("API_UPSTREAM", api.GetEndpoint("http"))
     .WithEnvironment("TENANT_PORTAL_UPSTREAM", tenantPortal.GetEndpoint("http"))
+    .WithEnvironment("EMPLOYEE_PORTAL_UPSTREAM", employeePortal.GetEndpoint("http"))
     .WithEnvironment("CUSTOMER_PORTAL_UPSTREAM", customerPortal.GetEndpoint("http"))
     .WithEnvironment("GRAFANA_UPSTREAM", grafana.GetEndpoint("grafana-ui"))
     .WithEnvironment("KEYCLOAK_UPSTREAM", keycloak.GetEndpoint("http"))
     .WithEntrypoint("/bin/sh")
-    .WithArgs("-c", "set -xe; echo '=== Substituting config ==='; envsubst '$MARKETING_UPSTREAM $WEB_UPSTREAM $API_UPSTREAM $TENANT_PORTAL_UPSTREAM $CUSTOMER_PORTAL_UPSTREAM $GRAFANA_UPSTREAM $KEYCLOAK_UPSTREAM' < /tmp/nginx.conf.template > /etc/nginx/conf.d/default.conf; echo '=== Generated config ==='; cat /etc/nginx/conf.d/default.conf; echo '=== Testing config ==='; nginx -t; echo '=== Starting nginx ==='; exec nginx -g 'daemon off;'")
+    .WithArgs("-c", "set -xe; echo '=== Substituting config ==='; envsubst '$MARKETING_UPSTREAM $WEB_UPSTREAM $API_UPSTREAM $TENANT_PORTAL_UPSTREAM $EMPLOYEE_PORTAL_UPSTREAM $CUSTOMER_PORTAL_UPSTREAM $GRAFANA_UPSTREAM $KEYCLOAK_UPSTREAM' < /tmp/nginx.conf.template > /etc/nginx/conf.d/default.conf; echo '=== Generated config ==='; cat /etc/nginx/conf.d/default.conf; echo '=== Testing config ==='; nginx -t; echo '=== Starting nginx ==='; exec nginx -g 'daemon off;'")
     .WaitFor(api)
     .WaitFor(web)
     .WaitFor(customerPortal)
     .WaitFor(tenantPortal)
+    .WaitFor(employeePortal)
     .WaitFor(marketingSite)
     .WaitFor(grafana);
 

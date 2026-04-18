@@ -9,6 +9,7 @@
 #   WEB_UPSTREAM            e.g. http://localhost:5001
 #   API_UPSTREAM            e.g. http://localhost:5000
 #   TENANT_PORTAL_UPSTREAM  e.g. http://localhost:5003
+#   EMPLOYEE_PORTAL_UPSTREAM e.g. http://localhost:5090
 #   CUSTOMER_PORTAL_UPSTREAM e.g. http://localhost:5004
 #   GRAFANA_UPSTREAM        e.g. http://localhost:3000
 #   KEYCLOAK_UPSTREAM       e.g. http://localhost:8080
@@ -166,6 +167,30 @@ server {
         proxy_http_version 1.1;
         proxy_set_header  Upgrade           $http_upgrade;
         proxy_set_header  Connection        "upgrade";
+    }
+}
+
+# ── employees.warp-business.com → employee portal ───────────────────────────
+server {
+    listen 80;
+    server_name employees.warp-business.com;
+
+    location /_health {
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+
+    location / {
+        proxy_pass        ${EMPLOYEE_PORTAL_UPSTREAM};
+        proxy_set_header  Host              $host;
+        proxy_set_header  X-Real-IP         $remote_addr;
+        proxy_set_header  X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header  X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header  Upgrade           $http_upgrade;
+        proxy_set_header  Connection        "upgrade";
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 86400;
     }
 }
 

@@ -6,6 +6,7 @@
     <ProjectReference Include="..\WarpBusiness.Web\WarpBusiness.Web.csproj" />
     <ProjectReference Include="..\WarpBusiness.CustomerPortal\WarpBusiness.CustomerPortal.csproj" />
     <ProjectReference Include="..\WarpBusiness.TenantPortal\WarpBusiness.TenantPortal.csproj" />
+    <ProjectReference Include="..\WarpBusiness.EmployeePortal\WarpBusiness.EmployeePortal.csproj" />
     <ProjectReference Include="..\WarpBusiness.MarketingSite\WarpBusiness.MarketingSite.csproj" />
   </ItemGroup>
 
