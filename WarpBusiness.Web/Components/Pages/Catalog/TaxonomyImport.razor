@@ -84,10 +84,13 @@
 
                 @if (isLoadingExternal)
                 {
-                    <div class="d-flex justify-content-center my-4">
-                        <div class="spinner-border text-primary" role="status">
+                    <div class="d-flex align-items-center justify-content-center my-4 gap-2">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
+                        <span class="text-muted small">
+                            Loading taxonomy@(loadedNodeCount > 0 ? $"... {loadedNodeCount:N0} nodes" : "...")
+                        </span>
                     </div>
                 }
                 else
@@ -158,6 +161,8 @@
     private Dictionary<string, List<ExternalNodeResponse>> externalTrees = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, Dictionary<Guid, List<ExternalNodeResponse>>> externalChildrenCache = new(StringComparer.OrdinalIgnoreCase);
     private Dictionary<string, HashSet<Guid>> expandedExternalNodes = new(StringComparer.OrdinalIgnoreCase);
+
+    private int loadedNodeCount;
 
     private List<string> ProviderTabs =>
         providerStatuses
@@ -246,11 +251,42 @@
         if (!forceReload && externalTrees.ContainsKey(provider)) return;
 
         isLoadingExternal = true;
+        loadedNodeCount = 0;
+
+        var roots = new List<ExternalNodeResponse>();
+        var childrenByParent = new Dictionary<Guid, List<ExternalNodeResponse>>();
+
         try
         {
-            var result = await TaxonomyApi.GetExternalNodesAsync(provider);
-            externalTrees[provider] = result.Nodes;
-            externalChildrenCache.Remove(provider);
+            int batchCount = 0;
+            await foreach (var node in TaxonomyApi.GetProviderNodesStreamAsync(provider))
+            {
+                if (node.ParentId is null)
+                    roots.Add(node);
+                else
+                {
+                    if (!childrenByParent.TryGetValue(node.ParentId.Value, out var siblings))
+                    {
+                        siblings = [];
+                        childrenByParent[node.ParentId.Value] = siblings;
+                    }
+                    siblings.Add(node);
+                }
+
+                loadedNodeCount++;
+                batchCount++;
+
+                if (batchCount >= 25)
+                {
+                    batchCount = 0;
+                    externalTrees[provider] = [.. roots];
+                    externalChildrenCache[provider] = new Dictionary<Guid, List<ExternalNodeResponse>>(childrenByParent);
+                    StateHasChanged();
+                }
+            }
+
+            externalTrees[provider] = roots;
+            externalChildrenCache[provider] = childrenByParent;
         }
         catch (Exception ex)
         {
@@ -259,6 +295,7 @@
         finally
         {
             isLoadingExternal = false;
+            loadedNodeCount = 0;
         }
     }
 
@@ -366,16 +403,17 @@
             return;
         }
 
-        // Expand: load children if not cached
-        if (!externalChildrenCache.TryGetValue(selectedProvider, out var byProvider) || !byProvider.ContainsKey(node.Id))
+        // Expand: load children if not cached (only needed before streaming completes)
+        if (!externalChildrenCache.TryGetValue(selectedProvider, out var byProvider))
         {
-            if (!externalChildrenCache.ContainsKey(selectedProvider))
-                externalChildrenCache[selectedProvider] = new();
+            // Full tree not yet streamed — lazy-load this node's children
+            externalChildrenCache[selectedProvider] = new();
+            byProvider = externalChildrenCache[selectedProvider];
 
             try
             {
                 var result = await TaxonomyApi.GetExternalNodesAsync(selectedProvider, parentId: node.Id);
-                externalChildrenCache[selectedProvider][node.Id] = result.Nodes;
+                byProvider[node.Id] = result.Nodes;
             }
             catch (Exception ex)
             {
