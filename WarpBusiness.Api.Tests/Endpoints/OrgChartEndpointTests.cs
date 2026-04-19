@@ -90,8 +90,8 @@ public class OrgChartEndpointTests
 
         var result = await CallGetOrgChart(CreateHttpContextWithTenant(tenantId), db);
 
-        result.Should().BeOfType<Ok<List<EmployeeResponse>>>();
-        var okResult = (Ok<List<EmployeeResponse>>)result;
+        result.Should().BeOfType<Ok<List<OrgChartNodeResponse>>>();
+        var okResult = (Ok<List<OrgChartNodeResponse>>)result;
         okResult.Value!.Should().HaveCount(3);
     }
 
@@ -126,10 +126,10 @@ public class OrgChartEndpointTests
 
         var result = await CallGetOrgChart(CreateHttpContextWithTenant(tenantA), db);
 
-        result.Should().BeOfType<Ok<List<EmployeeResponse>>>();
-        var okResult = (Ok<List<EmployeeResponse>>)result;
+        result.Should().BeOfType<Ok<List<OrgChartNodeResponse>>>();
+        var okResult = (Ok<List<OrgChartNodeResponse>>)result;
         okResult.Value!.Should().HaveCount(1);
-        okResult.Value.Single().Email.Should().Be("picard@tenantA.com");
+        okResult.Value.Single().FirstName.Should().Be("Jean-Luc");
     }
 
     [Fact]
@@ -153,9 +153,9 @@ public class OrgChartEndpointTests
 
         var result = await CallGetOrgChart(CreateHttpContextWithTenant(tenantId), db);
 
-        result.Should().BeOfType<Ok<List<EmployeeResponse>>>();
-        var okResult = (Ok<List<EmployeeResponse>>)result;
-        var report = okResult.Value!.Single(e => e.Email == "report@enterprise.com");
+        result.Should().BeOfType<Ok<List<OrgChartNodeResponse>>>();
+        var okResult = (Ok<List<OrgChartNodeResponse>>)result;
+        var report = okResult.Value!.Single(e => e.FirstName == "LaForge");
         report.ManagerId.Should().Be(managerId);
     }
 
@@ -176,8 +176,8 @@ public class OrgChartEndpointTests
 
         var result = await CallGetOrgChart(CreateHttpContextWithTenant(tenantId), db);
 
-        result.Should().BeOfType<Ok<List<EmployeeResponse>>>();
-        var okResult = (Ok<List<EmployeeResponse>>)result;
+        result.Should().BeOfType<Ok<List<OrgChartNodeResponse>>>();
+        var okResult = (Ok<List<OrgChartNodeResponse>>)result;
         okResult.Value!.Should().HaveCount(2);
         okResult.Value!.Should().AllSatisfy(e => e.ManagerId.Should().BeNull("root employees have no manager"));
     }

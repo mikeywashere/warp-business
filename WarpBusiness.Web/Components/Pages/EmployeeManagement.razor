@@ -122,7 +122,14 @@
                                         <option value="">-- No Manager --</option>
                                         @foreach (var emp in ManagerCandidates)
                                         {
-                                            <option value="@emp.Id">@emp.FirstName @emp.LastName (@(emp.JobTitle ?? emp.EmployeeNumber))</option>
+                                            @if (emp.EmploymentStatus != "Active")
+                                            {
+                                                <option value="@emp.Id" disabled>@emp.FirstName @emp.LastName (@(emp.JobTitle ?? emp.EmployeeNumber)) [Inactive]</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@emp.Id">@emp.FirstName @emp.LastName (@(emp.JobTitle ?? emp.EmployeeNumber))</option>
+                                            }
                                         }
                                     </InputSelect>
                                 </div>
@@ -544,8 +551,12 @@
         ).ToList() ?? [];
 
     private IEnumerable<EmployeeResponse> ManagerCandidates =>
-        (employees ?? []).Where(e => e.Id != editingEmployeeId && e.EmploymentStatus == "Active")
-                         .OrderBy(e => e.LastName).ThenBy(e => e.FirstName);
+        (employees ?? [])
+            .Where(e => e.Id != editingEmployeeId &&
+                        (e.EmploymentStatus == "Active" || e.Id == formModel.ManagerId))
+            .OrderBy(e => e.EmploymentStatus != "Active") // inactive last
+            .ThenBy(e => e.LastName)
+            .ThenBy(e => e.FirstName);
 
     // User linking state
     private List<UserResponse> unlinkedUsers = [];
