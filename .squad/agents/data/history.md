@@ -645,3 +645,15 @@ builder.AddContainer("nginx", "nginx", "alpine")
   - WarpBusiness.Web/Services/SchedulingApiClient.cs (CalendarShiftResponse + GetCalendarAsync)
   - WarpBusiness.EmployeePortal/Services/EmployeePortalApiClient.cs (GetScheduleAsync updated)
 - **Build status:** ✅ 0 errors, 2 pre-existing warnings.
+
+
+### Org-Chart Endpoint + Circular Manager Chain Detection (2026-04-19)
+- **Task:** Added GET /api/employees/org-chart endpoint and circular manager chain detection to CreateEmployee and UpdateEmployee.
+- **New endpoint:** GET /api/employees/org-chart — requires any authenticated user (not SystemAdministrator), returns flat list of OrgChartNodeResponse (Id, EmployeeNumber, FirstName, LastName, JobTitle, Department, ManagerId, EmploymentStatus), ordered by LastName then FirstName.
+- **Cycle detection:** BuildManagerChainAsync loads all tenant Id→ManagerId pairs in a single query. HasCycle walks the chain in memory, returning true if the target employee is reached (UpdateEmployee) or if any loop is found (CreateEmployee). This is O(N) in data size, O(depth) in walk time — no N+1 queries.
+- **Design choice:** For CreateEmployee, no true cycle is possible (the new employee doesn't exist yet), but HasCycle still guards against corrupt existing chains by detecting any loop in the proposed manager's ancestry.
+- **New DTO:** OrgChartNodeResponse record added to EmployeeDtos.cs.
+- **Key files:**
+  - WarpBusiness.Employees/Models/EmployeeDtos.cs (OrgChartNodeResponse added)
+  - WarpBusiness.Employees/Endpoints/EmployeeEndpoints.cs (org-chart route + handler + cycle detection helpers)
+- **Build status:** ✅ 0 errors, preview SDK warning only (pre-existing).

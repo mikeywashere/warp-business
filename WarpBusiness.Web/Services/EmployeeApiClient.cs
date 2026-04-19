@@ -83,6 +83,28 @@ public record UpdateEmployeeWithUserRequest(
     string EmploymentStatus, string EmploymentType,
     string? Role);
 
+public record OrgChartNodeResponse(
+    Guid Id,
+    string EmployeeNumber,
+    string FirstName,
+    string LastName,
+    string? JobTitle,
+    string? Department,
+    Guid? ManagerId,
+    string EmploymentStatus);
+
+public class OrgNode
+{
+    public Guid Id { get; set; }
+    public string EmployeeNumber { get; set; } = "";
+    public string FirstName { get; set; } = "";
+    public string LastName { get; set; } = "";
+    public string? JobTitle { get; set; }
+    public string? Department { get; set; }
+    public string EmploymentStatus { get; set; } = "Active";
+    public List<OrgNode> Children { get; set; } = [];
+}
+
 public class EmployeeApiClient
 {
     private readonly HttpClient _httpClient;
@@ -213,5 +235,13 @@ public class EmployeeApiClient
             return null;
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<EmployeeResponse>();
+    }
+
+    public async Task<List<OrgChartNodeResponse>> GetOrgChartAsync()
+    {
+        using var request = CreateRequest(HttpMethod.Get, "api/employees/org-chart");
+        var response = await _httpClient.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<OrgChartNodeResponse>>() ?? [];
     }
 }

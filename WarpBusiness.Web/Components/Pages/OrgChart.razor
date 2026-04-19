@@ -1,0 +1,266 @@
+@page "/employees/org-chart"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WarpBusiness.Web.Services
+@using System.Linq
+@inherits WarpBusiness.Web.Components.AuthenticatedComponentBase
+@inject EmployeeApiClient EmployeeApi
+@inject NavigationManager Navigation
+
+<PageTitle>Org Chart</PageTitle>
+
+<style>
+    /* ── Scroll container ── */
+    .org-chart-scroll {
+        overflow-x: auto;
+        overflow-y: visible;
+        padding: 1.5rem 2rem 2rem;
+        background: var(--clr-bg);
+        border: 1px solid var(--clr-border);
+        border-radius: 8px;
+    }
+
+    .org-tree {
+        display: inline-flex;
+        min-width: 100%;
+    }
+
+    .org-root-row {
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 2.5rem;
+    }
+
+    /* ── Node wrapper ── */
+    .org-node-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+    }
+
+    /* ── Card ── */
+    .org-card {
+        padding: 12px 16px;
+        background: var(--clr-bg-card);
+        border: 1px solid var(--clr-border);
+        border-radius: 8px;
+        min-width: 164px;
+        max-width: 210px;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        position: relative;
+        z-index: 1;
+        user-select: none;
+    }
+
+    .org-card:hover {
+        border-color: var(--clr-accent);
+        box-shadow: 0 0 16px rgba(0, 200, 255, 0.22);
+    }
+
+    .org-name {
+        font-weight: 700;
+        color: var(--clr-text);
+        font-size: 0.88rem;
+        line-height: 1.3;
+    }
+
+    .org-job-title {
+        font-size: 0.76rem;
+        color: var(--clr-text-muted);
+        margin-top: 3px;
+    }
+
+    .org-department {
+        font-size: 0.73rem;
+        color: var(--clr-accent);
+        opacity: 0.85;
+        margin-top: 1px;
+    }
+
+    .org-emp-number {
+        font-size: 0.68rem;
+        color: var(--clr-text-muted);
+        font-family: monospace;
+        margin-top: 5px;
+        opacity: 0.75;
+    }
+
+    /* ── Vertical connector (parent → children row) ── */
+    .org-connector-down {
+        width: 2px;
+        height: 24px;
+        background: rgba(0, 200, 255, 0.45);
+        flex-shrink: 0;
+    }
+
+    /* ── Children level ── */
+    .org-level {
+        display: flex;
+        flex-direction: row;
+        gap: 1.5rem;
+        align-items: flex-start;
+        position: relative;
+    }
+
+    /* Multi-child: horizontal bar + vertical stubs per child */
+    .org-level.multi-child {
+        padding-top: 24px;
+    }
+
+    .org-level.multi-child::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: rgba(0, 200, 255, 0.45);
+    }
+
+    .org-level.multi-child > .org-node-wrapper::before {
+        content: '';
+        position: absolute;
+        top: -24px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 2px;
+        height: 24px;
+        background: rgba(0, 200, 255, 0.45);
+    }
+
+    /* Single child: no extra padding or stubs needed — connector-down handles it */
+    .org-level.single-child {
+        padding-top: 0;
+    }
+
+    /* ── Status dot ── */
+    .org-status-dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .status-active    { background: #22c55e; box-shadow: 0 0 5px rgba(34, 197, 94, 0.7); }
+    .status-onleave   { background: #eab308; box-shadow: 0 0 5px rgba(234, 179, 8, 0.7); }
+    .status-terminated{ background: #ef4444; box-shadow: 0 0 5px rgba(239, 68, 68, 0.7); }
+    .status-suspended { background: #f97316; box-shadow: 0 0 5px rgba(249, 115, 22, 0.7); }
+    .status-unknown   { background: #6b7280; }
+
+    /* ── Legend ── */
+    .org-legend {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1.2rem;
+        font-size: 0.82rem;
+        color: var(--clr-text-muted);
+    }
+
+    .org-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+</style>
+
+<div class="d-flex align-items-center gap-3 mb-4">
+    <a href="/employees" class="btn btn-sm btn-outline-secondary">← Employees</a>
+    <h1 class="mb-0" style="font-family: var(--font-heading); font-size: 1.6rem; letter-spacing: 0.04em;">Org Chart</h1>
+</div>
+
+<div class="org-legend mb-4">
+    <div class="org-legend-item"><span class="org-status-dot status-active"></span> Active</div>
+    <div class="org-legend-item"><span class="org-status-dot status-onleave"></span> On Leave</div>
+    <div class="org-legend-item"><span class="org-status-dot status-terminated"></span> Terminated</div>
+    <div class="org-legend-item"><span class="org-status-dot status-suspended"></span> Suspended</div>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex justify-content-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading org chart…</span>
+        </div>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @errorMessage
+        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+    </div>
+}
+else if (roots.Count == 0)
+{
+    <div class="text-muted py-4">No employees found.</div>
+}
+else
+{
+    <div class="org-chart-scroll">
+        <div class="org-tree">
+            <div class="org-root-row">
+                @foreach (var root in roots.OrderBy(r => r.LastName).ThenBy(r => r.FirstName))
+                {
+                    <OrgChartNode Node="root" />
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+    private string? errorMessage;
+    private List<OrgNode> roots = [];
+
+    protected override async Task OnAuthenticatedInitializedAsync()
+    {
+        try
+        {
+            var flat = await EmployeeApi.GetOrgChartAsync();
+            roots = BuildTree(flat);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load org chart: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static List<OrgNode> BuildTree(List<OrgChartNodeResponse> flat)
+    {
+        var lookup = flat.ToDictionary(
+            e => e.Id,
+            e => new OrgNode
+            {
+                Id = e.Id,
+                EmployeeNumber = e.EmployeeNumber,
+                FirstName = e.FirstName,
+                LastName = e.LastName,
+                JobTitle = e.JobTitle,
+                Department = e.Department,
+                EmploymentStatus = e.EmploymentStatus
+            });
+
+        var roots = new List<OrgNode>();
+
+        foreach (var emp in flat)
+        {
+            var node = lookup[emp.Id];
+            if (emp.ManagerId.HasValue && lookup.TryGetValue(emp.ManagerId.Value, out var parent))
+                parent.Children.Add(node);
+            else
+                roots.Add(node); // no manager or orphaned → treat as root
+        }
+
+        return roots;
+    }
+}

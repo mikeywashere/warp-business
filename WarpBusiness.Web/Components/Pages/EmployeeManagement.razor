@@ -117,6 +117,23 @@
                                     <InputText @bind-Value="formModel.JobTitle" class="form-control" />
                                 </div>
                                 <div class="col-md-6">
+                                    <label class="form-label">Manager</label>
+                                    <InputSelect @bind-Value="formModel.ManagerId" class="form-select">
+                                        <option value="">-- No Manager --</option>
+                                        @foreach (var emp in ManagerCandidates)
+                                        {
+                                            @if (emp.EmploymentStatus != "Active")
+                                            {
+                                                <option value="@emp.Id" disabled>@emp.FirstName @emp.LastName (@(emp.JobTitle ?? emp.EmployeeNumber)) [Inactive]</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@emp.Id">@emp.FirstName @emp.LastName (@(emp.JobTitle ?? emp.EmployeeNumber))</option>
+                                            }
+                                        }
+                                    </InputSelect>
+                                </div>
+                                <div class="col-md-6">
                                     <label class="form-label">Employment Status <span class="text-danger">*</span></label>
                                     <InputSelect @bind-Value="formModel.EmploymentStatus" class="form-select">
                                         <option value="">-- Select Status --</option>
@@ -533,6 +550,14 @@
             (e.JobTitle ?? "").Contains(employeeSearchTerm, StringComparison.OrdinalIgnoreCase)
         ).ToList() ?? [];
 
+    private IEnumerable<EmployeeResponse> ManagerCandidates =>
+        (employees ?? [])
+            .Where(e => e.Id != editingEmployeeId &&
+                        (e.EmploymentStatus == "Active" || e.Id == formModel.ManagerId))
+            .OrderBy(e => e.EmploymentStatus != "Active") // inactive last
+            .ThenBy(e => e.LastName)
+            .ThenBy(e => e.FirstName);
+
     // User linking state
     private List<UserResponse> unlinkedUsers = [];
     private List<UserResponse> filteredUnlinkedUsers = [];
@@ -620,6 +645,7 @@
             TerminationDate = emp.TerminationDate,
             Department = emp.Department ?? "",
             JobTitle = emp.JobTitle ?? "",
+            ManagerId = emp.ManagerId,
             EmploymentStatus = emp.EmploymentStatus,
             EmploymentType = emp.EmploymentType,
             UserRole = "User",
@@ -665,7 +691,7 @@
                         formModel.TerminationDate,
                         string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
                         string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
-                        null,
+                        formModel.ManagerId,
                         formModel.EmploymentStatus,
                         formModel.EmploymentType,
                         formModel.UserRole));
@@ -684,7 +710,7 @@
                         formModel.TerminationDate,
                         string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
                         string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
-                        null,
+                        formModel.ManagerId,
                         formModel.EmploymentStatus,
                         formModel.EmploymentType,
                         null,
@@ -710,7 +736,7 @@
                         formModel.HireDate,
                         string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
                         string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
-                        null,
+                        formModel.ManagerId,
                         formModel.EmploymentStatus,
                         formModel.EmploymentType,
                         formModel.UserRole,
@@ -730,7 +756,7 @@
                         formModel.HireDate,
                         string.IsNullOrWhiteSpace(formModel.Department) ? null : formModel.Department,
                         string.IsNullOrWhiteSpace(formModel.JobTitle) ? null : formModel.JobTitle,
-                        null,
+                        formModel.ManagerId,
                         formModel.EmploymentStatus,
                         formModel.EmploymentType,
                         formModel.LinkedUserId,
@@ -995,6 +1021,8 @@
         public string Department { get; set; } = "";
 
         public string JobTitle { get; set; } = "";
+
+        public Guid? ManagerId { get; set; }
 
         [System.ComponentModel.DataAnnotations.Required]
         public string EmploymentStatus { get; set; } = "Active";

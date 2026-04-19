@@ -120,3 +120,14 @@
 - **Pattern consistency**: Mirror existing endpoint test patterns from `EmployeeEndpointTests.cs` (use reflection for private endpoint methods, `CreateHttpContextWithTenant` for multi-tenancy, PostgreSqlFixture for both contexts)
 - **Status:** ✅ Endpoint implementation complete. Test structure design ready; awaiting Worf's test execution.
 
+### 2026-04-28: OrgChart Endpoint and Circular-Chain Tests Written
+
+- Created `WarpBusiness.Api.Tests/Endpoints/OrgChartEndpointTests.cs` with 8 tests covering GET org-chart and circular-chain validation
+- **Org-chart tests (4)**: ReturnsAllTenantEmployees, DoesNotReturnOtherTenantEmployees, ReturnsManagerIdWhenSet, Returns_ManagerId_Null_ForRoots
+- **Circular-chain tests (2)**: RejectsCircularManagerChain (A→B→C→A), RejectsDirectCircle (A→B→A); both assert 400 + "circular" in error message
+- **Manager validation tests (2)**: CreateEmployee_WithValidManager_Succeeds, UpdateEmployee_CanClearManager
+- **GetOrgChart reflection guard**: Uses `Assert.Fail()` early if `GetOrgChart` method not yet present on `EmployeeEndpoints` — gives Data a clear message without NullReferenceException
+- **Return type assumption**: `Ok<List<EmployeeResponse>>` — existing DTO already carries `ManagerId`; if Data uses a different DTO, only the 4 org-chart tests need updating
+- **Build**: ✅ 0 errors, 0 warnings (2 pre-existing PostgreSqlBuilder obsolete warnings unrelated to this work)
+- **Test execution**: Not run — DB not available. Tests compile and are ready for Data's implementations.
+

@@ -20,6 +20,9 @@ public static class EmployeeEndpoints
         employees.MapGet("/", GetAllEmployees)
             .WithName("GetAllEmployees");
 
+        employees.MapGet("/org-chart", GetOrgChart)
+            .WithName("GetOrgChart");
+
         employees.MapGet("/{id:guid}", GetEmployeeById)
             .WithName("GetEmployeeById");
 
@@ -70,6 +73,32 @@ public static class EmployeeEndpoints
         return employee is null ? Results.NotFound() : Results.Ok(ToResponse(employee));
     }
 
+    private static async Task<IResult> GetOrgChart(
+        HttpContext httpContext,
+        EmployeeDbContext db,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = httpContext.Items["TenantId"] as Guid?;
+        if (tenantId is null)
+            return Results.BadRequest(new { message = "X-Tenant-Id header is required." });
+
+        var nodes = await db.Employees
+            .Where(e => e.TenantId == tenantId.Value)
+            .OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+            .Select(e => new OrgChartNodeResponse(
+                e.Id,
+                e.EmployeeNumber,
+                e.FirstName,
+                e.LastName,
+                e.JobTitle,
+                e.Department,
+                e.ManagerId,
+                e.EmploymentStatus))
+            .ToListAsync(cancellationToken);
+
+        return Results.Ok(nodes);
+    }
+
     private static async Task<IResult> CreateEmployee(
         [FromBody] CreateEmployeeRequest request,
         HttpContext httpContext,
@@ -93,6 +122,14 @@ public static class EmployeeEndpoints
                 e => e.Id == request.ManagerId.Value && e.TenantId == tenantId.Value, cancellationToken);
             if (!managerExists)
                 return Results.BadRequest(new { message = "The specified manager does not exist in this tenant." });
+
+            // Cycle detection: a new employee has no Id yet, but for safety load the chain
+            // and verify the proposed manager's chain doesn't somehow reference a non-existent node
+            // (For CreateEmployee, no cycle is possible since the employee doesn't exist yet —
+            //  but guard against edge cases by ensuring the manager's chain is acyclic.)
+            var managerChain = await BuildManagerChainAsync(db, tenantId.Value, cancellationToken);
+            if (HasCycle(managerChain, request.ManagerId.Value, null))
+                return Results.BadRequest(new { message = "Setting this manager would create a circular reporting chain." });
         }
 
         // Validate UserId if specified
@@ -178,6 +215,12 @@ public static class EmployeeEndpoints
                 e => e.Id == request.ManagerId.Value && e.TenantId == tenantId.Value, cancellationToken);
             if (!managerExists)
                 return Results.BadRequest(new { message = "The specified manager does not exist in this tenant." });
+
+            // Cycle detection: load all Id→ManagerId pairs for the tenant, then walk up from
+            // the proposed manager; if we reach `id`, it's a cycle.
+            var managerChain = await BuildManagerChainAsync(db, tenantId.Value, cancellationToken);
+            if (HasCycle(managerChain, request.ManagerId.Value, id))
+                return Results.BadRequest(new { message = "Setting this manager would create a circular reporting chain." });
         }
 
         employee.FirstName = request.FirstName;
@@ -231,6 +274,38 @@ public static class EmployeeEndpoints
         await db.SaveChangesAsync(cancellationToken);
 
         return Results.NoContent();
+    }
+
+    /// <summary>
+    /// Loads a flat Id→ManagerId dictionary for all employees in the tenant (single query).
+    /// </summary>
+    private static async Task<Dictionary<Guid, Guid?>> BuildManagerChainAsync(
+        EmployeeDbContext db, Guid tenantId, CancellationToken cancellationToken) =>
+        await db.Employees
+            .Where(e => e.TenantId == tenantId)
+            .Select(e => new { e.Id, e.ManagerId })
+            .ToDictionaryAsync(e => e.Id, e => e.ManagerId, cancellationToken);
+
+    /// <summary>
+    /// Walks up the manager chain from <paramref name="startId"/>.
+    /// Returns true if <paramref name="targetId"/> is encountered (cycle), or if the chain
+    /// loops indefinitely (corrupt data guard). Pass null for targetId to just check for
+    /// any cycle in the chain starting at startId.
+    /// </summary>
+    private static bool HasCycle(Dictionary<Guid, Guid?> chain, Guid startId, Guid? targetId)
+    {
+        var visited = new HashSet<Guid>();
+        var current = startId;
+        while (true)
+        {
+            if (!visited.Add(current))
+                return true; // internal cycle in existing data
+            if (targetId.HasValue && current == targetId.Value)
+                return true;
+            if (!chain.TryGetValue(current, out var managerId) || managerId is null)
+                return false;
+            current = managerId.Value;
+        }
     }
 
     private static async Task<string> GenerateEmployeeNumber(
