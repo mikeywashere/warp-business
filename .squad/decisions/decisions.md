@@ -265,3 +265,83 @@ The scheduling module had a schedule builder and schedule list pages but no cros
 - ✅ Build: 0 errors, 0 warnings
 - ⚠️ Admin calendar chips are truncated for dense days — "+N more" badge provides count but no drill-down yet
 - ⚠️ Portal calendar shows no position name/color (not in `PortalShiftResponse`) — status color used as substitute
+
+---
+
+### 9. Org-Chart Endpoint Authorization
+
+**Date:** 2026-04-19
+**Author:** Data (Backend Dev)
+**Status:** Active
+
+#### Context
+The org-chart endpoint (GET /api/employees/org-chart) needs to be visible to any authenticated user — managers, HR staff, and employees alike — not just SystemAdministrators. The endpoint returns only the fields needed for tree rendering (no sensitive pay data, no PII beyond name/title/department).
+
+#### Decision
+
+- GET /api/employees/org-chart is registered on the shared /api/employees group, which already calls `.RequireAuthorization()`.
+- No additional `RequireAuthorization("SystemAdministrator")` is added for this route.
+- This matches the principle: read-only structural data (who reports to whom) is accessible to all authenticated users within a tenant; sensitive fields (pay, DOB, etc.) remain on the full employee endpoints that require SystemAdministrator.
+
+#### Consequences
+- ✅ Any authenticated user can render the org chart.
+- ✅ No sensitive data (pay, DOB, phone, email) is exposed via this endpoint.
+- ⚠️ If org chart visibility ever needs to be role-restricted, add a specific policy to this route.
+
+---
+
+### 10. Org Chart Feature — Frontend Architecture
+
+**Date:** 2026-04-19
+**Author:** Geordi (Frontend Dev)
+**Status:** Active
+
+#### Context
+The Employee module needed a visual org chart to display the reporting hierarchy. The API (Data) added a dedicated `GET /api/employees/org-chart` endpoint returning a flat list of `OrgChartNodeResponse` records with `ManagerId` for hierarchy linkage. The frontend needed to render this as an interactive tree and also surface manager assignment in the employee form.
+
+#### Decisions
+
+**Tree Rendering: Separate Recursive Component**
+Used a separate `OrgChartNode.razor` component (not a local `RenderFragment` self-referencing lambda) for recursive node rendering. The self-referencing lambda pattern is fragile in .NET 10 Blazor Server; a named component integrates cleanly with Blazor's component model and is easier to extend.
+
+**CSS-Only Connector Lines**
+Org chart connectors drawn with CSS pseudo-elements (`::before`). No SVG or JavaScript. Limitation: horizontal bar spans full flex-container width rather than precisely connecting child centers (acceptable; precise geometry requires JS).
+
+**Orphaned Nodes as Roots**
+Employees whose `ManagerId` does not exist in the returned list are treated as additional root nodes (handles partial/filtered data gracefully).
+
+**Manager Dropdown: `Guid?` with `InputSelect`**
+Uses `InputSelect<Guid?>` with an empty `value=""` option for "No Manager". Blazor 8+/.NET 10's `BindConverter.TryConvertTo<Guid?>("")` correctly returns `null`.
+
+**`ManagerCandidates` Filter**
+Only Active employees (excluding the employee being edited) appear in the dropdown. Prevents self-assignment and selecting inactive employees as managers.
+
+#### Consequences
+- ✅ Clean recursive rendering with good Blazor tooling support.
+- ✅ No JavaScript required; pure CSS org tree.
+- ✅ Manager dropdown fully wired in all 4 create/update code paths.
+- ⚠️ Horizontal connector lines span full flex container width — not pixel-perfect. Precise positioning would need JS/SVG.
+- ⚠️ Org chart is read-only (click-to-edit redirects to form). Drag-and-drop hierarchy editing is a future enhancement.
+
+---
+
+### 11. OrgChart Endpoint Test Contract
+
+**Date:** 2026-04-28
+**Author:** Worf (Tester)
+**Status:** Active
+
+#### Context
+Tests for `GET /api/employees/org-chart` and circular-chain detection on `UpdateEmployee` written in `WarpBusiness.Api.Tests/Endpoints/OrgChartEndpointTests.cs`.
+
+#### Decisions / Assumptions Baked Into Tests
+
+- Handler method named **`GetOrgChart`** (private static) on `EmployeeEndpoints` — reflection-based test helper assumes this name.
+- Return type is `OrgChartNodeResponse` DTO (dedicated, not reusing `EmployeeResponse`).
+- Circular-chain error: `Results.BadRequest(new { message = "... circular ..." })` — "circular" present case-insensitively.
+- Detection covers full ancestor chain (A→B→C→A), not just depth-1.
+
+#### Consequences
+- ✅ 8 integration tests cover tenant scoping, ManagerId propagation, 2-node and 3-node circular cycles, manager lifecycle.
+- ✅ Tests compile and run against the shared PostgreSqlFixture pattern.
+- ⚠️ If Data renames `GetOrgChart` or changes the DTO name, update `CallGetOrgChart` and cast types in the test file.

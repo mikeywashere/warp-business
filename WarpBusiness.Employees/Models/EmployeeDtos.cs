@@ -60,3 +60,13 @@ public record EmployeeResponse(
     string Currency,
     DateTime CreatedAt,
     DateTime UpdatedAt);
+
+public record OrgChartNodeResponse(
+    Guid Id,
+    string EmployeeNumber,
+    string FirstName,
+    string LastName,
+    string? JobTitle,
+    string? Department,
+    Guid? ManagerId,
+    EmploymentStatus EmploymentStatus);

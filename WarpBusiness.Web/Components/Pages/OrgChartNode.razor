@@ -1,0 +1,44 @@
+@using WarpBusiness.Web.Services
+@inject NavigationManager Navigation
+
+<div class="org-node-wrapper">
+    <div class="org-card" @onclick="@(() => Navigation.NavigateTo($"/employees?edit={Node.Id}"))">
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="org-status-dot @GetStatusClass(Node.EmploymentStatus)"></span>
+            <div class="org-name">@Node.FirstName @Node.LastName</div>
+        </div>
+        @if (!string.IsNullOrEmpty(Node.JobTitle))
+        {
+            <div class="org-job-title">@Node.JobTitle</div>
+        }
+        @if (!string.IsNullOrEmpty(Node.Department))
+        {
+            <div class="org-department">@Node.Department</div>
+        }
+        <div class="org-emp-number">@Node.EmployeeNumber</div>
+    </div>
+    @if (Node.Children.Count > 0)
+    {
+        <div class="org-connector-down"></div>
+        <div class="org-level @(Node.Children.Count > 1 ? "multi-child" : "single-child")">
+            @foreach (var child in Node.Children.OrderBy(c => c.LastName).ThenBy(c => c.FirstName))
+            {
+                <OrgChartNode Node="child" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public OrgNode Node { get; set; } = default!;
+
+    private static string GetStatusClass(string status) => status switch
+    {
+        "Active" => "status-active",
+        "OnLeave" => "status-onleave",
+        "Terminated" => "status-terminated",
+        "Suspended" => "status-suspended",
+        _ => "status-unknown"
+    };
+}

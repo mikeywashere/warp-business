@@ -333,3 +333,14 @@ Completed full frontend Warning→Notation rename:
 - **InvokeAsync(StateHasChanged):** Used in finally block and error handler because `OnAfterRenderAsync` may resume on a threadpool thread; `InvokeAsync` marshals back to the Blazor dispatcher
 - **File:** `WarpBusiness.Web/Components/Pages/Catalog/Products.razor`, `WarpBusiness.Web/Services/CatalogApiClient.cs`
 - **Build:** ✅ 0 errors
+
+### Org Chart Feature (2026-05)
+
+- **OrgChart.razor** (`/employees/org-chart`): New page inheriting `AuthenticatedComponentBase`. Loads from `EmployeeApi.GetOrgChartAsync()` (new endpoint) on `OnAuthenticatedInitializedAsync`. Builds a tree via `BuildTree()` which creates a `Dictionary<Guid, OrgNode>` lookup and then wires parent/child relationships; orphaned nodes (manager ID not found) are treated as roots.
+- **OrgChartNode.razor**: Separate recursive component (not a local RenderFragment) — cleaner than the self-referencing lambda pattern in .NET 10 Blazor. Each node renders its card and recursively renders children; accepts `[Parameter, EditorRequired] OrgNode Node`.
+- **OrgChartNodeResponse** record and **OrgNode** class added to `EmployeeApiClient.cs` alongside `GetOrgChartAsync()` method.
+- **CSS org tree pattern**: Root nodes in `org-root-row` (flex row, gap). Each `org-node-wrapper` is a flex column (card + optional connector-down div + children level div). Multi-child levels get `padding-top: 24px` and a `::before` pseudo-element for the horizontal bar; each child wrapper gets a `::before` vertical stub. Single-child skips the horizontal bar — `org-connector-down` provides the only line.
+- **Manager dropdown** added to EmployeeManagement form after JobTitle field. `ManagerCandidates` computed property filters to active employees excluding the employee being edited, ordered by LastName/FirstName. `ManagerId` (`Guid?`) added to `EmployeeFormModel`. All 4 `HandleFormSubmit` call paths updated to pass `formModel.ManagerId` instead of `null`.
+- **NavMenu**: "Org Chart" link added after Employees in the Modules dropdown (uses `bi bi-diagram-3` Bootstrap icon).
+- **`InputSelect<Guid?>` note:** Works in .NET 10 Blazor — empty option with `value=""` correctly maps to `null` without a string-based workaround.
+- **Build:** ✅ 0 errors
