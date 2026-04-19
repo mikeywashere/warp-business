@@ -148,14 +148,14 @@ public class OrgChartEndpointTests
         // Create report with ManagerId pointing to the manager
         await CallCreateEmployee(
             CreateHttpContextWithTenant(tenantId),
-            MakeCreateRequest(email: "report@enterprise.com", firstName: "LaForge", managerId: managerId),
+            MakeCreateRequest(email: "report@enterprise.com", firstName: "Geordi", lastName: "LaForge", managerId: managerId),
             db);
 
         var result = await CallGetOrgChart(CreateHttpContextWithTenant(tenantId), db);
 
         result.Should().BeOfType<Ok<List<OrgChartNodeResponse>>>();
         var okResult = (Ok<List<OrgChartNodeResponse>>)result;
-        var report = okResult.Value!.Single(e => e.FirstName == "LaForge");
+        var report = okResult.Value!.Single(e => e.FirstName == "Geordi");
         report.ManagerId.Should().Be(managerId);
     }
 
